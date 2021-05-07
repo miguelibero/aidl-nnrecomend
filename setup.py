@@ -22,12 +22,17 @@ setup(
     packages=find_packages(exclude=('tests', 'docs')),
     entry_points={
         'console_scripts': [
-            'nnrecommend=nnrecommend.cmd:main',
+            'nnrecommend=nnrecommend.cli:main',
         ],
     },
     install_requires=[
         'pandas~=1.2.4',
-        'torch~=1.8.1',
+        'numpy~=1.20.2',
+        'scipy~=1.6.3',
+        'torch~=1.8.0',
+        'torch-geometric~=1.7.0',
+        'torch-sparse~=0.6.9',
+        'torch-scatter~=2.0.6',
         'coloredlogs~=15.0',
         'click~=7.1.2',
         'fuzzywuzzy~=0.18.0',
