@@ -5,6 +5,7 @@ from torch_geometric.utils import from_scipy_sparse_matrix
 import scipy.sparse as sp
 import numpy as np
 from tqdm import tqdm
+import torch
 
 
 def getHitRatio(recommend_list, gt_item):
@@ -22,11 +23,9 @@ def getNDCG(recommend_list, gt_item):
         return 0
 
 
-def train():
+def train(model, full_dataset, optimizer, data_loader, criterion, device, topk=10, epochs=20, tb_fm=None):
     # DO EPOCHS NOW
-    tb = True
-    topk = 10
-    for epoch_i in range(20):
+    for epoch_i in range(epochs):
         #data_loader.dataset.negative_sampling()
         train_loss = train_one_epoch(model, optimizer, data_loader, criterion, device)
         hr, ndcg = test(model, full_dataset, device, topk=topk)
@@ -36,7 +35,7 @@ def train():
         print(f'epoch {epoch_i}:')
         print(f'training loss = {train_loss:.4f} | Eval: HR@{topk} = {hr:.4f}, NDCG@{topk} = {ndcg:.4f} ')
         print('\n')
-        if tb:
+        if tb_fm:
             tb_fm.add_scalar('train/loss', train_loss, epoch_i)
             tb_fm.add_scalar('eval/HR@{topk}', hr, epoch_i)
             tb_fm.add_scalar('eval/NDCG@{topk}', ndcg, epoch_i)

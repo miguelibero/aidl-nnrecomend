@@ -1,3 +1,4 @@
+import torch
 from torch_geometric.nn import GCNConv # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
 from torch_geometric.utils import from_scipy_sparse_matrix
 
