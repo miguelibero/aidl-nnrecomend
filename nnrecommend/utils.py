@@ -1,6 +1,5 @@
 from statistics import mean
 import math
-from scipy.sparse import identity
 from torch_geometric.utils import from_scipy_sparse_matrix
 import scipy.sparse as sp
 import numpy as np

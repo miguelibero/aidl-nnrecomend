@@ -1,5 +1,5 @@
 import torch
-from torch_geometric.nn import GCNConv # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
+from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix
 
 
@@ -82,6 +82,7 @@ class GraphModel(torch.nn.Module):
 
         self.A = train_mat
         self.features = features
+        # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
         if attention:
             self.GCN_module = GATConv(int(field_dims), embed_dim, heads=8, dropout=0.6)
         else:  
