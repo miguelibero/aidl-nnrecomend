@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from setuptools import setup, find_packages
+
+with open('USAGE.md', encoding='utf8') as f:
+    readme = f.read()
+
+with open('LICENSE', encoding='utf8') as f:
+    license = f.read()
+
+setup(
+    name='nnrecommend',
+    version='0.0.1',
+    description='recommender using deep neural networks',
+    long_description=readme,
+    author='Abel Martínez, Rafael Pérez, Miguel Ibero',
+    author_email='abelmart@gmail.com, rafaelapm93@gmail.com, miguel@ibero.me',
+    url='http://github.com/miguelibero/aidl-nnrecommend',
+    license=license,
+    python_requires='>=3.8.0',
+    packages=find_packages(exclude=('tests', 'docs')),
+    entry_points={
+        'console_scripts': [
+            'nnrecommend=nnrecommend.cmd:main',
+        ],
+    },
+    install_requires=[
+        'pandas~=1.2.4',
+        'torch~=1.8.1',
+        'coloredlogs~=15.0',
+        'click~=7.1.2',
+        'fuzzywuzzy~=0.18.0',
+        'plotly~=4.14.3',
+    ],
+    extras_require={
+        'test': [
+            'pytest~=6.2.3',
+        ]
+    }
+)
