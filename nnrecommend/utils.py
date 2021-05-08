@@ -1,11 +1,10 @@
 from statistics import mean
 import math
-import numpy as np
 import torch
 from typing import Callable, Sequence, Tuple
 
 
-def getHitRatio(recommend_list, gt_item):
+def get_hit_ratio(recommend_list: torch.Tensor, gt_item: torch.Tensor):
     """
     measures wheter the test item is in the topk positions of the recommendation list
     """
@@ -15,23 +14,23 @@ def getHitRatio(recommend_list, gt_item):
         return 0
 
 
-def getNDCG(recommend_list, gt_item):
+def get_ndcg(recommend_list: torch.Tensor, gt_item: torch.Tensor):
     """
     normalized discounted cumulative gain
     measures the ranking quality with gives information about where in the ranking is our test item
     """
-    idx = np.where(recommend_list == gt_item)[0]
+    idx = (recommend_list == gt_item).nonzero(as_tuple=True)[0]
     if len(idx) > 0:
-        return math.log(2)/math.log(idx+2)
+        return math.log(2)/math.log(idx[0]+2)
     else:
         return 0
 
 
-def train(model, full_dataset, optimizer, data_loader, criterion, device, topk=10, epochs=20, tb_fm=None):
+def train(model, dataloader, testloader, optimizer, criterion, device, topk=10, epochs=20, tb_fm=None):
     # DO EPOCHS NOW
     for epoch_i in range(epochs):
-        train_loss = train_one_epoch(model, optimizer, data_loader, criterion, device)
-        hr, ndcg = test(model, full_dataset, device, topk=topk)
+        train_loss = train_one_epoch(model, dataloader, optimizer, criterion, device)
+        hr, ndcg = test(model, testloader, device, topk)
 
         print('\n')
 
@@ -44,12 +43,12 @@ def train(model, full_dataset, optimizer, data_loader, criterion, device, topk=1
             tb_fm.add_scalar('eval/NDCG@{topk}', ndcg, epoch_i)
 
 
-def train_one_epoch(model: torch.nn.Module, optimizer: torch.optim.Optimizer, data_loader: torch.utils.data.DataLoader, 
-        criterion: torch.nn.Module, device: str):
+def train_one_epoch(model: torch.nn.Module, dataloader: torch.utils.data.DataLoader, 
+        optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str):
     model.train()
     total_loss = []
 
-    for i, (interactions) in enumerate(data_loader):
+    for interactions in dataloader:
         interactions = interactions.to(device)
         targets = interactions[:,2]
         predictions = model(interactions[:,:2])
@@ -63,30 +62,18 @@ def train_one_epoch(model: torch.nn.Module, optimizer: torch.optim.Optimizer, da
     return mean(total_loss)
 
 
-def test(model, full_dataset, device, topk=10):
+def test(model, testloader, device, topk=10):
     # Test the HR and NDCG for the model @topK
     model.eval()
+    hr, ndcg = [], []
 
-    HR, NDCG = [], []
-
-    for user_test in full_dataset.test_set:
+    for user_test in testloader:
+        user_test = user_test[:,:2].to(device)
         gt_item = user_test[0][1]
-
-        user_test_tensor = torch.from_numpy(user_test).to(dtype=torch.long, device=device)
-        predictions = model.forward(user_test_tensor)
+        predictions = model.forward(user_test)
         _, indices = torch.topk(predictions, topk)
-        recommend_list = user_test[indices.cpu().detach().numpy()][:, 1]
+        recommend_list = user_test[indices][:, 1]
 
-        HR.append(getHitRatio(recommend_list, gt_item))
-        NDCG.append(getNDCG(recommend_list, gt_item))
-    return mean(HR), mean(NDCG)
-
-
-def sparse_mx_to_torch_sparse_tensor(sparse_mx):
-    """ Convert a scipy sparse matrix to a torch sparse tensor."""
-    sparse_mx = sparse_mx.tocoo().astype(np.float32)
-    indices = torch.from_numpy(
-        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
-    values = torch.from_numpy(sparse_mx.data)
-    shape = torch.Size(sparse_mx.shape)
-    return torch.sparse.FloatTensor(indices, values, shape)
+        hr.append(get_hit_ratio(recommend_list, gt_item))
+        ndcg.append(get_ndcg(recommend_list, gt_item))
+    return mean(hr), mean(ndcg)
