@@ -7,6 +7,7 @@ from nnrecommend.movielens import MovieLens100kDataset
 from nnrecommend.fmachine import FactorizationMachineModel, FactorizationMachineModel_withGCN
 from nnrecommend.utils import test, train
 
+
 class Context:
     def __init__(self):
         if not torch.cuda.is_available():
@@ -46,17 +47,17 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     device = ctx.obj.device
     path = os.path.join(path, "movielens")
     full_dataset = MovieLens100kDataset(path, negatives_train, negatives_test)
-    assert 5*99057 == full_dataset.interactions.shape[0]
+    assert 5*99057 == full_dataset.shape[0]
     loader = DataLoader(full_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     
-    field_dims = full_dataset.field_dims[-1]
+    field_dim = full_dataset.train_mat.shape[0]
     model = None
 
     if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = FactorizationMachineModel_withGCN(field_dims, 64, full_dataset.train_mat, device, attention)
+        model = FactorizationMachineModel_withGCN(field_dim, 64, full_dataset.train_mat, device, attention)
     else:
-        model = FactorizationMachineModel(field_dims, 32)
+        model = FactorizationMachineModel(field_dim, 32)
     if not model:
         raise Exception("could not create model")
     model = model.to(device)

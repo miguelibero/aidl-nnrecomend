@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix
-from nnrecommend.utils import sparse_mx_to_torch_sparse_tensor, from_scipy_sparse_matrix
+from nnrecommend.utils import sparse_mx_to_torch_sparse_tensor
 from scipy.sparse import identity
 
 
@@ -10,7 +10,6 @@ class FeaturesLinear(torch.nn.Module):
 
     def __init__(self, field_dims: int, output_dim: int=1):
         super().__init__()
-
         self.fc = torch.nn.Embedding(field_dims, output_dim)
         self.bias = torch.nn.Parameter(torch.zeros((output_dim,)))
 
@@ -71,9 +70,9 @@ class BaseFactorizationMachineModel(torch.nn.Module):
         S Rendle, Factorization Machines, 2010.
     """
 
-    def __init__(self, field_dims: int):
+    def __init__(self, field_dim: int):
         super().__init__()
-        self.linear = FeaturesLinear(field_dims)
+        self.linear = FeaturesLinear(field_dim)
         self.fm = FM_operation(reduce_sum=True)
         self.embedding = None
 
@@ -88,16 +87,16 @@ class BaseFactorizationMachineModel(torch.nn.Module):
 
 class FactorizationMachineModel(BaseFactorizationMachineModel):
 
-    def __init__(self, field_dims: int, embed_dim: int):
-        super().__init__(field_dims)
-        self.embedding = torch.nn.Embedding(field_dims, embed_dim, sparse=False)
+    def __init__(self, field_dim: int, embed_dim: int):
+        super().__init__(field_dim)
+        self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
         torch.nn.init.xavier_uniform_(self.embedding.weight.data)
 
 
 class FactorizationMachineModel_withGCN(BaseFactorizationMachineModel):
 
-    def __init__(self, field_dims: int, embed_dim: int, train_mat, device: str, attention: bool =False):
-        super().__init__(field_dims)
+    def __init__(self, field_dim: int, embed_dim: int, train_mat, device: str, attention: bool =False):
+        super().__init__(field_dim)
         X = sparse_mx_to_torch_sparse_tensor(identity(train_mat.shape[0]))
         edge_idx, edge_attr = from_scipy_sparse_matrix(train_mat)
-        self.embedding = GraphModel(field_dims, embed_dim, X.to(device), edge_idx.to(device), attention=attention)
+        self.embedding = GraphModel(field_dim, embed_dim, X.to(device), edge_idx.to(device), attention=attention)

@@ -1,10 +1,8 @@
 from statistics import mean
 import math
-from torch_geometric.utils import from_scipy_sparse_matrix
-import scipy.sparse as sp
 import numpy as np
-from tqdm import tqdm
 import torch
+from typing import Callable, Sequence, Tuple
 
 
 def getHitRatio(recommend_list, gt_item):
@@ -46,7 +44,8 @@ def train(model, full_dataset, optimizer, data_loader, criterion, device, topk=1
             tb_fm.add_scalar('eval/NDCG@{topk}', ndcg, epoch_i)
 
 
-def train_one_epoch(model, optimizer, data_loader, criterion, device, log_interval=100):
+def train_one_epoch(model: torch.nn.Module, optimizer: torch.optim.Optimizer, data_loader: torch.utils.data.DataLoader, 
+        criterion: torch.nn.Module, device: str):
     model.train()
     total_loss = []
 
@@ -91,12 +90,3 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.FloatTensor(indices, values, shape)
-
-
-def build_adj_mx(dims, interactions):
-    train_mat = sp.dok_matrix((dims, dims), dtype=np.float32)
-    for x in tqdm(interactions, desc="BUILDING ADJACENCY MATRIX..."):
-        train_mat[x[0], x[1]] = 1.0
-        train_mat[x[1], x[0]] = 1.0
-
-    return train_mat
