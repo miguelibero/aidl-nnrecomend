@@ -1,18 +1,20 @@
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix
+from nnrecommend.utils import sparse_mx_to_torch_sparse_tensor, from_scipy_sparse_matrix
+from scipy.sparse import identity
 
 
 # Linear part of the equation
 class FeaturesLinear(torch.nn.Module):
 
-    def __init__(self, field_dims, output_dim=1):
+    def __init__(self, field_dims: int, output_dim: int=1):
         super().__init__()
 
         self.fc = torch.nn.Embedding(field_dims, output_dim)
         self.bias = torch.nn.Parameter(torch.zeros((output_dim,)))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
@@ -25,11 +27,11 @@ class FeaturesLinear(torch.nn.Module):
 # FM part of the equation
 class FM_operation(torch.nn.Module):
 
-    def __init__(self, reduce_sum=True):
+    def __init__(self, reduce_sum: bool=True):
         super().__init__()
         self.reduce_sum = reduce_sum
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         :param x: Float tensor of size ``(batch_size, num_fields, embed_dim)``
         """
@@ -41,42 +43,8 @@ class FM_operation(torch.nn.Module):
         return 0.5 * ix
 
 
-class FactorizationMachineModel(torch.nn.Module):
-    """
-    A pytorch implementation of Factorization Machine.
-
-    Reference:
-        S Rendle, Factorization Machines, 2010.
-    """
-
-    def __init__(self, field_dims, embed_dim):
-        super().__init__()
-        # field_dims == total of nodes (sum users + context)
-        #self.linear = torch.nn.Linear(field_dims, 1, bias=True)
-        self.linear = FeaturesLinear(field_dims)
-        self.embedding = torch.nn.Embedding(field_dims, embed_dim, sparse=False)
-        self.fm = FM_operation(reduce_sum=True)
-
-        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
-
-    def forward(self, interaction_pairs):
-        """
-        :param interaction_pairs: Long tensor of size ``(batch_size, num_fields)``
-        """
-        out = self.linear(interaction_pairs) + self.fm(self.embedding(interaction_pairs))
-        
-        return out.squeeze(1)
-        
-    def predict(self, interactions, device):
-        # return the score, inputs are numpy arrays, outputs are tensors
- 
-        test_interactions = torch.from_numpy(interactions).to(dtype=torch.long, device=device)
-        output_scores = self.forward(test_interactions)
-        return output_scores
-    
-
 class GraphModel(torch.nn.Module):
-    def __init__(self, field_dims, embed_dim, features, train_mat, attention=False):
+    def __init__(self, field_dims: int, embed_dim: int, features: torch.Tensor, train_mat: torch.Tensor, attention: bool=False):
 
         super().__init__()
 
@@ -84,7 +52,7 @@ class GraphModel(torch.nn.Module):
         self.features = features
         # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
         if attention:
-            self.GCN_module = GATConv(int(field_dims), embed_dim, heads=8, dropout=0.6)
+            self.GCN_module = GATConv(field_dims, embed_dim, heads=8, dropout=0.6)
         else:  
             self.GCN_module = GCNConv(field_dims, embed_dim)
 
@@ -95,7 +63,7 @@ class GraphModel(torch.nn.Module):
         return self.GCN_module(self.features, self.A)[x]
 
 
-class FactorizationMachineModel_withGCN(torch.nn.Module):
+class BaseFactorizationMachineModel(torch.nn.Module):
     """
     A pytorch implementation of Factorization Machine.
 
@@ -103,26 +71,33 @@ class FactorizationMachineModel_withGCN(torch.nn.Module):
         S Rendle, Factorization Machines, 2010.
     """
 
-    def __init__(self, field_dims, embed_dim, X, A, attention=False):
+    def __init__(self, field_dims: int):
         super().__init__()
-
         self.linear = FeaturesLinear(field_dims)
-        #self.embedding = torch.nn.Embedding(field_dims, embed_dim, sparse=False)
-        self.embedding = GraphModel(field_dims, embed_dim, X, A, attention=attention)
         self.fm = FM_operation(reduce_sum=True)
+        self.embedding = None
 
-        #torch.nn.init.xavier_uniform_(self.embedding.weight.data)
-
-    def forward(self, interaction_pairs):
+    def forward(self, interaction_pairs: torch.Tensor):
         """
         :param interaction_pairs: Long tensor of size ``(batch_size, num_fields)``
         """
         out = self.linear(interaction_pairs) + self.fm(self.embedding(interaction_pairs))
-        return out.squeeze(1)
         
-    def predict(self, interactions, device):
-        # return the score, inputs are numpy arrays, outputs are tensors
- 
-        test_interactions = torch.from_numpy(interactions).to(dtype=torch.long, device=device)
-        output_scores = self.forward(test_interactions)
-        return output_scores
+        return out.squeeze(1)    
+
+
+class FactorizationMachineModel(BaseFactorizationMachineModel):
+
+    def __init__(self, field_dims: int, embed_dim: int):
+        super().__init__(field_dims)
+        self.embedding = torch.nn.Embedding(field_dims, embed_dim, sparse=False)
+        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
+
+
+class FactorizationMachineModel_withGCN(BaseFactorizationMachineModel):
+
+    def __init__(self, field_dims: int, embed_dim: int, train_mat, device: str, attention: bool =False):
+        super().__init__(field_dims)
+        X = sparse_mx_to_torch_sparse_tensor(identity(train_mat.shape[0]))
+        edge_idx, edge_attr = from_scipy_sparse_matrix(train_mat)
+        self.embedding = GraphModel(field_dims, embed_dim, X.to(device), edge_idx.to(device), attention=attention)

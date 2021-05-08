@@ -2,12 +2,10 @@ import click
 import os
 import torch
 from torch.utils.data import DataLoader
-from scipy.sparse import identity
 from nnrecommend.logging import setup_log
 from nnrecommend.movielens import MovieLens100kDataset
 from nnrecommend.fmachine import FactorizationMachineModel, FactorizationMachineModel_withGCN
-from nnrecommend.utils import test, train, sparse_mx_to_torch_sparse_tensor, from_scipy_sparse_matrix
-
+from nnrecommend.utils import test, train
 
 class Context:
     def __init__(self):
@@ -53,13 +51,12 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     
     field_dims = full_dataset.field_dims[-1]
     model = None
-    if model_type == "linear":
-        model = FactorizationMachineModel(field_dims, 32)
-    elif model_type == "gcn" or model_type == "gcn-attention":
-        X = sparse_mx_to_torch_sparse_tensor(identity(full_dataset.train_mat.shape[0]))
-        edge_idx, edge_attr = from_scipy_sparse_matrix(full_dataset.train_mat)
+
+    if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = FactorizationMachineModel_withGCN(field_dims, 64, X.to(device), edge_idx.to(device), attention)
+        model = FactorizationMachineModel_withGCN(field_dims, 64, full_dataset.train_mat, device, attention)
+    else:
+        model = FactorizationMachineModel(field_dims, 32)
     if not model:
         raise Exception("could not create model")
     model = model.to(device)
