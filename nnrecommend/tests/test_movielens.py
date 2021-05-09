@@ -2,16 +2,17 @@
 import os
 import numpy as np
 from nnrecommend.dataset import Dataset
+import pandas as pd
 
 
 DATASET_PATH = os.path.join(os.path.dirname(__file__), "../../datasets/ml-dataset-splitted/movielens")
 
 
 def test_dataset():
-    dataset = Dataset.fromcsv(f"{DATASET_PATH}.train.rating", sep='\t', header=None)
+    dataset = Dataset(pd.read_csv(f"{DATASET_PATH}.train.rating", sep='\t', header=None))
     matrix = dataset.create_adjacency_matrix()
     dataset.add_negative_sampling(matrix, 4)
-    testset = Dataset.fromcsv(f"{DATASET_PATH}.test.rating", sep='\t', header=None)
+    testset = Dataset(pd.read_csv(f"{DATASET_PATH}.test.rating", sep='\t', header=None), dataset.iddiff)
     testset.add_negative_sampling(matrix, 99)
 
     assert len(dataset) == 5*99057

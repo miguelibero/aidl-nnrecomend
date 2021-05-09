@@ -1,12 +1,14 @@
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix
-from scipy.sparse import identity
+import scipy.sparse as sp
 import numpy as np
 
 
-# Linear part of the equation
 class LinearFeatures(torch.nn.Module):
+    """
+    Linear part of the equation
+    """
 
     def __init__(self, field_dims: int, output_dim: int=1):
         super().__init__()
@@ -23,8 +25,10 @@ class LinearFeatures(torch.nn.Module):
         #return self.fc(x).squeeze(1) + self.bias
 
 
-# FM part of the equation
 class FactorizationMachineOperation(torch.nn.Module):
+    """
+    FM part of the equation
+    """
 
     def __init__(self, reduce_sum: bool=True):
         super().__init__()
@@ -43,26 +47,24 @@ class FactorizationMachineOperation(torch.nn.Module):
 
 
 class GraphModel(torch.nn.Module):
-    def __init__(self, field_dims: int, embed_dim: int, features: torch.Tensor, train_mat: torch.Tensor, attention: bool=False):
-
+    def __init__(self, field_dims: int, embed_dim: int, features: torch.Tensor, matrix: torch.Tensor, attention: bool=False):
         super().__init__()
-
-        self.A = train_mat
+        self.matrix = matrix
         self.features = features
         # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
         if attention:
-            self.GCN_module = GATConv(field_dims, embed_dim, heads=8, dropout=0.6)
+            self.gcn = GATConv(field_dims, embed_dim, heads=8, dropout=0.6)
         else:  
-            self.GCN_module = GCNConv(field_dims, embed_dim)
+            self.gcn = GCNConv(field_dims, embed_dim)
 
     def forward(self, x):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
-        return self.GCN_module(self.features, self.A)[x]
+        return self.gcn(self.features, self.matrix)[x]
 
 
-class BaseFactorizationMachineModel(torch.nn.Module):
+class FactorizationMachineModel(torch.nn.Module):
     """
     A pytorch implementation of Factorization Machine.
 
@@ -70,39 +72,28 @@ class BaseFactorizationMachineModel(torch.nn.Module):
         S Rendle, Factorization Machines, 2010.
     """
 
-    def __init__(self, field_dim: int):
+    def __init__(self, field_dim: int, embed_dim: int, matrix: sp.dok_matrix = None, device: str=None, attention: bool = False):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
-        self.embedding = None
+
+        if isinstance(matrix, type(None)):
+            self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
+            torch.nn.init.xavier_uniform_(self.embedding.weight.data)
+        else:
+            X = sparse_mx_to_torch_sparse_tensor(sp.identity(matrix.shape[0]))
+            edge_idx, edge_attr = from_scipy_sparse_matrix(matrix)
+            self.embedding = GraphModel(field_dim, embed_dim, X.to(device), edge_idx.to(device), attention=attention)
 
     def forward(self, interaction_pairs: torch.Tensor):
         """
         :param interaction_pairs: Long tensor of size ``(batch_size, num_fields)``
         """
         out = self.linear(interaction_pairs) + self.fm(self.embedding(interaction_pairs))
-        
         return out.squeeze(1)    
 
 
-class FactorizationMachineModel(BaseFactorizationMachineModel):
-
-    def __init__(self, field_dim: int, embed_dim: int):
-        super().__init__(field_dim)
-        self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
-        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
-
-
-class FactorizationMachineModel_withGCN(BaseFactorizationMachineModel):
-
-    def __init__(self, field_dim: int, embed_dim: int, train_mat, device: str, attention: bool =False):
-        super().__init__(field_dim)
-        X = sparse_mx_to_torch_sparse_tensor(identity(train_mat.shape[0]))
-        edge_idx, edge_attr = from_scipy_sparse_matrix(train_mat)
-        self.embedding = GraphModel(field_dim, embed_dim, X.to(device), edge_idx.to(device), attention=attention)
-
-
-def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+def sparse_mx_to_torch_sparse_tensor(sparse_mx: sp.dok_matrix) -> torch.sparse.FloatTensor: 
     """ Convert a scipy sparse matrix to a torch sparse tensor."""
     sparse_mx = sparse_mx.tocoo().astype(np.float32)
     indices = torch.from_numpy(

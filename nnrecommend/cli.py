@@ -4,8 +4,8 @@ import torch
 from torch.utils.data import DataLoader
 from nnrecommend.logging import setup_log
 from nnrecommend.dataset import Dataset
-from nnrecommend.fmachine import FactorizationMachineModel, FactorizationMachineModel_withGCN
-from nnrecommend.utils import test, train
+from nnrecommend.fmachine import FactorizationMachineModel
+from nnrecommend.trainer import Trainer
 import pandas as pd
 
 
@@ -38,7 +38,7 @@ def main(ctx, verbose: bool, logoutput: str):
 @click.option('--topk', type=int, default=10)
 @click.option('--epochs', type=int, default=20)
 def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int):
-    """operate with the movielens dataset
+    """train a model with the movielens dataset
     
     the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
 
@@ -49,21 +49,24 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     path = os.path.join(path, "movielens")
 
     # load datasets
+    click.echo("loading datasets...")
     dataset = Dataset(pd.read_csv(f"{path}.train.rating", sep='\t', header=None))
-    matrix = dataset.create_adjacency_matrix()
-    dataset.add_negative_sampling(matrix, negatives_train)
     testset = Dataset(pd.read_csv(f"{path}.test.rating", sep='\t', header=None), dataset.iddiff)
+    click.echo("calculating adjacency matrix...")
+    matrix = dataset.create_adjacency_matrix()
+    click.echo("adding negative sampling...")
+    dataset.add_negative_sampling(matrix, negatives_train)
     testset.add_negative_sampling(matrix, negatives_test)
-
-    assert 5*99057 == len(dataset)
     dataloader = DataLoader(dataset, batch_size=batch_size)
     testloader = DataLoader(testset, batch_size=negatives_test+1)
     
+    # create model
+    click.echo("creating model...")
     field_dim = matrix.shape[0]
     model = None
     if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = FactorizationMachineModel_withGCN(field_dim, 64, matrix, device, attention)
+        model = FactorizationMachineModel(field_dim, 64, matrix, device, attention)
     else:
         model = FactorizationMachineModel(field_dim, 32)
     if not model:
@@ -72,10 +75,24 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
 
-    hr, ndcg = test(model, testloader, device, topk=topk)
-    click.echo(f"initial HR: {hr}")
-    click.echo(f"initial NDCG: {ndcg}")
-    train(model, dataloader, testloader, optimizer, criterion, device, topk, epochs)
+    # TODO: tensorboard support
+    tensorboard = None
+
+    # train
+    click.echo("training...")
+    trainer = Trainer(model, dataloader, testloader, optimizer, criterion, device)
+
+    result = trainer.test(topk)
+    click.echo(f'initial hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
+
+    for i in range(epochs):
+        loss = trainer()
+        result = trainer.test(topk)
+        click.echo(f'{i}/{epochs} loss = {loss:.4f} hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
+        if tensorboard:
+            tensorboard.add_scalar('train/loss', loss, i)
+            tensorboard.add_scalar('eval/HR@{topk}', result.hr, i)
+            tensorboard.add_scalar('eval/NDCG@{topk}', result.ndcg, i)
 
 
 if __name__ == "__main__":
