@@ -81,9 +81,9 @@ class FactorizationMachineModel(torch.nn.Module):
             self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
             torch.nn.init.xavier_uniform_(self.embedding.weight.data)
         else:
-            X = sparse_mx_to_torch_sparse_tensor(sp.identity(matrix.shape[0]))
+            features = sparse_mx_to_torch_sparse_tensor(sp.identity(matrix.shape[0]))
             edge_idx, edge_attr = from_scipy_sparse_matrix(matrix)
-            self.embedding = GraphModel(field_dim, embed_dim, X.to(device), edge_idx.to(device), attention=attention)
+            self.embedding = GraphModel(field_dim, embed_dim, features.to(device), edge_idx.to(device), attention)
 
     def forward(self, interaction_pairs: torch.Tensor):
         """
@@ -96,8 +96,7 @@ class FactorizationMachineModel(torch.nn.Module):
 def sparse_mx_to_torch_sparse_tensor(sparse_mx: sp.dok_matrix) -> torch.sparse.FloatTensor: 
     """ Convert a scipy sparse matrix to a torch sparse tensor."""
     sparse_mx = sparse_mx.tocoo().astype(np.float32)
-    indices = torch.from_numpy(
-        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    indices = torch.from_numpy(np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.FloatTensor(indices, values, shape)

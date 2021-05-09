@@ -88,7 +88,7 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     for i in range(epochs):
         loss = trainer()
         result = trainer.test(topk)
-        click.echo(f'{i}/{epochs} loss = {loss:.4f} hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
+        click.echo(f'{i}/{epochs} loss = {loss:.4f} hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f}')
         if tensorboard:
             tensorboard.add_scalar('train/loss', loss, i)
             tensorboard.add_scalar('eval/HR@{topk}', result.hr, i)

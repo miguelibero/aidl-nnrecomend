@@ -24,13 +24,13 @@ class Trainer:
         self.criterion = criterion
         self.device = device
 
-    def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor):
+    def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
         """
         measures wether the test item is in the topk positions of the ranking
         """
         return 1 if item in ranking else 0
 
-    def __get_ndcg(self, ranking: torch.Tensor, item: torch.Tensor):
+    def __get_ndcg(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
         """
         normalized discounted cumulative gain
         measures the ranking quality with gives information about where in the ranking our test item is
@@ -43,7 +43,6 @@ class Trainer:
         run a training epoch
         :return: the mean loss
         """
-
         total_loss = []
         self.model.train()
 
