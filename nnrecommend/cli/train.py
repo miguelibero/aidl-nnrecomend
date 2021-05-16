@@ -1,8 +1,9 @@
 import click
+import torch
 from torch.utils.data import DataLoader
+from nnrecommend.cli.main import main
 from nnrecommend.fmachine import FactorizationMachineModel
 from nnrecommend.trainer import Trainer
-from nnrecommend.cli import main
 
 
 @main.command()
@@ -64,6 +65,3 @@ def train(ctx, path: str, dataset_type: str, model_type: str, negatives_train: i
             tensorboard.add_scalar('train/loss', loss, i)
             tensorboard.add_scalar('eval/HR@{topk}', result.hr, i)
             tensorboard.add_scalar('eval/NDCG@{topk}', result.ndcg, i)
-
-
-main.add_command(train)

@@ -21,11 +21,10 @@ To see the different available actions and parameters run
 nnrecommend --help
 ```
 
-
 ### Movielens
 
 Download from [here](https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ) and uncompress
 
 ```bash
-nnrecommend movielens ./path/to/ml-dataset-splitted
+nnrecommend train --dataset movielens ./path/to/ml-dataset-splitted
 ```

@@ -2,7 +2,7 @@ import click
 import os
 import torch
 from nnrecommend.logging import setup_log
-from nnrecommend.movielens import MovielensDataset
+from nnrecommend.dataset.movielens import MovielensDataset
 
 
 class Context:

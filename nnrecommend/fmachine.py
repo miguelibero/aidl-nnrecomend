@@ -19,10 +19,7 @@ class LinearFeatures(torch.nn.Module):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
-        # self.fc(x).shape --> [batch_size, num_fields, 1]
-        # torch.sum(self.fc(x), dim=1).shape --> ([batch_size, 1])
         return torch.sum(self.fc(x), dim=1) + self.bias
-        #return self.fc(x).squeeze(1) + self.bias
 
 
 class FactorizationMachineOperation(torch.nn.Module):

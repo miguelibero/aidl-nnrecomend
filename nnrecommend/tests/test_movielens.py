@@ -1,6 +1,6 @@
 
 import os
-from nnrecommend.movielens import MovielensDataset
+from nnrecommend.dataset.movielens import MovielensDataset
 
 DATASET_PATH = os.path.join(os.path.dirname(__file__), "../../datasets/ml-dataset-splitted/movielens")
 
