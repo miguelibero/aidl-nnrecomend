@@ -1,14 +1,13 @@
 
 import os
-from nnrecommend.movielens import MovielensData
+from nnrecommend.movielens import MovielensDataset
 
 DATASET_PATH = os.path.join(os.path.dirname(__file__), "../../datasets/ml-dataset-splitted/movielens")
 
 
 def test_dataset():
-    data = MovielensData()
-    data.load(DATASET_PATH)
-    data.setup(256, 4, 99)
+    data = MovielensDataset(DATASET_PATH)
+    data.setup(4, 99)
 
     assert len(data.trainset) == 5*99057
     assert (data.trainset.idrange == (943, 2625)).all()

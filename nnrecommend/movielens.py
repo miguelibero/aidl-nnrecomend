@@ -4,27 +4,35 @@ from torch.utils.data import DataLoader
 import pandas as pd
 
 
-class MovielensData:
-
-    def __init__(self, logger: Callable[[str], None]=None):
+class MovielensDataset:
+    """
+    the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
+    """
+    def __init__(self, path: str, logger: Callable[[str], None]=None):
+        self.__path = path
         self.__logger = logger
+        self.trainset = None
+        self.testset = None
+        self.matrix = None
+        self.trainloader = None
+        self.testloader = None
 
     def _log(self, msg):
         if self.__logger is not None:
             self.__logger(msg)
 
-    def load(self, path: str) -> None:
+    def __load(self) -> None:
         self._log("loading datasets...")
-        self.trainset = Dataset(pd.read_csv(f"{path}.train.rating", sep='\t', header=None))
+        self.trainset = Dataset(pd.read_csv(f"{self.__path}.train.rating", sep='\t', header=None))
         iddiff = self.trainset.normalize_ids()
-        self.testset = Dataset(pd.read_csv(f"{path}.test.rating", sep='\t', header=None))
+        self.testset = Dataset(pd.read_csv(f"{self.__path}.test.rating", sep='\t', header=None))
         self.testset.normalize_ids(iddiff)
         self._log("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
     
-    def setup(self, batch_size: int, negatives_train: int, negatives_test: int) -> None:
+    def setup(self, negatives_train: int, negatives_test: int) -> None:
+        if self.trainset is None:
+            self.__load()
         self._log("adding negative sampling...")
         self.trainset.add_negative_sampling(self.matrix, negatives_train)
         self.testset.add_negative_sampling(self.matrix, negatives_test)
-        self.trainloader = DataLoader(self.trainset, batch_size=batch_size)
-        self.testloader = DataLoader(self.testset, batch_size=negatives_test+1)

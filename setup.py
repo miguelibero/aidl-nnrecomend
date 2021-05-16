@@ -37,6 +37,7 @@ setup(
         'click~=7.1.2',
         'fuzzywuzzy~=0.18.0',
         'plotly~=4.14.3',
+        'scikit-learn~=0.24.2'
     ],
     extras_require={
         'test': [

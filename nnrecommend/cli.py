@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from nnrecommend.logging import setup_log
 from nnrecommend.fmachine import FactorizationMachineModel
 from nnrecommend.trainer import Trainer
-from nnrecommend.movielens import MovielensData
+from nnrecommend.movielens import MovielensDataset
 import pandas as pd
 
 
@@ -27,7 +27,6 @@ def main(ctx, verbose: bool, logoutput: str):
     setup_log(verbose, logoutput)
 
 
-
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=False, dir_okay=True))
@@ -41,26 +40,25 @@ def main(ctx, verbose: bool, logoutput: str):
 @click.option('--topk', type=int, default=10)
 @click.option('--epochs', type=int, default=20)
 def train(ctx, path: str, dataset_type: str, model_type: str, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int):
-    """train a model with the movielens dataset
-    
-    the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
-
-    PATH path to the uncompressed dataset directory
     """
-    
+    train a model 
+    """
     device = ctx.obj.device
-    path = os.path.join(path, "movielens")
+    dataset = None
 
     if dataset_type == "podcasts":
         pass
     else:
-        dataset = MovielensData(click.echo)
+        click.echo("using movielens dataset")
+        path = os.path.join(path, "movielens")
+        dataset = MovielensDataset(path, click.echo)
 
     # load data
     if not dataset:
         raise Exception("could not create dataset")
-    dataset.load(path)
-    dataset.setup(batch_size, negatives_train, negatives_test)
+    dataset.setup(negatives_train, negatives_test)
+    trainloader = DataLoader(dataset.trainset, batch_size=batch_size)
+    testloader = DataLoader(dataset.testset, batch_size=negatives_test+1)
     
     # create model
     click.echo("creating model...")
@@ -82,7 +80,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, negatives_train: i
 
     # train
     click.echo("training...")
-    trainer = Trainer(model, dataset.trainloader, dataset.testloader, optimizer, criterion, device)
+    trainer = Trainer(model, trainloader, testloader, optimizer, criterion, device)
 
     result = trainer.test(topk)
     click.echo(f'initial hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
