@@ -1,11 +1,12 @@
 import click
 import os
+import sys
 import torch
 from torch.utils.data import DataLoader
 from nnrecommend.logging import setup_log
-from nnrecommend.dataset import Dataset
 from nnrecommend.fmachine import FactorizationMachineModel
 from nnrecommend.trainer import Trainer
+from nnrecommend.movielens import MovielensData
 import pandas as pd
 
 
@@ -47,28 +48,19 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     
     device = ctx.obj.device
     path = os.path.join(path, "movielens")
+    data = MovielensData(click.echo)
 
     # load datasets
-    click.echo("loading datasets...")
-    dataset = Dataset(pd.read_csv(f"{path}.train.rating", sep='\t', header=None))
-    iddiff = dataset.normalize_ids()
-    testset = Dataset(pd.read_csv(f"{path}.test.rating", sep='\t', header=None))
-    testset.normalize_ids(iddiff)
-    click.echo("calculating adjacency matrix...")
-    matrix = dataset.create_adjacency_matrix()
-    click.echo("adding negative sampling...")
-    dataset.add_negative_sampling(matrix, negatives_train)
-    testset.add_negative_sampling(matrix, negatives_test)
-    dataloader = DataLoader(dataset, batch_size=batch_size)
-    testloader = DataLoader(testset, batch_size=negatives_test+1)
+    data.load(path)
+    data.setup(batch_size, negatives_train, negatives_test)
     
     # create model
     click.echo("creating model...")
-    field_dim = matrix.shape[0]
+    field_dim = data.matrix.shape[0]
     model = None
     if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = FactorizationMachineModel(field_dim, 64, matrix, device, attention)
+        model = FactorizationMachineModel(field_dim, 64, data.matrix, device, attention)
     else:
         model = FactorizationMachineModel(field_dim, 32)
     if not model:
@@ -82,7 +74,7 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
 
     # train
     click.echo("training...")
-    trainer = Trainer(model, dataloader, testloader, optimizer, criterion, device)
+    trainer = Trainer(model, data.dataloader, data.testloader, optimizer, criterion, device)
 
     result = trainer.test(topk)
     click.echo(f'initial hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
