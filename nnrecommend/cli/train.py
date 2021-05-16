@@ -1,30 +1,8 @@
 import click
-import os
-import sys
-import torch
 from torch.utils.data import DataLoader
-from nnrecommend.logging import setup_log
 from nnrecommend.fmachine import FactorizationMachineModel
 from nnrecommend.trainer import Trainer
-from nnrecommend.movielens import MovielensDataset
-import pandas as pd
-
-
-class Context:
-    def __init__(self):
-        if not torch.cuda.is_available():
-            raise Exception("You should enable GPU runtime")
-        self.device = torch.device("cuda")
-
-
-@click.group()
-@click.pass_context
-@click.option('-v', '--verbose', type=bool, is_flag=True, help='print verbose output')
-@click.option('--logoutput', type=str, help='append output to this file')
-def main(ctx, verbose: bool, logoutput: str):
-    """recommender system using deep learning"""
-    ctx.ensure_object(Context)
-    setup_log(verbose, logoutput)
+from nnrecommend.cli import main
 
 
 @main.command()
@@ -44,14 +22,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, negatives_train: i
     train a model 
     """
     device = ctx.obj.device
-    dataset = None
-
-    if dataset_type == "podcasts":
-        pass
-    else:
-        click.echo("using movielens dataset")
-        path = os.path.join(path, "movielens")
-        dataset = MovielensDataset(path, click.echo)
+    dataset = ctx.obj.create_dataset(path, dataset_type)
 
     # load data
     if not dataset:
@@ -95,5 +66,4 @@ def train(ctx, path: str, dataset_type: str, model_type: str, negatives_train: i
             tensorboard.add_scalar('eval/NDCG@{topk}', result.ndcg, i)
 
 
-if __name__ == "__main__":
-    sys.exit(main(obj=Context()))
+main.add_command(train)
