@@ -14,11 +14,11 @@ class Trainer:
             self.hr = hr
             self.ndcg = ndcg 
 
-    def __init__(self, model: torch.nn.Module, dataloader: torch.utils.data.DataLoader,
+    def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
             testloader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer,
             criterion: torch.nn.Module, device: str):
         self.model = model
-        self.dataloader = dataloader
+        self.trainloader = trainloader
         self.testloader = testloader
         self.optimizer = optimizer
         self.criterion = criterion
@@ -46,7 +46,7 @@ class Trainer:
         total_loss = []
         self.model.train()
 
-        for interactions in self.dataloader:
+        for interactions in self.trainloader:
             interactions = interactions.to(self.device)
             targets = interactions[:,2]
             predictions = self.model(interactions[:,:2])
