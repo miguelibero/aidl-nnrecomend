@@ -57,19 +57,23 @@ class Dataset(torch.utils.data.Dataset):
         assert self.idrange is not None
         return np.random.randint(self.idrange[0], self.idrange[1])
 
-    def get_random_negative_item(self, user: int, item: int, container: Container) -> int:
+    def get_random_negative_items(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
         """
-        return a random item id that meets certain conditions
+        return an array of random item ids that meet certain conditions
         TODO: this method can produce infinite loops if there is no item that meets the requirements
 
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param user: should not have an interaction with the given user
         :param item: should not be this item
-        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        :param num: length of the array
         """
-        j = self.__get_random_item()
-        while j == item or (user, j) in container:
+        items = np.zeros(num, int)
+        for i in range(num):
             j = self.__get_random_item()
-        return j
+            while j == item or (user, j) in container:
+                j = self.__get_random_item()
+            items[i] = j
+        return items
 
     def add_negative_sampling(self, container: Container, num: int=1) -> None:
         """
@@ -83,19 +87,11 @@ class Dataset(torch.utils.data.Dataset):
         if num <= 0:
             return
 
-        shape = self.__interactions.shape
-        data = np.zeros((shape[0]*(num+1), shape[1]), int)
-        i = 0
-        for row in self.__interactions:
-            user, item = row[:2]
-            data[i] = row
-            i += 1
-            for _ in range(num):
-                nrow = data[i]
-                nrow[:] = row
-                nrow[1] = self.get_random_negative_item(user, item, container)
-                nrow[2] = 0
-                i += 1
+        n = num+1
+        data = np.repeat(self.__interactions, n, axis=0)
+        for i, row in enumerate(self.__interactions):
+            data[1+n*i:n*(i+1), 1] = self.get_random_negative_items(container, row[0], row[1], num)
+            data[1+n*i:n*(i+1), 2] = 0
         self.__interactions = data
 
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1) -> 'Dataset':

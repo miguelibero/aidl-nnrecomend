@@ -33,8 +33,8 @@ def test_adjacency_matrix():
     assert (0, 3) in matrix
     assert (0, 2) not in matrix
     assert (1, 2) in matrix
-    nitem = dataset.get_random_negative_item(0, 3, matrix)
-    assert nitem == 2
+    nitems = dataset.get_random_negative_items(matrix, 0, 3)
+    assert (nitems == (2)).all()
 
 
 def test_negative_sampling():
