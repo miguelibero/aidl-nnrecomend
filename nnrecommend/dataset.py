@@ -93,6 +93,36 @@ class Dataset(torch.utils.data.Dataset):
                 i += 1
         self.__interactions = data
 
+    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1) -> 'Dataset':
+        """
+        extract the last positive interaction of every user for the test dataset,
+        check that the user has a minimum amount of interactions before extracting the last one
+
+        :param num_user_interactions: amount of user interactions to extract to the test dataset
+        :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
+        """
+
+        rowsbyuser = {}
+        for i, row in enumerate(self.__interactions):
+            if row[2] <= 0:
+                continue
+            u = row[0]
+            if u not in rowsbyuser:
+                userrows = []
+                rowsbyuser[u] = userrows
+            else:
+                userrows = rowsbyuser[u]
+            userrows.append(i)
+        rows = []
+        for userrows in rowsbyuser.values():
+            if len(userrows) < num_user_interactions + min_keep_user_interactions:
+                continue
+            rows += userrows[-num_user_interactions:]
+        testset = Dataset(self.__interactions[rows])
+        self.__interactions = np.delete(self.__interactions, rows, axis=0)
+        return testset
+
+
     def create_adjacency_matrix(self) -> sp.dok_matrix:
         """
         create the adjacency matrix for the dataset

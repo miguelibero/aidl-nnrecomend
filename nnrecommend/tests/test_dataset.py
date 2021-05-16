@@ -42,3 +42,15 @@ def test_negative_sampling():
     assert (dataset[3] == (1, 2, 1)).all()
     assert (dataset[4] == (1, 3, 0)).all()
     assert (dataset[5] == (1, 3, 0)).all()
+
+
+def test_extract_test_dataset():
+    data = ((2, 2), (2, 3), (3, 1), (3, 4))
+    dataset = Dataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    dataset.add_negative_sampling(matrix, 2)
+    assert len(dataset) == 12
+    testset = dataset.extract_test_dataset()
+    assert type(testset) == Dataset
+    assert len(dataset) == 10
+    assert len(testset) == 2
