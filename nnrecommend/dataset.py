@@ -8,10 +8,9 @@ class Dataset(torch.utils.data.Dataset):
     """
     basic dataset class
     """
-    def __init__(self, interactions: np.ndarray, iddiff: np.ndarray=None):
+    def __init__(self, interactions: np.ndarray):
         """
         :param interactions: 2d array with columns (user id, item id, label, features...)
-        :param iddiff: precalculated diff for the ids
         """
 
         interactions = np.array(interactions).astype(int)
@@ -21,36 +20,42 @@ class Dataset(torch.utils.data.Dataset):
             interactions = np.c_[interactions, np.ones(interactions.shape[0], int)]
         assert interactions.shape[1] > 2 # should have at least 3 columns
 
-        idmin = np.min(interactions[:, :2], axis=0)
-        idmax = np.max(interactions[:, :2], axis=0)
+        self.__interactions = interactions
+        self.idrange = None
 
+    def normalize_ids(self, iddiff: np.ndarray=None) -> np.ndarray:
+        """
+        if not iddiff parameter is passed, method will calculate one
+        so that the dataset has normalized user & item ids to start with 0 and be consecutive
+
+        :param iddiff: two int values that represent the diff for the user and item ids to apply
+        """
+        idmax = np.max(self.__interactions[:, :2], axis=0)
         if isinstance(iddiff, type(None)):
-            self.iddiff = -idmin
-            self.iddiff[1] += idmax[0] - idmin[0] + 1
+            idmin = np.min(self.__interactions[:, :2], axis=0)
+            iddiff = -idmin
+            iddiff[1] += idmax[0] - idmin[0] + 1
         else:
             iddiff = np.array(iddiff).astype(int)
             assert len(iddiff.shape) == 1
             assert iddiff.shape[0] == 2
-            self.iddiff = iddiff
 
-        self.idsize = idmax + self.iddiff + 1
+        self.idrange = idmax + iddiff + 1
+        self.__interactions[:, :2] += iddiff
+        return iddiff
 
-        # adjust ids so that user ids start with 0 and item ids start after the last user id
-        interactions[:, :2] += self.iddiff
-        self.__interactions = interactions
-
-
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__interactions)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> np.ndarray:
         return self.__interactions[index]
 
     def __get_random_item(self) -> int:
         """
         return a valid random item id
         """
-        return np.random.randint(self.idsize[0], self.idsize[1])
+        assert self.idrange is not None
+        return np.random.randint(self.idrange[0], self.idrange[1])
 
     def get_random_negative_item(self, user: int, item: int, container: Container) -> int:
         """
@@ -127,7 +132,9 @@ class Dataset(torch.utils.data.Dataset):
         """
         create the adjacency matrix for the dataset
         """
-        size = self.idsize[1]
+        if self.idrange is None:
+            self.normalize_ids()
+        size = self.idrange[1]
         matrix = sp.dok_matrix((size, size), dtype=np.float32)
         for row in self.__interactions:
             user, item = row[:2]

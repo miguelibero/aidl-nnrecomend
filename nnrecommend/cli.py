@@ -51,7 +51,9 @@ def movielens(ctx, path: str, model_type: str, negatives_train: int, negatives_t
     # load datasets
     click.echo("loading datasets...")
     dataset = Dataset(pd.read_csv(f"{path}.train.rating", sep='\t', header=None))
-    testset = Dataset(pd.read_csv(f"{path}.test.rating", sep='\t', header=None), dataset.iddiff)
+    iddiff = dataset.normalize_ids()
+    testset = Dataset(pd.read_csv(f"{path}.test.rating", sep='\t', header=None))
+    testset.normalize_ids(iddiff)
     click.echo("calculating adjacency matrix...")
     matrix = dataset.create_adjacency_matrix()
     click.echo("adding negative sampling...")

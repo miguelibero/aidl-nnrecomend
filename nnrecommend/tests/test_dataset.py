@@ -5,18 +5,25 @@ def test_dataset():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
     assert len(dataset) == 2
+    assert (dataset[0] == (2, 2, 1)).all()
+    assert (dataset[1] == (3, 1, 1)).all()
+    assert dataset.idrange == None
+    iddiff = dataset.normalize_ids()
+    assert len(dataset) == 2
     assert (dataset[0] == (0, 3, 1)).all()
     assert (dataset[1] == (1, 2, 1)).all()
-    assert (dataset.idsize == (2, 4)).all()
-    assert (dataset.iddiff == (-2, 1)).all()
+    assert (dataset.idrange == (2, 4)).all()
+    assert (iddiff == (-2, 1)).all()
 
 
-def test_dataset_iddif():
+def test_dataset_iddiff():
     data = ((2, 2), (3, 1))
-    dataset = Dataset(data, (-3, 5))
+    dataset = Dataset(data)
+    iddiff = dataset.normalize_ids((-3, 5))
+    assert (iddiff == (-3, 5)).all()
     assert (dataset[0] == (-1, 7, 1)).all()
     assert (dataset[1] == (0, 6, 1)).all()
-    assert (dataset.idsize == (1, 8)).all()
+    assert (dataset.idrange == (1, 8)).all()
 
 
 def test_adjacency_matrix():
