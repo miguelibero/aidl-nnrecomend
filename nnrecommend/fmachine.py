@@ -1,3 +1,4 @@
+from io import UnsupportedOperation
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix
@@ -54,6 +55,9 @@ class GraphModel(torch.nn.Module):
         else:  
             self.gcn = GCNConv(field_dims, embed_dim)
 
+    def get_embedding_weight(self):
+        return self.features
+
     def forward(self, x):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
@@ -81,6 +85,15 @@ class FactorizationMachineModel(torch.nn.Module):
             features = sparse_mx_to_torch_sparse_tensor(sp.identity(matrix.shape[0]))
             edge_idx, edge_attr = from_scipy_sparse_matrix(matrix)
             self.embedding = GraphModel(field_dim, embed_dim, features.to(device), edge_idx.to(device), attention)
+
+    def get_embedding_weight(self):
+        if hasattr(self.embedding, "get_embedding_weight"):
+            return self.embedding.get_embedding_weight()
+        elif hasattr(self.embedding, "weight"):
+            return self.embedding.weight
+        else:
+            raise UnsupportedOperation()
+
 
     def forward(self, interaction_pairs: torch.Tensor):
         """

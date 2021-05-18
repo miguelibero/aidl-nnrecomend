@@ -11,10 +11,16 @@ class Context:
             raise Exception("You should enable GPU runtime")
         self.device = torch.device("cuda")
 
+    def setup(self, verbose: bool, logoutput: str) -> None:
+        self.logger = setup_log(verbose, logoutput)
+
     def create_dataset(self, path, dataset_type: str):
-        click.echo("creating movielens dataset")
-        path = os.path.join(path, "movielens")
-        return MovielensDataset(path, click.echo)
+        if dataset_type == "movielens":
+            self.logger.info("creating movielens dataset")
+            path = os.path.join(path, "movielens")
+            return MovielensDataset(path, self.logger)
+        else:
+            raise ValueError(f"unknow dataset type {dataset_type}")
 
 
 @click.group()
@@ -24,4 +30,5 @@ class Context:
 def main(ctx, verbose: bool, logoutput: str):
     """recommender system using deep learning"""
     ctx.ensure_object(Context)
-    setup_log(verbose, logoutput)
+    ctx.obj.setup(verbose, logoutput)
+    
