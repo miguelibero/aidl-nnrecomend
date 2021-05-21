@@ -81,11 +81,13 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
         ax.set_title('adjacency matrix')
         ax.spy(users, markersize=1)
 
-    def log_histogram_graph(ax, x):
+    def log_histogram_graph(ax, x, log=False):
         hist, bins = np.histogram(x, bins=hist_bins)
-        logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
-        ax.hist(x, bins=logbins)
-        ax.set_xscale('log')
+        if log:
+            bins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
+            ax.set_xscale('log')
+        ax.hist(x, bins=bins)
+
 
     def user_histogram_graph(ax):
         ax.set_title('amount of items per user')

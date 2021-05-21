@@ -22,7 +22,7 @@ class Context:
             return MovielensDataset(path, self.logger)
         elif dataset_type == "podcasts":
             self.logger.info("creating itunes podcasts dataset")
-            return ItunesPodcastsDataset(path, self.logger, 100000)
+            return ItunesPodcastsDataset(path, self.logger)
         else:
             raise ValueError(f"unknow dataset type {dataset_type}")
 
