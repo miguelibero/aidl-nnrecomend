@@ -11,7 +11,7 @@ from nnrecommend.logging import get_logger
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=False, dir_okay=True))
 @click.option('--dataset', 'dataset_type', default="movielens",
-              type=click.Choice(['movielens'], case_sensitive=False), help="type of dataset")
+              type=click.Choice(['movielens', 'podcasts'], case_sensitive=False), help="type of dataset")
 @click.option('--model', 'model_type', default='linear',
               type=click.Choice(['linear', 'gcn', 'gcn-attention'], case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")

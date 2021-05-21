@@ -14,8 +14,6 @@ class MovielensDataset:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.trainloader = None
-        self.testloader = None
 
     def load(self) -> None:
         self.__logger.info("loading training dataset...")

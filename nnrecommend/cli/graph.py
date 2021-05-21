@@ -39,9 +39,9 @@ def model_graph(ctx, path: str):
 
 @main.command()
 @click.pass_context
-@click.argument('path', type=click.Path(file_okay=False, dir_okay=True))
+@click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
 @click.option('--type', 'dataset_type', default="movielens",
-              type=click.Choice(['movielens'], case_sensitive=False))
+              type=click.Choice(['movielens', 'podcasts'], case_sensitive=False))
 @click.option('--hist-bins', type=int, default=20, help="amount bins for the histograms")
 def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
     """
@@ -61,8 +61,17 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
 
     maxuser = dataset.trainset.idrange[0]
     users = dataset.matrix[:maxuser-1, maxuser:]
-    usercount = fix_count(users.sum(0))
-    itemcount = fix_count(users.sum(1))
+    usercount = fix_count(users.sum(1))
+    itemcount = fix_count(users.sum(0))
+
+    def print_stats(count, name, other):
+        tot = len(count)
+        more2 = np.count_nonzero(count >= 2)*100/tot
+        more10 = np.count_nonzero(count >= 10)*100/tot
+        logger.info(f"{name} total = {tot}, 2 or more {other} = {more2:.2f}%, 10 or more {other} = {more10:.2f}%")
+
+    print_stats(usercount, "users", "items")
+    print_stats(itemcount, "items", "users")
 
     logger.info("generating graph...")
 
