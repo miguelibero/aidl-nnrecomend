@@ -39,7 +39,7 @@ class ItunesPodcastsDataset:
         lp = 0
 
         def get_id(v, elements):
-            #v = hash(v)
+            v = hash(v)
             i = bisect_left(elements, v)
             elements.insert(i, v)
             return i
@@ -67,10 +67,3 @@ class ItunesPodcastsDataset:
         self.testset = self.trainset.extract_test_dataset()
         self.__logger.info("calculating adjacency matrix..")
         self.matrix = self.trainset.create_adjacency_matrix()
-        
-    def setup(self, negatives_train: int, negatives_test: int) -> None:
-        if self.trainset is None:
-            self.load()
-        self.__logger.info("adding negative sampling...")
-        self.trainset.add_negative_sampling(self.matrix, negatives_train)
-        self.testset.add_negative_sampling(self.matrix, negatives_test)

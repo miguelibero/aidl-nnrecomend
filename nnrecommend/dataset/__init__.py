@@ -67,6 +67,8 @@ class Dataset(torch.utils.data.Dataset):
         :param item: should not be this item
         :param num: length of the array
         """
+        if self.idrange is None:
+            self.normalize_ids()
         items = np.zeros(num, int)
         for i in range(num):
             j = self.__get_random_item()
@@ -120,6 +122,8 @@ class Dataset(torch.utils.data.Dataset):
                 continue
             rows += userrows[-num_user_interactions:]
         testset = Dataset(self.__interactions[rows])
+        if self.idrange is not None:
+            self.normalize_ids((0, 0))
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
         return testset
 

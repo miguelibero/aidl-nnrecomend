@@ -9,7 +9,7 @@ from nnrecommend.logging import get_logger
 
 @main.command()
 @click.pass_context
-@click.argument('path', type=click.Path(file_okay=False, dir_okay=True))
+@click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
 @click.option('--dataset', 'dataset_type', default="movielens",
               type=click.Choice(['movielens', 'podcasts'], case_sensitive=False), help="type of dataset")
 @click.option('--model', 'model_type', default='linear',
@@ -33,7 +33,14 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, negat
     # load data
     if not dataset:
         raise Exception("could not create dataset")
-    dataset.setup(negatives_train, negatives_test)
+
+    logger.info("loading dataset...")
+    dataset.load()
+
+    logger.info("adding negative sampling...")
+    dataset.trainset.add_negative_sampling(dataset.matrix, negatives_train)
+    dataset.testset.add_negative_sampling(dataset.matrix, negatives_test)
+
     trainloader = DataLoader(dataset.trainset, batch_size=batch_size)
     testloader = DataLoader(dataset.testset, batch_size=negatives_test+1)
     

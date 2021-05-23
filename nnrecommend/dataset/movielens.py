@@ -24,10 +24,3 @@ class MovielensDataset:
         self.testset.normalize_ids(iddiff)
         self.__logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
-    
-    def setup(self, negatives_train: int, negatives_test: int) -> None:
-        if self.trainset is None:
-            self.load()
-        self.__logger.info("adding negative sampling...")
-        self.trainset.add_negative_sampling(self.matrix, negatives_train)
-        self.testset.add_negative_sampling(self.matrix, negatives_test)

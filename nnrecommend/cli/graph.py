@@ -64,6 +64,10 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
     usercount = fix_count(users.sum(1))
     itemcount = fix_count(users.sum(0))
 
+    nnz = users.nnz
+    tot = len(users)
+    logger.info(f"users-items matrix {users.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
+
     def print_stats(count, name, other):
         tot = len(count)
         more2 = np.count_nonzero(count >= 2)*100/tot
@@ -81,7 +85,7 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
         ax.set_title('adjacency matrix')
         ax.spy(users, markersize=1)
 
-    def log_histogram_graph(ax, x, log=False):
+    def log_histogram_graph(ax, x, log=True):
         hist, bins = np.histogram(x, bins=hist_bins)
         if log:
             bins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
