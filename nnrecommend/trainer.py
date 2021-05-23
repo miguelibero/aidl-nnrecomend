@@ -50,7 +50,6 @@ class Trainer:
             interactions = interactions.to(self.device)
             targets = interactions[:,2]
             predictions = self.model(interactions[:,:2])
-            
             loss = self.criterion(predictions, targets.float())
             self.model.zero_grad()
             loss.backward()
@@ -59,6 +58,7 @@ class Trainer:
 
         return mean(total_loss)
 
+    @torch.no_grad()
     def test(self, topk: int=10) -> TestResult:
         """
         Test the HR and NDCG for the model @topK

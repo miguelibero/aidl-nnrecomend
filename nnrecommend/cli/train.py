@@ -45,8 +45,9 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
     dataset.trainset.add_negative_sampling(dataset.matrix, negatives_train)
     dataset.testset.add_negative_sampling(dataset.matrix, negatives_test)
 
-    trainloader = DataLoader(dataset.trainset, batch_size=batch_size)
-    testloader = DataLoader(dataset.testset, batch_size=negatives_test+1)
+    trainloader = DataLoader(dataset.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # test loader should not be shuffled since the negative samples need to be consecutive
+    testloader = DataLoader(dataset.testset, batch_size=negatives_test+1, num_workers=0)
     
     # create model
     logger.info("creating model...")

@@ -31,7 +31,7 @@ def model_graph(ctx, path: str) -> None:
         logger.error("could not load model")
         return
 
-    logger.info(f"loaded model of type {type(model)}")
+    logger.info(f"loaded model of type {type(model)} maxids={maxids}")
 
     weight = model.get_embedding_weight().cpu().detach()
     if weight.is_sparse:
@@ -82,8 +82,8 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
     usercount = fix_count(users.sum(1))
     itemcount = fix_count(users.sum(0))
 
-    nnz = users.nnz
-    tot = len(users)
+    nnz = users.getnnz()
+    tot = np.prod(users.shape)
     logger.info(f"users-items matrix {users.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
 
     def print_stats(count, name, other):
