@@ -10,10 +10,9 @@ class ItunesPodcastsDataset:
     """
     the dataset can be downloaded from https://www.kaggle.com/thoughtvector/podcastreviews
     """
-    def __init__(self, path: str, logger: Logger=None, maxsize: int=-1):
+    def __init__(self, path: str, logger: Logger=None):
         self.__path = path
         self.__logger = logger or get_logger(self)
-        self.__maxsize = maxsize
         self.trainset = None
         self.testset = None
         self.matrix = None
@@ -21,13 +20,13 @@ class ItunesPodcastsDataset:
     COND = "WHERE rating == 5"
     ROW_LOAD_PRINT_STEP = 2
 
-    def __load_database(self) -> None:
+    def __load_database(self, maxsize: int) -> None:
         con = sqlite3.connect(self.__path)
         cur = con.cursor()
         cur.execute(f'SELECT COUNT(*) FROM reviews {self.COND}')
         size = cur.fetchone()[0]
-        if self.__maxsize > 0 and self.__maxsize < size:
-            size = self.__maxsize
+        if maxsize > 0 and maxsize < size:
+            size = maxsize
         self.__logger.info(f"loading {size} reviews...")
         r = cur.execute(f'SELECT author_id, podcast_id FROM reviews {self.COND} LIMIT ?', (size,))
         return r, size
@@ -54,9 +53,9 @@ class ItunesPodcastsDataset:
             interactions[i] = (u, v)
         return interactions
 
-    def load(self) -> None:
+    def load(self, maxsize: int=-1) -> None:
         self.__logger.info("loading database...")
-        rows, size = self.__load_database()
+        rows, size = self.__load_database(maxsize)
         self.__logger.info("generating interactions...")
         interactions = self.__generate_interactions(rows, size)
         self.__logger.info("setting up datasets..")

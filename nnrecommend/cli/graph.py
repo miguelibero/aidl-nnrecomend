@@ -4,12 +4,13 @@ import sklearn.decomposition as dc
 import torch
 import numpy as np
 from nnrecommend.cli.main import main
+from nnrecommend.fmachine import sparse_tensor_to_scipy_matrix
 
 
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=False))
-def model_graph(ctx, path: str):
+def model_graph(ctx, path: str) -> None:
     """
     show graphs about a model
     """
@@ -17,8 +18,14 @@ def model_graph(ctx, path: str):
     logger = ctx.obj.logger
 
     logger.info("reading model file...")
-    with open(path, "rb") as fh:
-        model = torch.load(fh)
+    try:
+        with open(path, "rb") as fh:
+            data = torch.load(fh)
+            model = data["model"]
+            maxids = data["maxids"]
+    except:
+        logger.error("failed to load model file")
+        return False
 
     if model is None:
         logger.error("could not load model")
@@ -26,14 +33,25 @@ def model_graph(ctx, path: str):
 
     logger.info(f"loaded model of type {type(model)}")
 
-    weight = model.get_embedding_weight().cpu().detach().numpy()
+    weight = model.get_embedding_weight().cpu().detach()
+    if weight.is_sparse:
+        weight = sparse_tensor_to_scipy_matrix(weight)
+    else:
+        weight = weight.numpy()
 
     logger.info(f"fitting weights of shape {weight.shape} into 2 dimensions...")
-    pca = dc.SparsePCA(n_components=2)
-    result = pca.fit_transform(weight)
+    lsa = dc.TruncatedSVD(n_components=2)
+    result = lsa.fit_transform(weight)
+
+    colors = []
+    for i in range(len(result)):
+        if i < maxids[0]:
+            colors.append("red")
+        else:
+            colors.append("blue")
 
     logger.info("generating graph...")
-    plt.scatter(result[:, 0], result[:, 1])
+    plt.scatter(result[:, 0], result[:, 1], c=colors)
     plt.show()
 
 
@@ -43,7 +61,7 @@ def model_graph(ctx, path: str):
 @click.option('--type', 'dataset_type', default="movielens",
               type=click.Choice(['movielens', 'podcasts'], case_sensitive=False))
 @click.option('--hist-bins', type=int, default=20, help="amount bins for the histograms")
-def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int):
+def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
     """
     show graphs about a dataset
     """

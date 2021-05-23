@@ -1,10 +1,9 @@
 from io import UnsupportedOperation
 import torch
 from torch_geometric.nn import GCNConv, GATConv
-from torch_geometric.utils import from_scipy_sparse_matrix
+from torch_geometric.utils import from_scipy_sparse_matrix, to_scipy_sparse_matrix
 import scipy.sparse as sp
 import numpy as np
-
 
 class LinearFeatures(torch.nn.Module):
     """
@@ -82,9 +81,10 @@ class FactorizationMachineModel(torch.nn.Module):
             self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
             torch.nn.init.xavier_uniform_(self.embedding.weight.data)
         else:
-            features = sparse_mx_to_torch_sparse_tensor(sp.identity(matrix.shape[0]))
-            edge_idx, edge_attr = from_scipy_sparse_matrix(matrix)
-            self.embedding = GraphModel(field_dim, embed_dim, features.to(device), edge_idx.to(device), attention)
+            features = sp.identity(matrix.shape[0], dtype=np.float32)
+            features = sparse_scipy_matrix_to_tensor(features)
+            indices, _ = from_scipy_sparse_matrix(matrix)
+            self.embedding = GraphModel(field_dim, embed_dim, features.to(device), indices.to(device), attention)
 
     def get_embedding_weight(self):
         if hasattr(self.embedding, "get_embedding_weight"):
@@ -103,10 +103,15 @@ class FactorizationMachineModel(torch.nn.Module):
         return out.squeeze(1)    
 
 
-def sparse_mx_to_torch_sparse_tensor(sparse_mx: sp.dok_matrix) -> torch.sparse.FloatTensor: 
+def sparse_scipy_matrix_to_tensor(matrix: sp.spmatrix) -> torch.Tensor: 
     """ Convert a scipy sparse matrix to a torch sparse tensor."""
-    sparse_mx = sparse_mx.tocoo().astype(np.float32)
-    indices = torch.from_numpy(np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
-    values = torch.from_numpy(sparse_mx.data)
-    shape = torch.Size(sparse_mx.shape)
-    return torch.sparse.FloatTensor(indices, values, shape)
+    matrix = matrix.tocoo()
+    indices = torch.from_numpy(np.vstack((matrix.row, matrix.col)).astype(np.int64))
+    values = torch.from_numpy(matrix.data)
+    shape = torch.Size(matrix.shape)
+    return torch.sparse_coo_tensor(indices, values, shape)
+
+
+def sparse_tensor_to_scipy_matrix(tensor: torch.Tensor) -> sp.spmatrix:
+    tensor = tensor.coalesce()
+    return to_scipy_sparse_matrix(tensor.indices(), tensor.values())

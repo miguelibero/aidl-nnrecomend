@@ -15,7 +15,7 @@ class MovielensDataset:
         self.testset = None
         self.matrix = None
 
-    def load(self) -> None:
+    def load(self, maxsize: int=-1) -> None:
         self.__logger.info("loading training dataset...")
         self.trainset = Dataset(pd.read_csv(f"{self.__path}.train.rating", sep='\t', header=None))
         iddiff = self.trainset.normalize_ids()

@@ -15,12 +15,13 @@ from nnrecommend.logging import get_logger
 @click.option('--model', 'model_type', default='linear',
               type=click.Choice(['linear', 'gcn', 'gcn-attention'], case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
+@click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
 @click.option('--negatives-train', type=int, default=4, help="amount of negative samples to generate for the trainset")
 @click.option('--negatives-test', type=int, default=99, help="amount of negative samples to generate for the testset")
 @click.option('--batch-size', type=int, default=256, help="batchsize of the trainset dataloader")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--epochs', type=int, default=20, help="amount of epochs to run the training")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int):
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int) -> None:
     """
     train a model 
 
@@ -35,7 +36,10 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, negat
         raise Exception("could not create dataset")
 
     logger.info("loading dataset...")
-    dataset.load()
+    dataset.load(max_interactions)
+    maxids = dataset.trainset.idrange - 1
+    maxids[1] -= maxids[0]
+    logger.info(f"loaded {maxids[0]} users and {maxids[1]} items")
 
     logger.info("adding negative sampling...")
     dataset.trainset.add_negative_sampling(dataset.matrix, negatives_train)
@@ -81,5 +85,9 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, negat
     finally:
         if output:
             logger.info("saving model...")
+            data = {
+                "model": model,
+                "maxids": maxids
+            }
             with open(output, "wb") as fh:
-                torch.save(model, fh)
+                torch.save(data, fh)
