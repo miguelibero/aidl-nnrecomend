@@ -55,7 +55,10 @@ class GraphModel(torch.nn.Module):
             self.gcn = GCNConv(field_dims, embed_dim)
 
     def get_embedding_weight(self):
-        return self.features
+        if hasattr(self.gcn, "lin_r"):
+            return self.gcn.lin_r.weight.transpose(0, 1)
+        else:
+            return self.gcn.weight
 
     def forward(self, x):
         """
@@ -76,9 +79,8 @@ class FactorizationMachineModel(torch.nn.Module):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
-
         if isinstance(matrix, type(None)):
-            self.embedding = torch.nn.Embedding(field_dim, embed_dim, sparse=False)
+            self.embedding = torch.nn.Embedding(field_dim, embed_dim)
             torch.nn.init.xavier_uniform_(self.embedding.weight.data)
         else:
             features = sp.identity(matrix.shape[0], dtype=np.float32)
@@ -95,12 +97,12 @@ class FactorizationMachineModel(torch.nn.Module):
             raise UnsupportedOperation()
 
 
-    def forward(self, interaction_pairs: torch.Tensor):
+    def forward(self, interactions: torch.Tensor):
         """
         :param interaction_pairs: Long tensor of size ``(batch_size, num_fields)``
         """
-        out = self.linear(interaction_pairs) + self.fm(self.embedding(interaction_pairs))
-        return out.squeeze(1)    
+        out = self.linear(interactions) + self.fm(self.embedding(interactions))
+        return out.squeeze(1)
 
 
 def sparse_scipy_matrix_to_tensor(matrix: sp.spmatrix) -> torch.Tensor: 

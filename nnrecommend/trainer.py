@@ -68,10 +68,10 @@ class Trainer:
 
         for interactions in self.testloader:
             interactions = interactions[:,:2].to(self.device)
-            good_item = interactions[0][1]
+            real_item = interactions[0][1]
             predictions = self.model.forward(interactions)
             _, indices = torch.topk(predictions, topk)
             recommended_items = interactions[indices][:, 1]
-            hr.append(self.__get_hit_ratio(recommended_items, good_item))
-            ndcg.append(self.__get_ndcg(recommended_items, good_item))
+            hr.append(self.__get_hit_ratio(recommended_items, real_item))
+            ndcg.append(self.__get_ndcg(recommended_items, real_item))
         return self.TestResult(mean(hr), mean(ndcg))

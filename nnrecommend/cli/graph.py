@@ -51,6 +51,7 @@ def model_graph(ctx, path: str) -> None:
             colors.append("blue")
 
     logger.info("generating graph...")
+
     plt.scatter(result[:, 0], result[:, 1], c=colors)
     plt.show()
 
@@ -109,7 +110,6 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
             bins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
             ax.set_xscale('log')
         ax.hist(x, bins=bins)
-
 
     def user_histogram_graph(ax):
         ax.set_title('amount of items per user')
