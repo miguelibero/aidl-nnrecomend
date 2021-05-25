@@ -8,19 +8,22 @@ class Dataset(torch.utils.data.Dataset):
     """
     basic dataset class
     """
-    def __init__(self, interactions: np.ndarray):
+    def __init__(self, interactions: np.ndarray, dtype=None):
         """
         :param interactions: 2d array with columns (user id, item id, label, features...)
         """
 
-        interactions = np.array(interactions).astype(int)
+        interactions = np.array(interactions)
+        if dtype:
+            interactions = interactions.astype(dtype)
         assert len(interactions.shape) == 2 # should be two dimensions
         if interactions.shape[1] == 2:
             # if the interactions don't come with label column, create it with ones
-            interactions = np.c_[interactions, np.ones(interactions.shape[0], int)]
+            interactions = np.c_[interactions, np.ones(interactions.shape[0], interactions.dtype)]
         assert interactions.shape[1] > 2 # should have at least 3 columns
 
         self.__interactions = interactions
+        self.__dtype = self.__interactions.dtype
         self.idrange = None
 
     def normalize_ids(self, iddiff: np.ndarray=None) -> np.ndarray:
@@ -36,7 +39,7 @@ class Dataset(torch.utils.data.Dataset):
             iddiff = -idmin
             iddiff[1] += idmax[0] - idmin[0] + 1
         else:
-            iddiff = np.array(iddiff).astype(int)
+            iddiff = np.array(iddiff).astype(self.__dtype)
             assert len(iddiff.shape) == 1
             assert iddiff.shape[0] == 2
 
@@ -55,7 +58,7 @@ class Dataset(torch.utils.data.Dataset):
         return a valid random item id
         """
         assert self.idrange is not None
-        return np.random.randint(self.idrange[0], self.idrange[1])
+        return np.random.randint(self.idrange[0], self.idrange[1], dtype=self.__dtype.name)
 
     def get_random_negative_items(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
         """
@@ -69,7 +72,7 @@ class Dataset(torch.utils.data.Dataset):
         """
         if self.idrange is None:
             self.normalize_ids()
-        items = np.zeros(num, int)
+        items = np.zeros(num, dtype=self.__dtype)
         for i in range(num):
             j = self.__get_random_item()
             while j == item or (user, j) in container:
@@ -135,7 +138,7 @@ class Dataset(torch.utils.data.Dataset):
         if self.idrange is None:
             self.normalize_ids()
         size = self.idrange[1]
-        matrix = sp.dok_matrix((size, size), dtype=np.float32)
+        matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
             user, item = row[:2]
             matrix[user, item] = 1.0

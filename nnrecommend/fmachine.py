@@ -10,9 +10,9 @@ class LinearFeatures(torch.nn.Module):
     Linear part of the equation
     """
 
-    def __init__(self, field_dims: int, output_dim: int=1):
+    def __init__(self, field_dim: int, output_dim: int=1):
         super().__init__()
-        self.fc = torch.nn.Embedding(field_dims, output_dim)
+        self.fc = torch.nn.Embedding(field_dim, output_dim)
         self.bias = torch.nn.Parameter(torch.zeros((output_dim,)))
 
     def forward(self, x: torch.Tensor):
@@ -44,15 +44,15 @@ class FactorizationMachineOperation(torch.nn.Module):
 
 
 class GraphModel(torch.nn.Module):
-    def __init__(self, field_dims: int, embed_dim: int, features: torch.Tensor, matrix: torch.Tensor, attention: bool=False):
+    def __init__(self, field_dim: int, embed_dim: int, features: torch.Tensor, matrix: torch.Tensor, attention: bool=False):
         super().__init__()
         self.matrix = matrix
         self.features = features
         # https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html?highlight=GCNConv#torch_geometric.nn.conv.GCNConv
         if attention:
-            self.gcn = GATConv(field_dims, embed_dim, heads=8, dropout=0.6)
+            self.gcn = GATConv(field_dim, embed_dim, heads=8, dropout=0.6)
         else:  
-            self.gcn = GCNConv(field_dims, embed_dim)
+            self.gcn = GCNConv(field_dim, embed_dim)
 
     def get_embedding_weight(self):
         if hasattr(self.gcn, "lin_r"):
@@ -79,6 +79,7 @@ class FactorizationMachineModel(torch.nn.Module):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
+
         if isinstance(matrix, type(None)):
             self.embedding = torch.nn.Embedding(field_dim, embed_dim)
             torch.nn.init.xavier_uniform_(self.embedding.weight.data)
@@ -95,7 +96,6 @@ class FactorizationMachineModel(torch.nn.Module):
             return self.embedding.weight
         else:
             raise UnsupportedOperation()
-
 
     def forward(self, interactions: torch.Tensor):
         """
