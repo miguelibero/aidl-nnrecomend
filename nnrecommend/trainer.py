@@ -1,18 +1,20 @@
 from statistics import mean
 import math
 import torch
-
+import numpy as np
 
 class Trainer:
 
     class TestResult:
-        def __init__(self, hr: float, ndcg: float):
+        def __init__(self, hr: float, ndcg: float, coverage: float):
             """
             :param hr: hit ratio
             :param ndcg: normalized discounted cumulative gain
+            :param coverage: percentage of training data items recommended
             """ 
             self.hr = hr
             self.ndcg = ndcg 
+            self.coverage = coverage
 
     def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
             testloader: torch.utils.data.DataLoader, optimizer: torch.optim.Optimizer,
@@ -23,6 +25,7 @@ class Trainer:
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
+        self.__total_items = len(np.unique(self.trainloader.dataset[:,1]))
 
     def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
         """
@@ -47,11 +50,11 @@ class Trainer:
         self.model.train()
 
         for interactions in self.trainloader:
+            self.optimizer.zero_grad()
             interactions = interactions.to(self.device)
             targets = interactions[:,2]
             predictions = self.model(interactions[:,:2])
             loss = self.criterion(predictions, targets.float())
-            self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
             total_loss.append(loss.item())
@@ -66,12 +69,17 @@ class Trainer:
         self.model.eval()
         hr, ndcg = [], []
 
+        total_recommended_items = set()
+
         for interactions in self.testloader:
             interactions = interactions[:,:2].to(self.device)
             real_item = interactions[0][1]
             predictions = self.model.forward(interactions)
             _, indices = torch.topk(predictions, topk)
             recommended_items = interactions[indices][:, 1]
+            total_recommended_items.update(recommended_items.tolist())
             hr.append(self.__get_hit_ratio(recommended_items, real_item))
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
-        return self.TestResult(mean(hr), mean(ndcg))
+
+        cov = len(total_recommended_items) / self.__total_items
+        return self.TestResult(mean(hr), mean(ndcg), cov)

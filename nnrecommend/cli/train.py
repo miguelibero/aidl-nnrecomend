@@ -21,7 +21,8 @@ from nnrecommend.logging import get_logger
 @click.option('--batch-size', type=int, default=256, help="batchsize of the trainset dataloader")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--epochs', type=int, default=20, help="amount of epochs to run the training")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int) -> None:
+@click.option('--embed-dim', type=int, default=64, help="size of the embedding state")
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int, embed_dim: int) -> None:
     """
     train a model 
 
@@ -54,14 +55,16 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
     model = None
     if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = GraphFactorizationMachineModel(64, dataset.matrix, dataset.features, attention, device)
+        model = GraphFactorizationMachineModel(embed_dim, dataset.matrix, dataset.features, attention, device)
     else:
-        model = FactorizationMachineModel(dataset.matrix.shape[0], 32)
+        field_dim = dataset.matrix.shape[0]
+        model = FactorizationMachineModel(field_dim, embed_dim)
     if not model:
         raise Exception("could not create model")
     model = model.to(device)
     criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.99)
 
     # TODO: tensorboard support
     tensorboard = None
@@ -71,13 +74,18 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
         logger.info("training...")
         trainer = Trainer(model, trainloader, testloader, optimizer, criterion, device)
 
+        def result_info(result):
+            return f"hr={result.hr:.4f}% ndcg={result.ndcg:.4f}% cov={result.coverage:.2f}%"
+
         result = trainer.test(topk)
-        logger.info(f'initial hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f} ')
+        logger.info(f'initial topk={topk} {result_info(result)}')
 
         for i in range(epochs):
             loss = trainer()
             result = trainer.test(topk)
-            logger.info(f'{i}/{epochs} loss = {loss:.4f} hr@{topk} = {result.hr:.4f} ndcg@{topk} = {result.ndcg:.4f}')
+            scheduler.step()
+            lr = scheduler.get_last_lr()[0]
+            logger.info(f'{i:03}/{epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
             if tensorboard:
                 tensorboard.add_scalar('train/loss', loss, i)
                 tensorboard.add_scalar('eval/HR@{topk}', result.hr, i)

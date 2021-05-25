@@ -107,7 +107,8 @@ class Dataset(torch.utils.data.Dataset):
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
         """
-
+        if self.idrange is not None:
+            self.normalize_ids()
         rowsbyuser = {}
         for i, row in enumerate(self.__interactions):
             if row[2] <= 0:
@@ -125,8 +126,6 @@ class Dataset(torch.utils.data.Dataset):
                 continue
             rows += userrows[-num_user_interactions:]
         testset = Dataset(self.__interactions[rows])
-        if self.idrange is not None:
-            self.normalize_ids((0, 0))
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
         return testset
 

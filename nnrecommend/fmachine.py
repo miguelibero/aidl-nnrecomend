@@ -99,7 +99,7 @@ class GraphFactorizationMachineModel(BaseFactorizationMachineModel):
     def __init__(self, embed_dim: int, matrix: sp.spmatrix = None, features: sp.spmatrix = None, attention: bool = False, device: str=None):
         field_dim = matrix.shape[0]
         super().__init__(field_dim)
-        features = features or sp.identity(matrix.shape[0])
+        features = features or sp.identity(field_dim)
         features = sparse_scipy_matrix_to_tensor(features.astype(np.float32))
         indices, _ = from_scipy_sparse_matrix(matrix)
         self.embedding = GraphModel(field_dim, embed_dim, features.to(device), indices.to(device), attention)
