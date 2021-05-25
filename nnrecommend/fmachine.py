@@ -67,35 +67,16 @@ class GraphModel(torch.nn.Module):
         return self.gcn(self.features, self.matrix)[x]
 
 
-class FactorizationMachineModel(torch.nn.Module):
-    """
-    A pytorch implementation of Factorization Machine.
+class BaseFactorizationMachineModel(torch.nn.Module):
 
-    Reference:
-        S Rendle, Factorization Machines, 2010.
-    """
-
-    def __init__(self, field_dim: int, embed_dim: int, matrix: sp.dok_matrix = None, device: str=None, attention: bool = False):
+    def __init__(self, field_dim: int):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
-
-        if isinstance(matrix, type(None)):
-            self.embedding = torch.nn.Embedding(field_dim, embed_dim)
-            torch.nn.init.xavier_uniform_(self.embedding.weight.data)
-        else:
-            features = sp.identity(matrix.shape[0], dtype=np.float32)
-            features = sparse_scipy_matrix_to_tensor(features)
-            indices, _ = from_scipy_sparse_matrix(matrix)
-            self.embedding = GraphModel(field_dim, embed_dim, features.to(device), indices.to(device), attention)
+        self.embedding = None
 
     def get_embedding_weight(self):
-        if hasattr(self.embedding, "get_embedding_weight"):
-            return self.embedding.get_embedding_weight()
-        elif hasattr(self.embedding, "weight"):
-            return self.embedding.weight
-        else:
-            raise UnsupportedOperation()
+        return self.embedding.weight
 
     def forward(self, interactions: torch.Tensor):
         """
@@ -103,6 +84,28 @@ class FactorizationMachineModel(torch.nn.Module):
         """
         out = self.linear(interactions) + self.fm(self.embedding(interactions))
         return out.squeeze(1)
+
+
+class FactorizationMachineModel(BaseFactorizationMachineModel):
+
+    def __init__(self, field_dim: int, embed_dim: int):
+        super().__init__(field_dim)
+        self.embedding = torch.nn.Embedding(field_dim, embed_dim)
+        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
+
+
+class GraphFactorizationMachineModel(BaseFactorizationMachineModel):
+
+    def __init__(self, embed_dim: int, matrix: sp.spmatrix = None, features: sp.spmatrix = None, attention: bool = False, device: str=None):
+        field_dim = matrix.shape[0]
+        super().__init__(field_dim)
+        features = features or sp.identity(matrix.shape[0])
+        features = sparse_scipy_matrix_to_tensor(features.astype(np.float32))
+        indices, _ = from_scipy_sparse_matrix(matrix)
+        self.embedding = GraphModel(field_dim, embed_dim, features.to(device), indices.to(device), attention)
+
+    def get_embedding_weight(self):
+        return self.embedding.get_embedding_weight()
 
 
 def sparse_scipy_matrix_to_tensor(matrix: sp.spmatrix) -> torch.Tensor: 

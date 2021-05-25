@@ -131,7 +131,7 @@ class Dataset(torch.utils.data.Dataset):
         return testset
 
 
-    def create_adjacency_matrix(self) -> sp.dok_matrix:
+    def create_adjacency_matrix(self) -> sp.spmatrix:
         """
         create the adjacency matrix for the dataset
         """

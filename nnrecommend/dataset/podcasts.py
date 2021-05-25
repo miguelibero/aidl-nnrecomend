@@ -6,6 +6,7 @@ from nnrecommend.logging import get_logger
 from logging import Logger
 from bisect import bisect_left
 
+
 class ItunesPodcastsDataset:
     """
     the dataset can be downloaded from https://www.kaggle.com/thoughtvector/podcastreviews
@@ -16,6 +17,7 @@ class ItunesPodcastsDataset:
         self.trainset = None
         self.testset = None
         self.matrix = None
+        self.features = None
 
     COND = "WHERE rating == 5"
     ROW_LOAD_PRINT_STEP = 2

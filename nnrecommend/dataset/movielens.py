@@ -3,7 +3,6 @@ from nnrecommend.dataset import Dataset
 from nnrecommend.logging import get_logger
 from logging import Logger
 
-
 class MovielensDataset:
     """
     the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
@@ -14,6 +13,8 @@ class MovielensDataset:
         self.trainset = None
         self.testset = None
         self.matrix = None
+        self.features = None
+
 
     def load(self, maxsize: int=-1) -> None:
         self.__logger.info("loading training dataset...")

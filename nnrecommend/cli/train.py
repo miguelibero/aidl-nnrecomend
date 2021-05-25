@@ -2,7 +2,7 @@ import click
 import torch
 from torch.utils.data import DataLoader
 from nnrecommend.cli.main import main
-from nnrecommend.fmachine import FactorizationMachineModel
+from nnrecommend.fmachine import FactorizationMachineModel, GraphFactorizationMachineModel
 from nnrecommend.trainer import Trainer
 from nnrecommend.logging import get_logger
 
@@ -51,13 +51,12 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
     
     # create model
     logger.info("creating model...")
-    field_dim = dataset.matrix.shape[0]
     model = None
     if model_type == "gcn" or model_type == "gcn-attention":
         attention = model_type == "gcn-attention"
-        model = FactorizationMachineModel(field_dim, 64, dataset.matrix, device, attention)
+        model = GraphFactorizationMachineModel(64, dataset.matrix, dataset.features, attention, device)
     else:
-        model = FactorizationMachineModel(field_dim, 32)
+        model = FactorizationMachineModel(dataset.matrix.shape[0], 32)
     if not model:
         raise Exception("could not create model")
     model = model.to(device)
