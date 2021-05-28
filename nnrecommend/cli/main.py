@@ -4,6 +4,7 @@ import torch
 from nnrecommend.logging import setup_log
 from nnrecommend.dataset.movielens import MovielensDataset
 from nnrecommend.dataset.podcasts import ItunesPodcastsDataset
+from nnrecommend.dataset.spotify import SpotifyDataset
 
 
 class Context:
@@ -23,6 +24,9 @@ class Context:
         elif dataset_type == "podcasts":
             self.logger.info("creating itunes podcasts dataset")
             return ItunesPodcastsDataset(path, self.logger)
+        elif dataset_type == "spotify":
+            self.logger.info("creating Spotify dataset")
+            return SpotifyDataset(path, self.logger)
         else:
             raise ValueError(f"unknow dataset type {dataset_type}")
 
