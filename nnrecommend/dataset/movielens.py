@@ -13,7 +13,6 @@ class MovielensDataset:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.features = None
 
 
     def load(self, maxsize: int=-1) -> None:

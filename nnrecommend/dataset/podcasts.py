@@ -17,7 +17,6 @@ class ItunesPodcastsDataset:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.features = None
 
     COND = "WHERE rating == 5"
     ROW_LOAD_PRINT_STEP = 2
