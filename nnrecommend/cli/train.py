@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 from nnrecommend.cli.main import main
 from nnrecommend.fmachine import FactorizationMachine, GraphFactorizationMachine, GraphAttentionFactorizationMachine
-from nnrecommend.trainer import Trainer
+from nnrecommend.trainer import Trainer, Tester
 from nnrecommend.logging import get_logger
 
 
@@ -15,6 +15,7 @@ from nnrecommend.logging import get_logger
 @click.option('--model', 'model_type', default='linear',
               type=click.Choice(['linear', 'gcn', 'gcn-attention'], case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
+@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
 @click.option('--negatives-train', type=int, default=4, help="amount of negative samples to generate for the trainset")
 @click.option('--negatives-test', type=int, default=99, help="amount of negative samples to generate for the testset")
@@ -22,7 +23,7 @@ from nnrecommend.logging import get_logger
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--epochs', type=int, default=20, help="amount of epochs to run the training")
 @click.option('--embed-dim', type=int, default=64, help="size of the embedding state")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int, embed_dim: int) -> None:
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tensorboard_dir: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int, embed_dim: int) -> None:
     """
     train a model 
 
@@ -73,24 +74,22 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
     try:
         # train
         logger.info("training...")
-        trainer = Trainer(model, trainloader, testloader, optimizer, criterion, device)
+        trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir)
+        tester = Tester(model, testloader, trainloader, topk, device, tensorboard_dir)
 
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
 
-        result = trainer.test(topk)
+        result = tester()
         logger.info(f'initial topk={topk} {result_info(result)}')
 
         for i in range(epochs):
             loss = trainer()
-            result = trainer.test(topk)
+            result = tester()
             scheduler.step()
             lr = scheduler.get_last_lr()[0]
             logger.info(f'{i:03}/{epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
-            if tensorboard:
-                tensorboard.add_scalar('train/loss', loss, i)
-                tensorboard.add_scalar('eval/HR@{topk}', result.hr, i)
-                tensorboard.add_scalar('eval/NDCG@{topk}', result.ndcg, i)
+
     finally:
         if output:
             logger.info("saving model...")
