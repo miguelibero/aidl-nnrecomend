@@ -76,7 +76,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, max_i
         trainer = Trainer(model, trainloader, testloader, optimizer, criterion, device)
 
         def result_info(result):
-            return f"hr={result.hr:.4f}% ndcg={result.ndcg:.4f}% cov={result.coverage:.2f}%"
+            return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
 
         result = trainer.test(topk)
         logger.info(f'initial topk={topk} {result_info(result)}')

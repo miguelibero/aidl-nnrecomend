@@ -37,20 +37,22 @@ class BaseGraphEmbedding(torch.nn.Module):
         super().__init__()
         features = features or sp.identity(matrix.shape[0])
         self.features = sparse_scipy_matrix_to_tensor(features.astype(np.float32))
-        self.matrix, _ = from_scipy_sparse_matrix(matrix)
+        self.edge_index, self.edge_weight = from_scipy_sparse_matrix(matrix)
+        self.edge_weight = self.edge_weight.float()
         self.gcn = None
 
     def _apply(self, fn):
         super()._apply(fn)
         self.features = fn(self.features)
-        self.matrix = fn(self.matrix)
+        self.edge_index = fn(self.edge_index)
+        self.edge_weight = fn(self.edge_weight)
         return self
 
     def get_embedding_weight(self):
         return self.gcn.weight
 
     def forward(self, x):
-        return self.gcn(self.features, self.matrix)[x]
+        return self.gcn(self.features, self.edge_index, self.edge_weight)[x]
 
 
 class GraphEmbedding(BaseGraphEmbedding):
