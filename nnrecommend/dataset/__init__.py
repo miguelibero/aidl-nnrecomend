@@ -12,7 +12,6 @@ class Dataset(torch.utils.data.Dataset):
         """
         :param interactions: 2d array with columns (user id, item id, label, features...)
         """
-
         interactions = np.array(interactions)
         if dtype:
             interactions = interactions.astype(dtype)
@@ -23,7 +22,6 @@ class Dataset(torch.utils.data.Dataset):
         assert interactions.shape[1] > 2 # should have at least 3 columns
 
         self.__interactions = interactions
-        self.__dtype = self.__interactions.dtype
         self.idrange = None
 
     def normalize_ids(self, iddiff: np.ndarray=None) -> np.ndarray:
@@ -33,13 +31,13 @@ class Dataset(torch.utils.data.Dataset):
 
         :param iddiff: two int values that represent the diff for the user and item ids to apply
         """
-        idmax = np.max(self.__interactions[:, :2], axis=0)
+        idmax = np.max(self.__interactions[:, :2], axis=0).astype(np.int64)
         if isinstance(iddiff, type(None)):
-            idmin = np.min(self.__interactions[:, :2], axis=0)
+            idmin = np.min(self.__interactions[:, :2], axis=0).astype(np.int64)
             iddiff = -idmin
             iddiff[1] += idmax[0] - idmin[0] + 1
         else:
-            iddiff = np.array(iddiff).astype(self.__dtype)
+            iddiff = np.array(iddiff).astype(np.int64)
             assert len(iddiff.shape) == 1
             assert iddiff.shape[0] == 2
 
@@ -58,7 +56,7 @@ class Dataset(torch.utils.data.Dataset):
         return a valid random item id
         """
         assert self.idrange is not None
-        return np.random.randint(self.idrange[0], self.idrange[1], dtype=self.__dtype.name)
+        return np.random.randint(self.idrange[0], self.idrange[1], dtype=np.int64)
 
     def get_random_negative_items(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
         """
@@ -72,7 +70,7 @@ class Dataset(torch.utils.data.Dataset):
         """
         if self.idrange is None:
             self.normalize_ids()
-        items = np.zeros(num, dtype=self.__dtype)
+        items = np.zeros(num, dtype=np.int64)
         for i in range(num):
             j = self.__get_random_item()
             while j == item or (user, j) in container:

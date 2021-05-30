@@ -24,12 +24,12 @@ class Trainer:
         total_loss = []
         self.model.train()
 
-        for interactions in self.trainloader:
+        for rows in self.trainloader:
             self.optimizer.zero_grad()
-            interactions = interactions.to(self.device)
-            targets = interactions[:,2]
-            predictions = self.model(interactions[:,:2])
-            loss = self.criterion(predictions, targets.float())
+            targets = rows[:,2].to(self.device).float()
+            interactions = rows[:,:2].to(self.device).long()
+            predictions = self.model(interactions)
+            loss = self.criterion(predictions, targets)
             loss.backward()
             self.optimizer.step()
             total_loss.append(loss.item())
@@ -85,8 +85,8 @@ class Tester:
 
         total_recommended_items = set()
 
-        for interactions in self.testloader:
-            interactions = interactions[:,:2].to(self.device)
+        for rows in self.testloader:
+            interactions = rows[:,:2].to(self.device).long()
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)

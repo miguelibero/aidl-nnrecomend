@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas.core.frame import DataFrame
 from nnrecommend.dataset import Dataset
 from nnrecommend.logging import get_logger
 from logging import Logger
@@ -16,17 +17,22 @@ class SpotifyDataset:
         self.matrix = None
         self.features = None
 
+    STRING_ROWS = ("context_type",)
+
+    def __load_data(self, type:str, maxsize: int):
+        path = f"{self.__path}.{type}.csv"
+        data = pd.read_csv(path, sep=',', nrows=maxsize)
+        for row in self.STRING_ROWS:
+            if row in data:
+                del data[row] 
+        return data
 
     def load(self, maxsize: int=-1) -> None:
-
-        # Load File
-        iterations = np.array (pd.read_csv(f"{self.__path}.train.csv", sep=',', header=1))
-
         self.__logger.info("loading training dataset...")
-        self.trainset = Dataset(iterations)
+        self.trainset = Dataset(self.__load_data("train", maxsize))
         iddiff = self.trainset.normalize_ids()
         self.__logger.info("loading test dataset...")
-        self.testset = Dataset(pd.read_csv(f"{self.__path}.test.csv", sep=',', header=None))
+        self.testset = Dataset(self.__load_data("test", maxsize))
         self.testset.normalize_ids(iddiff)
         self.__logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()

@@ -108,7 +108,7 @@ def dataset_graph(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
         hist, bins = np.histogram(x, bins=hist_bins)
         if log:
             bins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
-            ax.set_xscale('log')
+            ax.set_yscale('log')
         ax.hist(x, bins=bins)
 
     def user_histogram_graph(ax):

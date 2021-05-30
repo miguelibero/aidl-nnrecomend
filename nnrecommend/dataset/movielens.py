@@ -14,13 +14,16 @@ class MovielensDataset:
         self.testset = None
         self.matrix = None
 
+    def __load_data(self, type:str, maxsize: int):
+        path = f"{self.__path}.{type}.rating"
+        return pd.read_csv(path, sep='\t', header=None, nrows=maxsize)
 
     def load(self, maxsize: int=-1) -> None:
         self.__logger.info("loading training dataset...")
-        self.trainset = Dataset(pd.read_csv(f"{self.__path}.train.rating", sep='\t', header=None))
+        self.trainset = Dataset(self.__load_data("train", maxsize))
         iddiff = self.trainset.normalize_ids()
         self.__logger.info("loading test dataset...")
-        self.testset = Dataset(pd.read_csv(f"{self.__path}.test.rating", sep='\t', header=None))
+        self.testset = Dataset(self.__load_data("train", maxsize))
         self.testset.normalize_ids(iddiff)
         self.__logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
