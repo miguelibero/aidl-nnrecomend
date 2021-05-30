@@ -2,27 +2,30 @@ from statistics import mean
 import math
 import torch
 import numpy as np
+import os
 from torch.utils.tensorboard import SummaryWriter
+
 
 class Trainer:
 
     def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
             optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str=None,
-            tb_dir: str=None):
+            tb_dir: str=None, tb_tag: str=None):
         self.model = model
         self.trainloader = trainloader
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.__setup_tensorboard(tb_dir)
+        self.__setup_tensorboard(self.trainloader.dataset, tb_dir, tb_tag)
 
             
-    def __setup_tensorboard(self, tb_dir: str):
-        if not tb_dir:
+    def __setup_tensorboard(self, data: np.ndarray, tb_dir: str, tb_tag: str):
+        self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
+        if not self.__tb:
             return
-        self.__tb = SummaryWriter(log_dir=tb_dir)
-        maxuser = np.max(self.trainloader.dataset[:,0])
-        maxitem = np.max(self.trainloader.dataset[:,1])
+        self.__tb_tag = tb_tag
+        maxuser = np.max(data[:,0]).astype(int)
+        maxitem = np.max(data[:,1]).astype(int)
         embsize = maxitem + 1
         self.__tb_labels = []
         self.__tb_imgs = np.zeros((embsize, 3, 1, 1))
@@ -49,24 +52,27 @@ class Trainer:
         for rows in self.trainloader:
             self.optimizer.zero_grad()
             rows = rows.to(self.device)
-            interactions = rows[:,:2]
-            targets = rows[:,2]
+            interactions = rows[:,:2].long()
+            targets = rows[:,2].float()
             predictions = self.model(interactions)
-            loss = self.criterion(predictions, targets.float())
+            loss = self.criterion(predictions, targets)
             loss.backward()
             self.optimizer.step()
             total_loss.append(loss.item())
 
         total_loss = mean(total_loss)
-
-        if self.__tb and epoch >= 0:
-            self.__tb.add_scalar('train/loss', total_loss, epoch)
-            if hasattr(self.model, 'get_embedding_weight'):
-                weight = self.model.get_embedding_weight()
-                print(weight.shape, len(self.__tb_labels))
-                self.__tb.add_embedding(weight, global_step=epoch, metadata=self.__tb_labels, label_img=self.__tb_imgs)
+        self.__update_tensorboard(total_loss, epoch)
 
         return total_loss
+
+    def __update_tensorboard(self, loss: int, epoch: int):
+        if not self.__tb or epoch < 0:
+            return
+        self.__tb.add_scalar('train/loss', loss, epoch)
+        if hasattr(self.model, 'get_embedding_weight'):
+            weight = self.model.get_embedding_weight()
+            self.__tb.add_embedding(weight, global_step=epoch, tag=self.__tb_tag,
+                metadata=self.__tb_labels, label_img=self.__tb_imgs)
 
 
 class TestResult:
@@ -84,13 +90,14 @@ class TestResult:
 class Tester:
 
     def __init__(self, model: torch.nn.Module, testloader: torch.utils.data.DataLoader,
-      trainloader: torch.utils.data.DataLoader, topk: int=10, device: str=None, tb_dir: str=None):
+      trainloader: torch.utils.data.DataLoader, topk: int=10, device: str=None,
+      tb_dir: str=None, tb_tag: str=None):
         self.model = model
         self.testloader = testloader
         self.topk = topk
         self.device = device
         self.__total_items = len(np.unique(trainloader.dataset[:,1]))
-        self.__tb = SummaryWriter(log_dir=tb_dir) if tb_dir else None
+        self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
 
     def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
         """
@@ -114,7 +121,7 @@ class Tester:
 
         for rows in self.testloader:
             rows = rows.to(self.device)
-            interactions = rows[:,:2]
+            interactions = rows[:,:2].long()
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)
@@ -132,3 +139,10 @@ class Tester:
             self.__tb.add_scalar(f'eval/COV@{self.topk}', result.coverage, epoch)
 
         return result
+
+def create_tensorboard_writer(tb_dir, tb_tag):
+    if not tb_dir:
+        return
+    if tb_tag:
+        tb_dir = os.path.join(tb_dir, tb_tag)
+    return SummaryWriter(log_dir=tb_dir)

@@ -1,6 +1,5 @@
 import click
 import torch
-import os
 from torch.utils.data import DataLoader
 from nnrecommend.cli.main import main
 from nnrecommend.fmachine import FactorizationMachine, GraphFactorizationMachine, GraphAttentionFactorizationMachine
@@ -75,10 +74,9 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
     try:
         # train
         logger.info("preparing training...")
-        if tensorboard_dir:
-            tensorboard_dir = os.path.join(tensorboard_dir, f"{model_type}-{embed_dim}")
-        trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir)
-        tester = Tester(model, testloader, trainloader, topk, device, tensorboard_dir)
+        tensorboard_tag = f"{dataset_type}-{model_type}-{embed_dim}"
+        trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir, tensorboard_tag)
+        tester = Tester(model, testloader, trainloader, topk, device, tensorboard_dir, tensorboard_tag)
 
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
