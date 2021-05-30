@@ -1,10 +1,12 @@
+from logging import Logger
 import click
 import os
 import torch
 from nnrecommend.logging import setup_log
-from nnrecommend.dataset.movielens import MovielensDataset
-from nnrecommend.dataset.podcasts import ItunesPodcastsDataset
-from nnrecommend.dataset.spotify import SpotifyDataset
+from nnrecommend.dataset import BaseDatasetSource
+from nnrecommend.dataset.movielens import MovielensDatasetSource
+from nnrecommend.dataset.podcasts import ItunesPodcastsDatasetSource
+from nnrecommend.dataset.spotify import SpotifyDatasetSource
 
 
 class Context:
@@ -16,17 +18,17 @@ class Context:
     def setup(self, verbose: bool, logoutput: str) -> None:
         self.logger = setup_log(verbose, logoutput)
 
-    def create_dataset(self, path, dataset_type: str):
+    def create_dataset_source(self, path, dataset_type: str) -> BaseDatasetSource:
         if dataset_type == "movielens":
             self.logger.info("creating movielens dataset")
             path = os.path.join(path, "movielens")
-            return MovielensDataset(path, self.logger)
+            return MovielensDatasetSource(path, self.logger)
         elif dataset_type == "podcasts":
             self.logger.info("creating itunes podcasts dataset")
-            return ItunesPodcastsDataset(path, self.logger)
+            return ItunesPodcastsDatasetSource(path, self.logger)
         elif dataset_type == "spotify":
             self.logger.info("creating Spotify dataset")
-            return SpotifyDataset(path, self.logger)
+            return SpotifyDatasetSource(path, self.logger)
         else:
             raise ValueError(f"unknow dataset type {dataset_type}")
 

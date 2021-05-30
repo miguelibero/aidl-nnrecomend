@@ -51,7 +51,8 @@ class Trainer:
 
         for rows in self.trainloader:
             self.optimizer.zero_grad()
-            rows = rows.to(self.device)
+            if self.device:
+                rows = rows.to(self.device)
             interactions = rows[:,:2].long()
             targets = rows[:,2].float()
             predictions = self.model(interactions)
@@ -89,14 +90,14 @@ class TestResult:
 
 class Tester:
 
-    def __init__(self, algorythm, testloader: torch.utils.data.DataLoader,
-      trainloader: torch.utils.data.DataLoader, topk: int=10, device: str=None,
+    def __init__(self, algorithm, testloader: torch.utils.data.DataLoader,
+      dataset: np.ndarray, topk: int=10, device: str=None,
       tb_dir: str=None, tb_tag: str=None):
-        self.algorythm = algorythm
+        self.algorithm = algorithm
         self.testloader = testloader
         self.topk = topk
         self.device = device
-        self.__total_items = len(np.unique(trainloader.dataset[:,1]))
+        self.__total_items = len(np.unique(dataset[:,1]))
         self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
 
     def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
@@ -119,11 +120,14 @@ class Tester:
 
         total_recommended_items = set()
 
+        istorch = isinstance(self.algorithm, torch.nn.Module)
+
         for rows in self.testloader:
-            rows = rows.to(self.device)
+            if self.device:
+                rows = rows.to(self.device)
             interactions = rows[:,:2].long()
             real_item = interactions[0][1]
-            predictions = self.algorythm(interactions)
+            predictions = self.algorithm(interactions)
             _, indices = torch.topk(predictions, self.topk)
             recommended_items = interactions[indices][:, 1]
             total_recommended_items.update(recommended_items.tolist())
