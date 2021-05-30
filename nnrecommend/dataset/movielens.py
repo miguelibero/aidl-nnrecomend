@@ -2,6 +2,7 @@ import pandas as pd
 from nnrecommend.dataset import Dataset
 from nnrecommend.logging import get_logger
 from logging import Logger
+import numpy as np
 
 class MovielensDataset:
     """
@@ -15,15 +16,17 @@ class MovielensDataset:
         self.matrix = None
 
     def __load_data(self, type:str, maxsize: int):
+        nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.rating"
-        return pd.read_csv(path, sep='\t', header=None, nrows=maxsize)
+        data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
+        return np.array(data, dtype=np.int64)
 
     def load(self, maxsize: int=-1) -> None:
         self.__logger.info("loading training dataset...")
         self.trainset = Dataset(self.__load_data("train", maxsize))
         iddiff = self.trainset.normalize_ids()
         self.__logger.info("loading test dataset...")
-        self.testset = Dataset(self.__load_data("train", maxsize))
+        self.testset = Dataset(self.__load_data("test", maxsize))
         self.testset.normalize_ids(iddiff)
         self.__logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()

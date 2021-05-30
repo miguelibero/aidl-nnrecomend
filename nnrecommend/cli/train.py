@@ -1,5 +1,6 @@
 import click
 import torch
+import os
 from torch.utils.data import DataLoader
 from nnrecommend.cli.main import main
 from nnrecommend.fmachine import FactorizationMachine, GraphFactorizationMachine, GraphAttentionFactorizationMachine
@@ -13,7 +14,7 @@ from nnrecommend.logging import get_logger
 @click.option('--dataset', 'dataset_type', default="movielens",
               type=click.Choice(['movielens', 'podcasts','spotify'], case_sensitive=False), help="type of dataset")
 @click.option('--model', 'model_type', default='linear',
-              type=click.Choice(['linear', 'gcn', 'gcn-attention'], case_sensitive=False), help="type of model to train")
+              type=click.Choice(['linear', 'gcn', 'gcn-att'], case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
@@ -54,7 +55,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
     # create model
     logger.info("creating model...")
     model = None
-    if model_type == "gcn-attention":
+    if model_type == "gcn-att":
         model = GraphAttentionFactorizationMachine(embed_dim, dataset.matrix)
     if model_type == "gcn":
         model = GraphFactorizationMachine(embed_dim, dataset.matrix)
@@ -73,19 +74,23 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
 
     try:
         # train
-        logger.info("training...")
+        logger.info("preparing training...")
+        if tensorboard_dir:
+            tensorboard_dir = os.path.join(tensorboard_dir, f"{model_type}-{embed_dim}")
         trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir)
         tester = Tester(model, testloader, trainloader, topk, device, tensorboard_dir)
 
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
 
-        result = tester()
+        result = tester(-1)
         logger.info(f'initial topk={topk} {result_info(result)}')
 
+        logger.info("training...")
+
         for i in range(epochs):
-            loss = trainer()
-            result = tester()
+            loss = trainer(i)
+            result = tester(i)
             scheduler.step()
             lr = scheduler.get_last_lr()[0]
             logger.info(f'{i:03}/{epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')

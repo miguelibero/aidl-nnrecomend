@@ -20,11 +20,12 @@ class SpotifyDataset:
     STRING_ROWS = ("context_type",)
 
     def __load_data(self, type:str, maxsize: int):
+        nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.csv"
-        data = pd.read_csv(path, sep=',', nrows=maxsize)
+        data = pd.read_csv(path, sep=',', nrows=nrows)
         for row in self.STRING_ROWS:
             if row in data:
-                del data[row] 
+                del data[row]
         return data
 
     def load(self, maxsize: int=-1) -> None:

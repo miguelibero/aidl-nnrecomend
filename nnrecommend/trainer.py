@@ -7,14 +7,36 @@ from torch.utils.tensorboard import SummaryWriter
 class Trainer:
 
     def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
-            optimizer: torch.optim.Optimizer,
-            criterion: torch.nn.Module, device: str=None, tb_dir: str=None):
+            optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str=None,
+            tb_dir: str=None):
         self.model = model
         self.trainloader = trainloader
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.__tb = SummaryWriter(log_dir=tb_dir) if tb_dir else None
+        self.__setup_tensorboard(tb_dir)
+
+            
+    def __setup_tensorboard(self, tb_dir: str):
+        if not tb_dir:
+            return
+        self.__tb = SummaryWriter(log_dir=tb_dir)
+        maxuser = np.max(self.trainloader.dataset[:,0])
+        maxitem = np.max(self.trainloader.dataset[:,1])
+        embsize = maxitem + 1
+        self.__tb_labels = []
+        self.__tb_imgs = np.zeros((embsize, 3, 1, 1))
+        for i in range(embsize):
+            if i <= maxuser:
+                label = f"u{i}"
+                color = np.array((1, 0, 0))
+            else:
+                label = f"i{i}"
+                color = np.array((0, 0, 1))
+            self.__tb_labels.append(label)
+            self.__tb_imgs[i, :, 0, 0] = color
+        self.__tb_imgs = torch.from_numpy(self.__tb_imgs)
+
 
     def __call__(self, epoch: int=-1) -> float:
         """
@@ -26,10 +48,11 @@ class Trainer:
 
         for rows in self.trainloader:
             self.optimizer.zero_grad()
-            targets = rows[:,2].to(self.device).float()
-            interactions = rows[:,:2].to(self.device).long()
+            rows = rows.to(self.device)
+            interactions = rows[:,:2]
+            targets = rows[:,2]
             predictions = self.model(interactions)
-            loss = self.criterion(predictions, targets)
+            loss = self.criterion(predictions, targets.float())
             loss.backward()
             self.optimizer.step()
             total_loss.append(loss.item())
@@ -38,6 +61,10 @@ class Trainer:
 
         if self.__tb and epoch >= 0:
             self.__tb.add_scalar('train/loss', total_loss, epoch)
+            if hasattr(self.model, 'get_embedding_weight'):
+                weight = self.model.get_embedding_weight()
+                print(weight.shape, len(self.__tb_labels))
+                self.__tb.add_embedding(weight, global_step=epoch, metadata=self.__tb_labels, label_img=self.__tb_imgs)
 
         return total_loss
 
@@ -86,7 +113,8 @@ class Tester:
         total_recommended_items = set()
 
         for rows in self.testloader:
-            interactions = rows[:,:2].to(self.device).long()
+            rows = rows.to(self.device)
+            interactions = rows[:,:2]
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)
@@ -98,9 +126,9 @@ class Tester:
         cov = len(total_recommended_items) / self.__total_items
         result = TestResult(mean(hr), mean(ndcg), cov)
 
-        if self.__tb and epoch >= 0:
-            self.__tb.add_scalar('eval/HR@{topk}', result.hr, epoch)
-            self.__tb.add_scalar('eval/NDCG@{topk}', result.ndcg, epoch)
-            self.__tb.add_scalar('eval/COV@{topk}', result.coverage, epoch)
+        if self.__tb is not None and epoch >= 0:
+            self.__tb.add_scalar(f'eval/HR@{self.topk}', result.hr, epoch)
+            self.__tb.add_scalar(f'eval/NDCG@{self.topk}', result.ndcg, epoch)
+            self.__tb.add_scalar(f'eval/COV@{self.topk}', result.coverage, epoch)
 
         return result
