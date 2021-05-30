@@ -89,10 +89,10 @@ class TestResult:
 
 class Tester:
 
-    def __init__(self, model: torch.nn.Module, testloader: torch.utils.data.DataLoader,
+    def __init__(self, algorythm, testloader: torch.utils.data.DataLoader,
       trainloader: torch.utils.data.DataLoader, topk: int=10, device: str=None,
       tb_dir: str=None, tb_tag: str=None):
-        self.model = model
+        self.algorythm = algorythm
         self.testloader = testloader
         self.topk = topk
         self.device = device
@@ -123,7 +123,7 @@ class Tester:
             rows = rows.to(self.device)
             interactions = rows[:,:2].long()
             real_item = interactions[0][1]
-            predictions = self.model(interactions)
+            predictions = self.algorythm(interactions)
             _, indices = torch.topk(predictions, self.topk)
             recommended_items = interactions[indices][:, 1]
             total_recommended_items.update(recommended_items.tolist())
@@ -139,6 +139,7 @@ class Tester:
             self.__tb.add_scalar(f'eval/COV@{self.topk}', result.coverage, epoch)
 
         return result
+
 
 def create_tensorboard_writer(tb_dir, tb_tag):
     if not tb_dir:

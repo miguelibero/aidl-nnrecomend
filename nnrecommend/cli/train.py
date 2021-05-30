@@ -7,6 +7,27 @@ from nnrecommend.trainer import Trainer, Tester
 from nnrecommend.logging import get_logger
 
 
+def setup_dataset(dataset, logger, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int):
+    if not dataset:
+        raise Exception("could not create dataset")
+
+    logger.info("loading dataset...")
+    dataset.load(max_interactions)
+    maxids = dataset.trainset.idrange - 1
+    maxids[1] -= maxids[0]
+    logger.info(f"loaded {maxids[0]} users and {maxids[1]} items")
+
+    logger.info("adding negative sampling...")
+    dataset.trainset.add_negative_sampling(dataset.matrix, negatives_train)
+    dataset.testset.add_negative_sampling(dataset.matrix, negatives_test)
+
+    trainloader = DataLoader(dataset.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+    # test loader should not be shuffled since the negative samples need to be consecutive
+    testloader = DataLoader(dataset.testset, batch_size=negatives_test+1, num_workers=0)
+
+    return trainloader, testloader, maxids
+
+
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
@@ -25,31 +46,15 @@ from nnrecommend.logging import get_logger
 @click.option('--embed-dim', type=int, default=64, help="size of the embedding state")
 def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tensorboard_dir: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int, embed_dim: int) -> None:
     """
-    train a model 
+    train a pytorch recommender model on a given dataset
 
     PATH: path to the dataset files
     """
-    device = ctx.obj.device
+    
     dataset = ctx.obj.create_dataset(path, dataset_type)
     logger = ctx.obj.logger or get_logger(train)
-
-    # load data
-    if not dataset:
-        raise Exception("could not create dataset")
-
-    logger.info("loading dataset...")
-    dataset.load(max_interactions)
-    maxids = dataset.trainset.idrange - 1
-    maxids[1] -= maxids[0]
-    logger.info(f"loaded {maxids[0]} users and {maxids[1]} items")
-
-    logger.info("adding negative sampling...")
-    dataset.trainset.add_negative_sampling(dataset.matrix, negatives_train)
-    dataset.testset.add_negative_sampling(dataset.matrix, negatives_test)
-
-    trainloader = DataLoader(dataset.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
-    # test loader should not be shuffled since the negative samples need to be consecutive
-    testloader = DataLoader(dataset.testset, batch_size=negatives_test+1, num_workers=0)
+    device = ctx.obj.device
+    trainloader, testloader, maxids = setup_dataset(dataset, logger, max_interactions, negatives_train, negatives_test, batch_size)
     
     # create model
     logger.info("creating model...")
@@ -67,9 +72,6 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
     criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.99)
-
-    # TODO: tensorboard support
-    tensorboard = None
 
     try:
         # train
@@ -102,3 +104,43 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
             }
             with open(output, "wb") as fh:
                 torch.save(data, fh)
+
+
+
+
+@main.command()
+@click.pass_context
+@click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
+@click.option('--dataset', 'dataset_type', default="movielens",
+              type=click.Choice(['movielens', 'podcasts','spotify'], case_sensitive=False), help="type of dataset")
+@click.option('--algorithm', 'algorythm_type', default='knn',
+              type=click.Choice(['knn'], case_sensitive=False), help="the algorythm to use to fit the data")
+@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
+@click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
+@click.option('--negatives-train', type=int, default=4, help="amount of negative samples to generate for the trainset")
+@click.option('--negatives-test', type=int, default=99, help="amount of negative samples to generate for the testset")
+@click.option('--batch-size', type=int, default=256, help="batchsize of the trainset dataloader")
+@click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
+def fit(ctx, path: str, dataset_type: str, algorythm_type: str, tensorboard_dir: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, ) -> None:
+    """
+    fit a given recommender algorythm on a dataset
+
+    PATH: path to the dataset files
+    """
+    dataset = ctx.obj.create_dataset(path, dataset_type)
+    logger = ctx.obj.logger or get_logger(fit)
+    device = ctx.obj.device
+    trainloader, testloader, maxids = setup_dataset(dataset, logger, max_interactions, negatives_train, negatives_test, batch_size)
+    
+    # create algorythm
+    logger.info("creating algorythm...")
+    algorythm = None
+
+    # TODO: add K-NN
+
+    logger.info("preparing training...")
+    tensorboard_tag = f"{dataset_type}-{algorythm_type}"
+    tester = Tester(algorythm, testloader, trainloader, topk, device, tensorboard_dir, tensorboard_tag)
+    logger.info("evaluating...")
+    result = tester(0)
+    logger.info(f'hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}')
