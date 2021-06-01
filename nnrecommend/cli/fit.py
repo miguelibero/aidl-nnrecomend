@@ -1,10 +1,9 @@
 from typing import List
 import click
 from surprise.prediction_algorithms.algo_base import AlgoBase
-from torch.utils.data import DataLoader
 from nnrecommend.cli.main import main, Context
 from nnrecommend.algo import SurpriseAlgorithm
-from nnrecommend.trainer import TestResult, Tester
+from nnrecommend.operation import Setup, TestResult, Tester
 from nnrecommend.logging import get_logger
 import surprise
 import sys
@@ -57,10 +56,10 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
     """
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
-
+    
     logger.info("loading dataset...")
-    src.load(max_interactions)
-    src.setup(batch_size, negatives_train, negatives_test)
+    setup = Setup(src, logger)
+    maxids = setup(max_interactions, negatives_train, negatives_test)
 
     results = []
     if isinstance(algorithm_types, str):
@@ -76,10 +75,11 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
     for algorithm_type in algorithm_types:
         logger.info(f"creating algorithm {algorithm_type}...")
         algo = create_surprise_algorithm(algorithm_type)
-        algo = SurpriseAlgorithm(algo, src.maxids[0] + 1)
+        algo = SurpriseAlgorithm(algo, maxids[0] + 1)
 
-        tensorboard_tag = f"{dataset_type}-{algorithm_type}"
-        tester = Tester(algo, src.testloader, src.trainset, topk, None, tensorboard_dir, tensorboard_tag)
+        testloader = setup.create_testloader()
+        algo_tb_tag = f"{dataset_type}-{algorithm_type}"
+        tester = Tester(algo, testloader, src.trainset, topk, None, tensorboard_dir, algo_tb_tag)
 
         try:
             logger.info("fitting algorithm...")

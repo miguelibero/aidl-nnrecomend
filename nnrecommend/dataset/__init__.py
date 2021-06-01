@@ -108,7 +108,7 @@ class Dataset(torch.utils.data.Dataset):
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
         """
-        if self.idrange is not None:
+        if self.idrange is None:
             self.normalize_ids()
         rowsbyuser = {}
         for i, row in enumerate(self.__interactions):
@@ -157,16 +157,3 @@ class BaseDatasetSource:
 
     def load(self, max_interactions: int=-1):
         raise NotImplementedError()
-
-    def setup(self, batch_size: int, negatives_train: int=0, negatives_test: int=0) -> None:
-        self.maxids = self.trainset.idrange - 1
-        self.maxids[1] -= self.maxids[0]
-        self._logger.info(f"loaded {self.maxids[0]} users and {self.maxids[1]} items")
-
-        self._logger.info("adding negative sampling...")
-        self.trainset.add_negative_sampling(self.matrix, negatives_train)
-        self.testset.add_negative_sampling(self.matrix, negatives_test)
-
-        self.trainloader = DataLoader(self.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
-        # test loader should not be shuffled since the negative samples need to be consecutive
-        self.testloader = DataLoader(self.testset, batch_size=negatives_test+1, num_workers=0)

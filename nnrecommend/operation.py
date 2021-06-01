@@ -1,9 +1,44 @@
+from logging import Logger
+from torch.utils.data.dataloader import DataLoader
+from nnrecommend.logging import get_logger
+from nnrecommend.dataset import BaseDatasetSource
 from statistics import mean
 import math
 import torch
 import numpy as np
 import os
 from torch.utils.tensorboard import SummaryWriter
+
+
+class Setup:
+
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None,
+        tb_dir: str=None, tb_tag: str=None):
+        self.src = src
+        self.__logger = logger or get_logger(self)
+        self.__negatives_test = 0
+
+    def __call__(self, max_interactions: int=-1, negatives_train: int=0, negatives_test: int=0):
+        self.__logger.info("loading dataset...")
+
+        self.src.load(max_interactions)
+        maxids = self.src.trainset.idrange - 1
+        maxids[1] -= maxids[0]
+        self.__logger.info(f"loaded {maxids[0]} users and {maxids[1]} items")
+
+        self.__logger.info("adding negative sampling...")
+        matrix = self.src.matrix
+        self.src.trainset.add_negative_sampling(matrix, negatives_train)
+        self.src.testset.add_negative_sampling(matrix, negatives_test)
+        self.__negatives_test = negatives_test
+        return maxids
+
+    def create_testloader(self):
+        # test loader should not be shuffled since the negative samples need to be consecutive
+        return DataLoader(self.src.testset, batch_size=self.__negatives_test+1, num_workers=0)
+
+    def create_trainloader(self, batch_size: int):
+        return DataLoader(self.src.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
 class Trainer:
@@ -18,7 +53,6 @@ class Trainer:
         self.device = device
         self.__setup_tensorboard(self.trainloader.dataset, tb_dir, tb_tag)
 
-            
     def __setup_tensorboard(self, data: np.ndarray, tb_dir: str, tb_tag: str):
         self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
         if not self.__tb:
@@ -27,8 +61,9 @@ class Trainer:
         maxuser = np.max(data[:,0]).astype(int)
         maxitem = np.max(data[:,1]).astype(int)
         embsize = maxitem + 1
-        self.__tb_labels = []
-        self.__tb_imgs = np.zeros((embsize, 3, 1, 1))
+        self.__tb_metadata = []
+        self.__tb_metadata_header = ['label', 'color']
+        self.__tb_imgs = None
         for i in range(embsize):
             if i <= maxuser:
                 label = f"u{i}"
@@ -36,10 +71,7 @@ class Trainer:
             else:
                 label = f"i{i}"
                 color = np.array((0, 0, 1))
-            self.__tb_labels.append(label)
-            self.__tb_imgs[i, :, 0, 0] = color
-        self.__tb_imgs = torch.from_numpy(self.__tb_imgs)
-
+            self.__tb_metadata.append((label, color))
 
     def __call__(self, epoch: int=-1) -> float:
         """
@@ -73,7 +105,8 @@ class Trainer:
         if hasattr(self.model, 'get_embedding_weight'):
             weight = self.model.get_embedding_weight()
             self.__tb.add_embedding(weight, global_step=epoch, tag=self.__tb_tag,
-                metadata=self.__tb_labels, label_img=self.__tb_imgs)
+                metadata=self.__tb_metadata, metadata_header=self.__tb_metadata_header,
+                label_img=self.__tb_imgs)
 
 
 class TestResult:
@@ -119,8 +152,6 @@ class Tester:
         hr, ndcg = [], []
 
         total_recommended_items = set()
-
-        istorch = isinstance(self.algorithm, torch.nn.Module)
 
         for rows in self.testloader:
             if self.device:

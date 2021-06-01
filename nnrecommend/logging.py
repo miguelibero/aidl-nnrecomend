@@ -4,8 +4,8 @@ import os
 import sys
 
 
-COLOR_FMT = '%(asctime)s %(name)s %(message)s'
-NOCOLOR_FMT = '%(asctime)s %(name)s [%(levelname)s] %(message)s'
+COLOR_FMT = '%(asctime)s %(message)s'
+NOCOLOR_FMT = '%(asctime)s [%(levelname)s] %(message)s'
 
 
 class RemoveStacktraceFilter(logging.Filter):

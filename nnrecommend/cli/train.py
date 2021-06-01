@@ -2,7 +2,7 @@ import click
 import torch
 from nnrecommend.cli.main import main, Context
 from nnrecommend.fmachine import FactorizationMachine, GraphFactorizationMachine, GraphAttentionFactorizationMachine
-from nnrecommend.trainer import Trainer, Tester
+from nnrecommend.operation import Setup, Trainer, Tester
 from nnrecommend.logging import get_logger
 import sys
 
@@ -29,17 +29,14 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
 
     PATH: path to the dataset files
     """
-    
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(train)
     device = ctx.obj.device
 
     if not src:
         raise Exception("could not create dataset")
-
-    logger.info("loading dataset...")
-    src.load(max_interactions)
-    src.setup(batch_size, negatives_train, negatives_test)
+    setup = Setup(src, logger)
+    maxids = setup(max_interactions, negatives_train, negatives_test)
 
     logger.info(f"creating model {model_type}...")
     model = None
@@ -59,9 +56,11 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
 
     try:
         logger.info("preparing training...")
-        tensorboard_tag = f"{dataset_type}-{model_type}-{embed_dim}"
-        trainer = Trainer(model, src.trainloader, optimizer, criterion, device, tensorboard_dir, tensorboard_tag)
-        tester = Tester(model, src.testloader, src.trainset, topk, device, tensorboard_dir, tensorboard_tag)
+        trainloader = setup.create_trainloader(batch_size)
+        testloader = setup.create_testloader()
+        model_tb_tag = f"{dataset_type}-{model_type}-{embed_dim}"
+        trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir, model_tb_tag)
+        tester = Tester(model, testloader, src.trainset, topk, device, tensorboard_dir, model_tb_tag)
 
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
@@ -69,10 +68,10 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
         result = tester(-1)
         logger.info(f'initial topk={topk} {result_info(result)}')
 
-        logger.info("training...")
-
         for i in range(epochs):
+            logger.info(f"training epoch {i}...")
             loss = trainer(i)
+            logger.info(f"evaluating...")
             result = tester(i)
             scheduler.step()
             lr = scheduler.get_last_lr()[0]
@@ -83,7 +82,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
             logger.info("saving model...")
             data = {
                 "model": model,
-                "maxids": src.maxids
+                "maxids": maxids
             }
             with open(output, "wb") as fh:
                 torch.save(data, fh)
