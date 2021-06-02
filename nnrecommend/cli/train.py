@@ -60,7 +60,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
         testloader = setup.create_testloader()
         model_tb_tag = f"{dataset_type}-{model_type}-{embed_dim}"
         trainer = Trainer(model, trainloader, optimizer, criterion, device, tensorboard_dir, model_tb_tag)
-        tester = Tester(model, testloader, src.trainset, topk, device, tensorboard_dir, model_tb_tag)
+        tester = Tester(model, testloader, topk, device, tensorboard_dir, model_tb_tag)
 
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"

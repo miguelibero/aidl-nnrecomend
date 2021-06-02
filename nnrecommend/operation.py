@@ -124,13 +124,11 @@ class TestResult:
 class Tester:
 
     def __init__(self, algorithm, testloader: torch.utils.data.DataLoader,
-      dataset: np.ndarray, topk: int=10, device: str=None,
-      tb_dir: str=None, tb_tag: str=None):
+      topk: int=10, device: str=None, tb_dir: str=None, tb_tag: str=None):
         self.algorithm = algorithm
         self.testloader = testloader
         self.topk = topk
         self.device = device
-        self.__total_items = len(np.unique(dataset[:,1]))
         self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
 
     def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
@@ -152,20 +150,22 @@ class Tester:
         hr, ndcg = [], []
 
         total_recommended_items = set()
+        total_items = set()
 
         for rows in self.testloader:
             if self.device:
                 rows = rows.to(self.device)
+            total_items.update(rows[:, 1].tolist())
             interactions = rows[:,:2].long()
             real_item = interactions[0][1]
             predictions = self.algorithm(interactions)
             _, indices = torch.topk(predictions, self.topk)
             recommended_items = interactions[indices][:, 1]
-            total_recommended_items.update(recommended_items.tolist())
+            total_recommended_items.add(recommended_items.tolist())
             hr.append(self.__get_hit_ratio(recommended_items, real_item))
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
 
-        cov = len(total_recommended_items) / self.__total_items
+        cov = len(total_recommended_items) / len(total_items)
         result = TestResult(mean(hr), mean(ndcg), cov)
 
         if self.__tb is not None and epoch >= 0:

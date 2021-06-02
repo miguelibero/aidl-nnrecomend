@@ -145,6 +145,22 @@ class Dataset(torch.utils.data.Dataset):
             matrix[item, user] = 1.0
         return matrix
 
+    def __remove_low(self, matrix: sp.spmatrix, min: int, idx: int) -> None:
+        if self.idrange is None:
+            self.normalize_ids()
+        counts = np.asarray(matrix.sum(0)).flatten()
+        cond = counts[self.__interactions[:, idx]] >= min
+        self.__interactions =  self.__interactions[cond]
+        return np.count_nonzero(cond)
+
+
+    def remove_low_users(self, matrix: sp.spmatrix, min: int) -> None:
+        return self.__remove_low(matrix, min, 0)
+
+    def remove_low_items(self, matrix: sp.spmatrix, min: int) -> None:
+        return self.__remove_low(matrix, min, 1)
+
+
 
 class BaseDatasetSource:
 

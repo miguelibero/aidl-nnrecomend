@@ -61,3 +61,13 @@ def test_extract_test_dataset():
     assert type(testset) == Dataset
     assert len(dataset) == 10
     assert len(testset) == 2
+
+def test_remove_low():
+    data = ((2, 2), (2, 3), (3, 1), (3, 4), (4, 1))
+    dataset = Dataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    assert len(dataset) == 5
+    dataset.remove_low_users(matrix, 2)
+    assert len(dataset) == 4
+    dataset.remove_low_items(matrix, 2)
+    assert len(dataset) == 1

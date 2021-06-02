@@ -79,7 +79,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
 
         testloader = setup.create_testloader()
         algo_tb_tag = f"{dataset_type}-{algorithm_type}"
-        tester = Tester(algo, testloader, src.trainset, topk, None, tensorboard_dir, algo_tb_tag)
+        tester = Tester(algo, testloader, topk, None, tensorboard_dir, algo_tb_tag)
 
         try:
             logger.info("fitting algorithm...")
