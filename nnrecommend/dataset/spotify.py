@@ -31,3 +31,9 @@ class SpotifyDatasetSource(BaseDatasetSource):
         self.testset.normalize_ids(iddiff)
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
+        self._logger.info("removing users & items with less interactions ...")
+        c = self.trainset.remove_low(self.matrix, 1)
+        if c > 0:
+            self._logger.info(f"removed {c} interactions")
+            self._logger.info("recalculating adjacency matrix again...")
+            self.matrix = self.trainset.create_adjacency_matrix()

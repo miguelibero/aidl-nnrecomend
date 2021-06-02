@@ -24,7 +24,8 @@ class Setup:
         self.src.load(max_interactions)
         maxids = self.src.trainset.idrange - 1
         maxids[1] -= maxids[0]
-        self.__logger.info(f"loaded {maxids[0]} users and {maxids[1]} items")
+        tslen = len(self.src.trainset)
+        self.__logger.info(f"loaded {tslen} interactions of {maxids[0]} users and {maxids[1]} items")
 
         self.__logger.info("adding negative sampling...")
         matrix = self.src.matrix
@@ -161,7 +162,7 @@ class Tester:
             predictions = self.algorithm(interactions)
             _, indices = torch.topk(predictions, self.topk)
             recommended_items = interactions[indices][:, 1]
-            total_recommended_items.add(recommended_items.tolist())
+            total_recommended_items.update(recommended_items.tolist())
             hr.append(self.__get_hit_ratio(recommended_items, real_item))
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
 
