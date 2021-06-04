@@ -20,9 +20,9 @@ class MovielensDatasetSource(BaseDatasetSource):
     def load(self, maxsize: int=-1) -> None:
         self._logger.info("loading training dataset...")
         self.trainset = Dataset(self.__load_data("train", maxsize))
-        iddiff = self.trainset.normalize_ids()
+        mapping = self.trainset.normalize_ids()
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
-        self.testset.normalize_ids(iddiff)
+        self.testset.normalize_ids(mapping)
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()

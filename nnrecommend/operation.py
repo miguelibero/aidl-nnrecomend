@@ -154,9 +154,9 @@ class Tester:
         total_items = set()
 
         for rows in self.testloader:
+            total_items.update(rows[:, 1].tolist())
             if self.device:
                 rows = rows.to(self.device)
-            total_items.update(rows[:, 1].tolist())
             interactions = rows[:,:2].long()
             real_item = interactions[0][1]
             predictions = self.algorithm(interactions)

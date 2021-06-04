@@ -7,23 +7,49 @@ def test_dataset():
     assert len(dataset) == 2
     assert (dataset[0] == (2, 2, 1)).all()
     assert (dataset[1] == (3, 1, 1)).all()
-    assert dataset.idrange == None
-    iddiff = dataset.normalize_ids()
+    mapping = dataset.normalize_ids()
     assert len(dataset) == 2
     assert (dataset[0] == (0, 3, 1)).all()
     assert (dataset[1] == (1, 2, 1)).all()
     assert (dataset.idrange == (2, 4)).all()
-    assert (iddiff == (-2, 1)).all()
+    assert (mapping[0] == (2, 3)).all()
+    assert (mapping[1] == (1, 2)).all()
 
 
-def test_dataset_iddiff():
+def test_dataset_mapping():
+    data = ((2, 2), (3, 1), (4, 1))
+    dataset = Dataset(data)
+    mapping = dataset.normalize_ids()
+    assert (mapping[0] == (2, 3, 4)).all()
+    assert (mapping[1] == (1, 2)).all()
+
+
+def test_dataset_denormalize():
+    data = ((2, 2), (3, 1), (4, 1))
+    dataset = Dataset(data)
+    mapping = dataset.normalize_ids()
+    dataset.denormalize_ids(mapping)
+    assert (dataset[0] == (2, 2, 1)).all()
+    assert (dataset[1] == (3, 1, 1)).all()
+    assert (dataset[2] == (4, 1, 1)).all()
+
+
+def test_dataset_pass_mapping():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
-    iddiff = dataset.normalize_ids((-3, 5))
-    assert (iddiff == (-3, 5)).all()
-    assert (dataset[0] == (-1, 7, 1)).all()
-    assert (dataset[1] == (0, 6, 1)).all()
-    assert (dataset.idrange == (1, 8)).all()
+    mapping = dataset.normalize_ids(((2, 3),(1, 2)))
+    assert (mapping[0] == (2, 3)).all()
+    assert (mapping[1] == (1, 2)).all()
+    assert (dataset[0] == (0, 3, 1)).all()
+    assert (dataset[1] == (1, 2, 1)).all()
+
+
+def test_dataset_bad_mapping():
+    data = ((2, 2), (3, 1))
+    dataset = Dataset(data)
+    dataset.normalize_ids(((1, 2),(1, 2)))
+    assert (dataset[0] == (1, 3, 1)).all()
+    assert (dataset[1] == (-1, 2, 1)).all()
 
 
 def test_adjacency_matrix():
@@ -67,7 +93,7 @@ def test_remove_low():
     dataset = Dataset(data)
     matrix = dataset.create_adjacency_matrix()
     assert len(dataset) == 5
-    dataset.remove_low_users(matrix, 2)
+    dataset.remove_low_users(matrix, 1)
     assert len(dataset) == 4
-    dataset.remove_low_items(matrix, 2)
+    dataset.remove_low_items(matrix, 1)
     assert len(dataset) == 1

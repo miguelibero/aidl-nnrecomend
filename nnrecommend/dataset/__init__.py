@@ -4,7 +4,7 @@ import torch
 from logging import Logger
 from nnrecommend.logging import get_logger
 from typing import Container
-from torch.utils.data import DataLoader
+from bisect import bisect_left
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -27,26 +27,70 @@ class Dataset(torch.utils.data.Dataset):
         self.__interactions = interactions
         self.idrange = None
 
-    def normalize_ids(self, iddiff: np.ndarray=None) -> np.ndarray:
+    def denormalize_ids(self, mapping: Container[np.ndarray]):
+        assert isinstance(mapping, (list, tuple))
+        assert len(mapping) > 1
+        mapping = (np.array(mapping[0]), np.array(mapping[1]))
+
+        def find(container, val):
+            if val < 0 or val >= len(container):
+                return -1
+            return container[int(val)]
+
+        lu = len(mapping[0])
+        for row in self.__interactions:
+            row[0] = find(mapping[0], row[0])
+            row[1] = find(mapping[1], row[1] - lu)
+        
+        self.__remove_negative_ids()
+
+        self.idrange = None
+
+
+    def normalize_ids(self, mapping: Container[np.ndarray]=None) -> Container[np.ndarray]:
         """
-        if not iddiff parameter is passed, method will calculate one
+        if mapping parameter is passed, method will calculate one
         so that the dataset has normalized user & item ids to start with 0 and be consecutive
+        (item ids start after user ids)
 
-        :param iddiff: two int values that represent the diff for the user and item ids to apply
+        in case the mapping is passed and some id is not in the list, row will be removed
+
+        :param mapping: an array with two rows of raw user & item ids in order
         """
-        idmax = np.max(self.__interactions[:, :2], axis=0).astype(np.int64)
-        if isinstance(iddiff, type(None)):
-            idmin = np.min(self.__interactions[:, :2], axis=0).astype(np.int64)
-            iddiff = -idmin
-            iddiff[1] += idmax[0] - idmin[0] + 1
-        else:
-            iddiff = np.array(iddiff).astype(np.int64)
-            assert len(iddiff.shape) == 1
-            assert iddiff.shape[0] == 2
 
-        self.idrange = idmax + iddiff + 1
-        self.__interactions[:, :2] += iddiff
-        return iddiff
+        def calcmap(ids):
+            return np.sort(np.unique(ids))
+
+        if isinstance(mapping, type(None)):
+            mapping = (
+                calcmap(self.__interactions[:, 0]),
+                calcmap(self.__interactions[:, 1]))
+        else:
+            assert isinstance(mapping, (list, tuple))
+            assert len(mapping) > 1
+            mapping = (np.array(mapping[0]), np.array(mapping[1]))
+
+        missed = False
+
+        def find(container, val):
+            idx = bisect_left(container, val)
+            if idx < 0 or idx >= len(container) or container[idx] != val:
+                return -1
+            return idx
+
+        lu, li = len(mapping[0]), len(mapping[1])
+        self.idrange = np.array((lu, lu+li))
+        for row in self.__interactions:
+            row[0] = find(mapping[0], row[0])
+            row[1] = find(mapping[1], row[1]) + lu
+        
+        self.__remove_negative_ids()
+
+        return mapping
+
+    def __remove_negative_ids(self):
+        cond = (self.__interactions[:, :2] >= 0).all(axis=1)
+        self.__interactions =  self.__interactions[cond]
 
     def __len__(self) -> int:
         return len(self.__interactions)
@@ -164,7 +208,6 @@ class Dataset(torch.utils.data.Dataset):
         return self.__remove_low(matrix, lim, 1)
 
 
-
 class BaseDatasetSource:
 
     def __init__(self, logger: Logger=None):
@@ -172,7 +215,6 @@ class BaseDatasetSource:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.maxids = None
 
     def load(self, max_interactions: int=-1):
         raise NotImplementedError()

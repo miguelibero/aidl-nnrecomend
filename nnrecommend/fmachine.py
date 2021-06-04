@@ -62,9 +62,9 @@ class GraphEmbedding(BaseGraphEmbedding):
 
 
 class GraphAttentionEmbedding(BaseGraphEmbedding):
-    def __init__(self, embed_dim: int, matrix: sp.spmatrix, features: sp.spmatrix = None):
+    def __init__(self, embed_dim: int, matrix: sp.spmatrix, heads: int=8, dropout: float=0.6, features: sp.spmatrix = None):
         super().__init__(matrix, features)
-        self.gcn = GATConv(matrix.shape[0], embed_dim, heads=8, dropout=0.6)
+        self.gcn = GATConv(matrix.shape[0], embed_dim, heads=heads, dropout=dropout)
 
     def get_embedding_weight(self):
         return self.gcn.lin_r.weight.transpose(0, 1)

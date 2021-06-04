@@ -22,7 +22,7 @@ import sys
 @click.option('--batch-size', type=int, default=256, help="batchsize of the trainset dataloader")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--epochs', type=int, default=20, help="amount of epochs to run the training")
-@click.option('--embed-dim', type=int, default=64, help="size of the embedding state")
+@click.option('--embed-dim', type=int, default=16, help="size of the embedding state")
 def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tensorboard_dir: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, epochs: int, embed_dim: int) -> None:
     """
     train a pytorch recommender model on a given dataset
