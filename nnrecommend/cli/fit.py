@@ -1,9 +1,10 @@
 from typing import List
 import click
 from surprise.prediction_algorithms.algo_base import AlgoBase
+from torch.utils.tensorboard.summary import hparams
 from nnrecommend.cli.main import main, Context
 from nnrecommend.algo import SurpriseAlgorithm
-from nnrecommend.operation import Setup, TestResult, Tester
+from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
 import surprise
 import sys
@@ -43,12 +44,8 @@ def create_surprise_algorithm(algorithm_type) -> AlgoBase:
 @click.option('--algorithm', 'algorithm_types', default=[], multiple=True, 
               type=click.Choice(ALGORITHM_TYPES, case_sensitive=False), help="the algorithm to use to fit the data")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
-@click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
-@click.option('--negatives-train', type=int, default=4, help="amount of negative samples to generate for the trainset")
-@click.option('--negatives-test', type=int, default=99, help="amount of negative samples to generate for the testset")
-@click.option('--batch-size', type=int, default=256, help="batchsize of the trainset dataloader")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
-def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboard_dir: str, max_interactions: int, negatives_train: int, negatives_test: int, batch_size: int, topk: int, ) -> None:
+def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboard_dir: str, topk: int) -> None:
     """
     fit a given recommender algorithm on a dataset
 
@@ -59,7 +56,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
     
     logger.info("loading dataset...")
     setup = Setup(src, logger)
-    maxids = setup(max_interactions, negatives_train, negatives_test)
+    idrange = setup(ctx.obj.hparams)
 
     results = []
     if isinstance(algorithm_types, str):
@@ -75,25 +72,29 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
     for algorithm_type in algorithm_types:
         logger.info(f"creating algorithm {algorithm_type}...")
         algo = create_surprise_algorithm(algorithm_type)
-        algo = SurpriseAlgorithm(algo, maxids[0] + 1)
+        algo = SurpriseAlgorithm(algo, idrange[0])
 
         testloader = setup.create_testloader()
-        algo_tb_tag = f"{dataset_type}-{algorithm_type}"
-        tester = Tester(algo, testloader, topk, None, tensorboard_dir, algo_tb_tag)
+        tb = create_tensorboard_writer(tensorboard_dir, f"{dataset_type}-{algorithm_type}")
+        tester = Tester(algo, testloader, topk)
+        tracker = RunTracker(hparams, tb)
 
         try:
             logger.info("fitting algorithm...")
             algo.fit(src.trainset)
 
             logger.info("evaluating...")
-            result = tester(0)
+            result = tester(range(hparams.epochs))
             log_result(result)
+            for i in range(hparams.epoch):
+                tracker.track_test_result(i, result)
             results.append((algorithm_type, result))
         except Exception as e:
             logger.exception(e)
+        if tb:
+            tb.close()
 
     results.sort(key=lambda i: i[1].hr)
-
     logger.info("results")
     logger.info("====")
     for algorithm_type, result in results:

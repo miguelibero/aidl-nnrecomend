@@ -1,4 +1,5 @@
-from io import UnsupportedOperation
+from nnrecommend.dataset import BaseDatasetSource
+from nnrecommend.hparams import HyperParameters
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix, to_scipy_sparse_matrix
@@ -106,9 +107,9 @@ class GraphFactorizationMachine(BaseFactorizationMachine):
 
 class GraphAttentionFactorizationMachine(BaseFactorizationMachine):
 
-    def __init__(self, embed_dim: int, matrix: sp.spmatrix, features: sp.spmatrix = None):
+    def __init__(self, embed_dim: int, matrix: sp.spmatrix, heads: int=8, dropout: float=0.6, features: sp.spmatrix = None):
         super().__init__(matrix.shape[0])
-        self.embedding = GraphAttentionEmbedding(embed_dim, matrix, features)
+        self.embedding = GraphAttentionEmbedding(embed_dim, matrix, heads, dropout, features)
 
     def get_embedding_weight(self):
         return self.embedding.get_embedding_weight()
@@ -127,3 +128,13 @@ def sparse_tensor_to_scipy_matrix(tensor: torch.Tensor) -> sp.spmatrix:
     """convert a torch sparse tensor into a scipy sparse matrix."""
     tensor = tensor.coalesce()
     return to_scipy_sparse_matrix(tensor.indices(), tensor.values())
+
+
+def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters):
+    if model_type == "gcn-att":
+        return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.graph_attention_dropout)
+    if model_type == "gcn":
+        return GraphFactorizationMachine(hparams.embed_dim, src.matrix)
+    elif model_type == "linear":
+        return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim)
+    raise Exception("could not create model")

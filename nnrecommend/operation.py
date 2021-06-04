@@ -1,4 +1,6 @@
 from logging import Logger
+from nnrecommend.hparams import HyperParameters
+from typing import Dict
 from torch.utils.data.dataloader import DataLoader
 from nnrecommend.logging import get_logger
 from nnrecommend.dataset import BaseDatasetSource
@@ -12,27 +14,28 @@ from torch.utils.tensorboard import SummaryWriter
 
 class Setup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None,
-        tb_dir: str=None, tb_tag: str=None):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None):
         self.src = src
         self.__logger = logger or get_logger(self)
         self.__negatives_test = 0
 
-    def __call__(self, max_interactions: int=-1, negatives_train: int=0, negatives_test: int=0):
+    def __call__(self, hparams: HyperParameters):
         self.__logger.info("loading dataset...")
 
-        self.src.load(max_interactions)
-        maxids = self.src.trainset.idrange - 1
+        self.src.load(hparams.max_interactions)
+        idrange = self.src.trainset.idrange
+        maxids = idrange - 1
         maxids[1] -= maxids[0]
         tslen = len(self.src.trainset)
         self.__logger.info(f"loaded {tslen} interactions of {maxids[0]} users and {maxids[1]} items")
 
         self.__logger.info("adding negative sampling...")
         matrix = self.src.matrix
-        self.src.trainset.add_negative_sampling(matrix, negatives_train)
-        self.src.testset.add_negative_sampling(matrix, negatives_test)
-        self.__negatives_test = negatives_test
-        return maxids
+        self.src.trainset.add_negative_sampling(matrix, hparams.negatives_train)
+        self.src.testset.add_negative_sampling(matrix, hparams.negatives_test)
+        self.__negatives_test = hparams.negatives_test
+
+        return idrange
 
     def create_testloader(self):
         # test loader should not be shuffled since the negative samples need to be consecutive
@@ -45,36 +48,14 @@ class Setup:
 class Trainer:
 
     def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
-            optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str=None,
-            tb_dir: str=None, tb_tag: str=None):
+            optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str=None):
         self.model = model
         self.trainloader = trainloader
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.__setup_tensorboard(self.trainloader.dataset, tb_dir, tb_tag)
 
-    def __setup_tensorboard(self, data: np.ndarray, tb_dir: str, tb_tag: str):
-        self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
-        if not self.__tb:
-            return
-        self.__tb_tag = tb_tag
-        maxuser = np.max(data[:,0]).astype(int)
-        maxitem = np.max(data[:,1]).astype(int)
-        embsize = maxitem + 1
-        self.__tb_metadata = []
-        self.__tb_metadata_header = ['label', 'color']
-        self.__tb_imgs = None
-        for i in range(embsize):
-            if i <= maxuser:
-                label = f"u{i}"
-                color = np.array((1, 0, 0))
-            else:
-                label = f"i{i}"
-                color = np.array((0, 0, 1))
-            self.__tb_metadata.append((label, color))
-
-    def __call__(self, epoch: int=-1) -> float:
+    def __call__(self, epoch: int=None) -> float:
         """
         run a training epoch
         :return: the mean loss
@@ -94,29 +75,18 @@ class Trainer:
             self.optimizer.step()
             total_loss.append(loss.item())
 
-        total_loss = mean(total_loss)
-        self.__update_tensorboard(total_loss, epoch)
-
-        return total_loss
-
-    def __update_tensorboard(self, loss: int, epoch: int):
-        if not self.__tb or epoch < 0:
-            return
-        self.__tb.add_scalar('train/loss', loss, epoch)
-        if hasattr(self.model, 'get_embedding_weight'):
-            weight = self.model.get_embedding_weight()
-            self.__tb.add_embedding(weight, global_step=epoch, tag=self.__tb_tag,
-                metadata=self.__tb_metadata, metadata_header=self.__tb_metadata_header,
-                label_img=self.__tb_imgs)
+        return mean(total_loss)
 
 
 class TestResult:
-    def __init__(self, hr: float, ndcg: float, coverage: float):
+    def __init__(self, topk: int, hr: float, ndcg: float, coverage: float):
         """
+        :param topk: number of topk used to obtain the vaues
         :param hr: hit ratio
         :param ndcg: normalized discounted cumulative gain
         :param coverage: percentage of training data items recommended
         """ 
+        self.topk = topk
         self.hr = hr
         self.ndcg = ndcg 
         self.coverage = coverage
@@ -125,12 +95,11 @@ class TestResult:
 class Tester:
 
     def __init__(self, algorithm, testloader: torch.utils.data.DataLoader,
-      topk: int=10, device: str=None, tb_dir: str=None, tb_tag: str=None):
+      topk: int=10, device: str=None):
         self.algorithm = algorithm
         self.testloader = testloader
         self.topk = topk
         self.device = device
-        self.__tb = create_tensorboard_writer(tb_dir, tb_tag)
 
     def __get_hit_ratio(self, ranking: torch.Tensor, item: torch.Tensor) -> int:
         """
@@ -147,7 +116,7 @@ class Tester:
         return math.log(2)/math.log(idx[0]+2) if len(idx) > 0 else 0
 
     @torch.no_grad()
-    def __call__(self, epoch: int = -1) -> TestResult:
+    def __call__(self) -> TestResult:
         hr, ndcg = [], []
 
         total_recommended_items = set()
@@ -167,17 +136,64 @@ class Tester:
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
 
         cov = len(total_recommended_items) / len(total_items)
-        result = TestResult(mean(hr), mean(ndcg), cov)
-
-        if self.__tb is not None and epoch >= 0:
-            self.__tb.add_scalar(f'eval/HR@{self.topk}', result.hr, epoch)
-            self.__tb.add_scalar(f'eval/NDCG@{self.topk}', result.ndcg, epoch)
-            self.__tb.add_scalar(f'eval/COV@{self.topk}', result.coverage, epoch)
-
-        return result
+        return TestResult(self.topk, mean(hr), mean(ndcg), cov)
 
 
-def create_tensorboard_writer(tb_dir, tb_tag):
+class RunTracker:
+
+    def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None):
+        self.__hparams = hparams
+        self.__tb = tb
+        self.__metrics = {}
+        self.__embedding_md = None
+        self.__embedding_md_header = None
+
+    def setup_embedding(self, idrange: np.ndarray):
+        if not self.__tb:
+            return
+        self.__embedding_md = []
+        self.__embedding_md_header = ['label', 'color']
+        for i in range(idrange[1]):
+            if i < idrange[0]:
+                label = f"u{i}"
+                color = np.array((1, 0, 0))
+            else:
+                label = f"i{i}"
+                color = np.array((0, 0, 1))
+            self.__embedding_md.append((label, color))
+
+    def track_model_epoch(self, epoch: int, model: torch.nn.Module, loss: float):
+        self.__metrics["hparam/loss"] = loss
+        if self.__tb is None:
+            return
+        self.__tb.add_scalar('train/loss', loss, epoch)
+
+        if hasattr(model, 'get_embedding_weight'):
+            weight = model.get_embedding_weight()
+            self.__tb.add_embedding(weight, global_step=epoch,
+                metadata=self.__embedding_md,
+                metadata_header=self.__embedding_md_header)
+
+        self.__tb.flush()
+
+    def track_test_result(self, epoch: int, result: TestResult):
+        self.__metrics["hparam/HR"] = result.hr 
+        self.__metrics["hparam/NDCG"] = result.ndcg 
+        self.__metrics["hparam/COV"] = result.coverage
+        if self.__tb is None:
+            return
+        self.__tb.add_scalar(f'eval/HR@{result.topk}', result.hr, epoch)
+        self.__tb.add_scalar(f'eval/NDCG@{result.topk}', result.ndcg, epoch)
+        self.__tb.add_scalar(f'eval/COV@{result.topk}', result.coverage, epoch)
+        self.__tb.flush()
+
+    def track_end(self):
+        if self.__tb is None:
+            return
+        self.__tb.add_hparams(self.__hparams.data, self.__metrics)
+
+
+def create_tensorboard_writer(tb_dir: str, tb_tag: str=None) -> SummaryWriter:
     if not tb_dir:
         return
     if tb_tag:

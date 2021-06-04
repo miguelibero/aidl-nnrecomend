@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from nnrecommend.operation import Setup, create_tensorboard_writer
 from nnrecommend.cli.main import main
-from nnrecommend.fmachine import sparse_tensor_to_scipy_matrix
+from nnrecommend.model import sparse_tensor_to_scipy_matrix
 
 
 @main.command()
@@ -24,7 +24,7 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
         with open(path, "rb") as fh:
             data = torch.load(fh)
             model = data["model"]
-            maxids = data["maxids"]
+            idrange = data["idrange"]
     except:
         logger.error("failed to load model file")
         return False
@@ -33,7 +33,7 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
         logger.error("could not load model")
         return
 
-    logger.info(f"loaded model of type {type(model)} maxids={maxids}")
+    logger.info(f"loaded model of type {type(model)} idrange={idrange}")
 
     if embedding_graph:
         weight = model.get_embedding_weight().cpu().detach()
@@ -48,7 +48,7 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
 
         colors = []
         for i in range(len(result)):
-            if i < maxids[0]:
+            if i < idrange[0]:
                 colors.append("red")
             else:
                 colors.append("blue")
@@ -75,7 +75,7 @@ def explore_dataset(ctx, path: str, dataset_type: str, max_interactions: int, te
     logger = ctx.obj.logger or get_logger(explore_dataset)
 
     setup = Setup(src, logger)
-    maxids = setup(max_interactions)
+    idrange = setup(max_interactions)
 
     logger.info("calculating statistics...")
 
@@ -89,7 +89,7 @@ def explore_dataset(ctx, path: str, dataset_type: str, max_interactions: int, te
 
     logger.info("calculating histograms...")
 
-    maxuser = maxids[0]
+    maxuser = idrange[0]
     users = src.matrix[:maxuser, maxuser+1:]
     usercount = fix_count(users.sum(1))
     itemcount = fix_count(users.sum(0))
