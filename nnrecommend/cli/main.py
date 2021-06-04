@@ -9,6 +9,9 @@ from nnrecommend.dataset.podcasts import ItunesPodcastsDatasetSource
 from nnrecommend.dataset.spotify import SpotifyDatasetSource
 from nnrecommend.hparams import HyperParameters
 
+
+DATASET_TYPES = ['movielens', 'podcasts','spotify']
+
 class Context:
     def __init__(self):
         if not torch.cuda.is_available():

@@ -4,8 +4,8 @@ import torch
 import sys
 
 from nnrecommend.model import create_model
-from nnrecommend.cli.main import main, Context
-from nnrecommend.model import create_model
+from nnrecommend.cli.main import main, Context, DATASET_TYPES
+from nnrecommend.model import create_model, MODEL_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Trainer, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
 
@@ -13,10 +13,10 @@ from nnrecommend.logging import get_logger
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
-@click.option('--dataset', 'dataset_type', default="movielens",
-              type=click.Choice(['movielens', 'podcasts','spotify'], case_sensitive=False), help="type of dataset")
-@click.option('--model', 'model_type', default='linear',
-              type=click.Choice(['linear', 'gcn', 'gcn-att'], case_sensitive=False), help="type of model to train")
+@click.option('--dataset', 'dataset_type', default=DATASET_TYPES[0],
+              type=click.Choice(DATASET_TYPES, case_sensitive=False), help="type of dataset")
+@click.option('--model', 'model_type', default=MODEL_TYPES[0],
+              type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
@@ -30,6 +30,9 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
     logger = ctx.obj.logger or get_logger(train)
     device = ctx.obj.device
     hparams = ctx.obj.hparams
+
+    logger.info(f"using hparams {hparams}")
+
     tb = create_tensorboard_writer(tensorboard_dir, f"{dataset_type}-{model_type}")
 
     if not src:
@@ -72,7 +75,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
             tracker.track_test_result(i, result)
 
     finally:
-        tracker.track_end()
+        tracker.track_end("run")
         if tb:
             tb.close()
         if output:

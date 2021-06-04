@@ -53,7 +53,7 @@ class BaseGraphEmbedding(torch.nn.Module):
         return self.gcn.weight
 
     def forward(self, x):
-        return self.gcn(self.features, self.edge_index, self.edge_weight)[x]
+        return self.gcn(self.features, self.edge_index)[x]
 
 
 class GraphEmbedding(BaseGraphEmbedding):
@@ -130,11 +130,14 @@ def sparse_tensor_to_scipy_matrix(tensor: torch.Tensor) -> sp.spmatrix:
     return to_scipy_sparse_matrix(tensor.indices(), tensor.values())
 
 
+MODEL_TYPES = ['fm-linear', 'fm-gcn', 'fm-gcn-att']
+
+
 def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters):
-    if model_type == "gcn-att":
+    if model_type == "fm-gcn-att":
         return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.graph_attention_dropout)
-    if model_type == "gcn":
+    if model_type == "fm-gcn":
         return GraphFactorizationMachine(hparams.embed_dim, src.matrix)
-    elif model_type == "linear":
+    elif model_type == "fm-linear" or not model_type:
         return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim)
     raise Exception("could not create model")

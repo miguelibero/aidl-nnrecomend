@@ -1,46 +1,16 @@
 from typing import List
 import click
-from surprise.prediction_algorithms.algo_base import AlgoBase
-from torch.utils.tensorboard.summary import hparams
-from nnrecommend.cli.main import main, Context
-from nnrecommend.algo import SurpriseAlgorithm
+import sys
+from nnrecommend.cli.main import main, Context, DATASET_TYPES
+from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
-import surprise
-import sys
-
-
-ALGORITHM_TYPES = ['baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'nmf']
-
-
-def create_surprise_algorithm(algorithm_type) -> AlgoBase:
-    if algorithm_type == "knn":
-        return surprise.prediction_algorithms.knns.KNNBasic()
-    if algorithm_type == "knn-means":
-        return surprise.prediction_algorithms.knns.KNNWithMeans()
-    elif algorithm_type == "svd":
-        return surprise.prediction_algorithms.matrix_factorization.SVD()
-    elif algorithm_type == "svdpp": # takes long time
-        return surprise.prediction_algorithms.matrix_factorization.SVDpp()
-    elif algorithm_type == "nmf": # float division error
-        return surprise.prediction_algorithms.matrix_factorization.NMF()
-    elif algorithm_type == "cocluster":
-        return surprise.prediction_algorithms.co_clustering.CoClustering()  
-    elif algorithm_type == "slope":
-        return surprise.prediction_algorithms.slope_one.SlopeOne()  
-    elif algorithm_type == "normal":
-        return surprise.prediction_algorithms.random_pred.NormalPredictor()  
-    elif algorithm_type == "baseline":
-        return surprise.prediction_algorithms.baseline_only.BaselineOnly()  
-    else:
-        raise Exception("could not create algorithm")
-
 
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
-@click.option('--dataset', 'dataset_type', default="movielens",
-              type=click.Choice(['movielens', 'podcasts','spotify'], case_sensitive=False), help="type of dataset")
+@click.option('--dataset', 'dataset_type', default=DATASET_TYPES[0],
+              type=click.Choice(DATASET_TYPES, case_sensitive=False), help="type of dataset")
 @click.option('--algorithm', 'algorithm_types', default=[], multiple=True, 
               type=click.Choice(ALGORITHM_TYPES, case_sensitive=False), help="the algorithm to use to fit the data")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
@@ -53,10 +23,11 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
     """
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
+    hparams = ctx.obj.hparams
     
     logger.info("loading dataset...")
     setup = Setup(src, logger)
-    idrange = setup(ctx.obj.hparams)
+    idrange = setup(hparams)
 
     results = []
     if isinstance(algorithm_types, str):
@@ -71,8 +42,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
 
     for algorithm_type in algorithm_types:
         logger.info(f"creating algorithm {algorithm_type}...")
-        algo = create_surprise_algorithm(algorithm_type)
-        algo = SurpriseAlgorithm(algo, idrange[0])
+        algo = create_algorithm(algorithm_type, hparams, idrange)
 
         testloader = setup.create_testloader()
         tb = create_tensorboard_writer(tensorboard_dir, f"{dataset_type}-{algorithm_type}")
@@ -84,9 +54,9 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
             algo.fit(src.trainset)
 
             logger.info("evaluating...")
-            result = tester(range(hparams.epochs))
+            result = tester()
             log_result(result)
-            for i in range(hparams.epoch):
+            for i in range(hparams.epochs):
                 tracker.track_test_result(i, result)
             results.append((algorithm_type, result))
         except Exception as e:

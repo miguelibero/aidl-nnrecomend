@@ -141,6 +141,8 @@ class Tester:
 
 class RunTracker:
 
+    HPARAM_PREFIX = "hparam/"
+
     def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None):
         self.__hparams = hparams
         self.__tb = tb
@@ -173,13 +175,14 @@ class RunTracker:
             self.__tb.add_embedding(weight, global_step=epoch,
                 metadata=self.__embedding_md,
                 metadata_header=self.__embedding_md_header)
+            self.__tb.add_histogram("embedding", weight, global_step=epoch)
 
         self.__tb.flush()
 
     def track_test_result(self, epoch: int, result: TestResult):
-        self.__metrics["hparam/HR"] = result.hr 
-        self.__metrics["hparam/NDCG"] = result.ndcg 
-        self.__metrics["hparam/COV"] = result.coverage
+        self.__metrics[f"{self.HPARAM_PREFIX}HR"] = result.hr 
+        self.__metrics[f"{self.HPARAM_PREFIX}NDCG"] = result.ndcg 
+        self.__metrics[f"{self.HPARAM_PREFIX}COV"] = result.coverage
         if self.__tb is None:
             return
         self.__tb.add_scalar(f'eval/HR@{result.topk}', result.hr, epoch)
@@ -187,10 +190,13 @@ class RunTracker:
         self.__tb.add_scalar(f'eval/COV@{result.topk}', result.coverage, epoch)
         self.__tb.flush()
 
-    def track_end(self):
+    def track_end(self, run_name=None):
         if self.__tb is None:
             return
-        self.__tb.add_hparams(self.__hparams.data, self.__metrics)
+        hparams = {}
+        for k, v in self.__hparams.data.items():
+            hparams[f"{self.HPARAM_PREFIX}{k}"] = v
+        self.__tb.add_hparams(hparams, self.__metrics, run_name=run_name)
 
 
 def create_tensorboard_writer(tb_dir: str, tb_tag: str=None) -> SummaryWriter:

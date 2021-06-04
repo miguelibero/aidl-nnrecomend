@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
 import torch
 import numpy as np
-from nnrecommend.operation import Setup, create_tensorboard_writer
+from nnrecommend.operation import Setup
 from nnrecommend.cli.main import main
 from nnrecommend.model import sparse_tensor_to_scipy_matrix
-
+from matplotlib.ticker import MaxNLocator
 
 @main.command()
 @click.pass_context
@@ -64,18 +64,18 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
 @click.option('--type', 'dataset_type', default="movielens",
               type=click.Choice(['movielens', 'podcasts', 'spotify'], case_sensitive=False))
-@click.option('--max-interactions', type=int, default=-1, help="maximum amount of interactions (dataset will be reduced to this size if bigger)")
-@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
-def explore_dataset(ctx, path: str, dataset_type: str, max_interactions: int, tensorboard_dir: str) -> None:
+@click.option('--hist-bins', type=int, default=20, help="amount bins for the histograms")
+def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
     """
     show information about a dataset
     """
 
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(explore_dataset)
+    hparams = ctx.obj.hparams
 
     setup = Setup(src, logger)
-    idrange = setup(max_interactions)
+    idrange = setup(hparams)
 
     logger.info("calculating statistics...")
 
@@ -103,10 +103,28 @@ def explore_dataset(ctx, path: str, dataset_type: str, max_interactions: int, te
     print_stats(usercount, "users", "items")
     print_stats(itemcount, "items", "users")
 
-    tensorboard_tag = f"{dataset_type}-{src.matrix.shape[0]}"
-    tb = create_tensorboard_writer(tensorboard_dir, tensorboard_tag)
-    if tb:
-        logger.info("saving data in tensorboard...")
+    logger.info("generating graph...")
 
-        tb.add_histogram(f"users_per_item", itemcount, bins="auto")
-        tb.add_histogram(f"items_per_user", usercount, bins="auto")
+    def matrix_spy_graph(ax):
+        ax.set_ylabel('users')
+        ax.set_xlabel('items')
+        ax.set_title('adjacency matrix')
+        ax.spy(users, markersize=1)
+
+    def log_histogram_graph(ax, x, log=True):
+        ax.hist(x, bins=hist_bins, log=log)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    def user_histogram_graph(ax):
+        ax.set_title('amount of items per user')
+        log_histogram_graph(ax, usercount)
+
+    def item_histogram_graph(ax):
+        ax.set_title('amount of users per item')
+        log_histogram_graph(ax, itemcount)
+
+    _, axs = plt.subplots(1, 3)
+    matrix_spy_graph(axs[0])
+    user_histogram_graph(axs[1])
+    item_histogram_graph(axs[2])
+    plt.show()

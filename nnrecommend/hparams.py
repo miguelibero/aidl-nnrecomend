@@ -24,12 +24,12 @@ class HyperParameters:
         "negatives_test": 99,
         "batch_size": 256,
         "epochs": 20,
-        "embed_dim": 16,
+        "embed_dim": 64,
         "learning_rate": 0.001,
         "scheduler_step_size": 1,
         "scheduler_gamma": 0.99,
-        "graph_attention_heads": 8,
-        "graph_attention_dropout": 0.6,
+        "graph_attention_heads": 4,
+        "graph_attention_dropout": 0.5,
     }
 
     def __init__(self, data: Dict):
@@ -39,6 +39,10 @@ class HyperParameters:
             else:
                 data[k] = type(v)(data[k])
         self.data = data
+
+    def __str__(self):
+        data = " ".join([f"{k}={v}" for k, v in self.data.items()])
+        return "{" + data + "}"
 
     def __get(self, key):
         if key in self.data:
