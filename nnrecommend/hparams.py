@@ -32,8 +32,9 @@ class HyperParameters:
         "epochs": 20,
         "embed_dim": 64,
         "learning_rate": 0.001,
-        "lr_scheduler_step_size": 1,
-        "lr_scheduler_gamma": 0.99,
+        "lr_scheduler_patience": 1,
+        "lr_scheduler_factor": 0.8,
+        "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
         "graph_attention_dropout": 0.6,
     }
@@ -42,7 +43,7 @@ class HyperParameters:
         for k, v in self.DEFAULT_VALUES.items():
             if k not in data:
                 data[k] = v
-            else:
+            elif v is not None:
                 data[k] = type(v)(data[k])
         self.data = data
 
@@ -97,12 +98,25 @@ class HyperParameters:
         return self.__get("learning_rate")
 
     @property
-    def lr_scheduler_step_size(self):
-        return self.__get("lr_scheduler_step_size")
+    def lr_scheduler_patience(self):
+        """
+        patience parameter of torch.optim.lr_scheduler.ReduceLROnPlateau
+        """
+        return self.__get("lr_scheduler_patience")
 
     @property
-    def lr_scheduler_gamma(self):
-        return self.__get("lr_scheduler_gamma")
+    def lr_scheduler_factor(self):
+        """
+        factor parameter of torch.optim.lr_scheduler.ReduceLROnPlateau
+        """
+        return self.__get("lr_scheduler_factor")
+
+    @property
+    def lr_scheduler_threshold(self):
+        """
+        threshold parameter of torch.optim.lr_scheduler.ReduceLROnPlateau
+        """
+        return self.__get("lr_scheduler_threshold")
 
     @property
     def graph_attention_heads(self):

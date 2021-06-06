@@ -3,10 +3,10 @@ import click
 import torch
 import sys
 
-from nnrecommend.model import create_model, create_model_training
+from nnrecommend.model import create_model, create_model_training, get_optimizer_lr
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.model import create_model, MODEL_TYPES
-from nnrecommend.operation import RunTracker, Setup, TestResult, Trainer, Tester, create_tensorboard_writer
+from nnrecommend.operation import RunTracker, Setup, Trainer, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
 
 
@@ -65,14 +65,14 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
         for i in range(hparams.epochs):
             logger.info(f"training epoch {i}...")
             loss = trainer()
-            tracker.track_model_epoch(i, model, loss)
+            lr = get_optimizer_lr(optimizer)
+            tracker.track_model_epoch(i, model, loss, lr)
             logger.info(f"evaluating...")
             result = tester()
-            if scheduler:
-                scheduler.step()
-            lr = scheduler.get_last_lr()[0]
             logger.info(f'{i:03}/{hparams.epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
             tracker.track_test_result(i, result)
+            if scheduler:
+                scheduler.step(loss)
 
     finally:
         tracker.track_end("run")

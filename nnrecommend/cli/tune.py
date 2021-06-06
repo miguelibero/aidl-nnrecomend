@@ -5,10 +5,10 @@ import sys
 from ray import tune as rtune
 from nnrecommend.model import create_model, create_model_training
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
-from nnrecommend.model import create_model, MODEL_TYPES
+from nnrecommend.model import create_model, get_optimizer_lr, MODEL_TYPES
 from nnrecommend.operation import Setup, Trainer, Tester
 from nnrecommend.logging import get_logger
-from nnrecommend.hparams import HyperParameters, RayTuneConfigFile
+from nnrecommend.hparams import RayTuneConfigFile
 import os
 
 
@@ -34,6 +34,8 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
     logger = ctx.obj.logger or get_logger(tune)
     device = ctx.obj.device
     config = RayTuneConfigFile.load(config_path)
+    tune_metric = "ndcg"
+    tune_metric_mode = "max"
 
     if not src:
         raise Exception("could not create dataset")
@@ -48,28 +50,27 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
         testloader = setup.create_testloader(hparams)
         trainer = Trainer(model, trainloader, optimizer, criterion, device)
         tester = Tester(model, testloader, topk, device)
-        lr = hparams.learning_rate
 
         for i in range(hparams.epochs):
             loss = trainer()
             result = tester()
-            if scheduler:
-                lr = scheduler.get_last_lr()[0]
-                scheduler.step()
+            lr = get_optimizer_lr(optimizer)
             rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
+            if scheduler:
+                scheduler.step(loss)
 
     analysis = rtune.run(
         training_function,
         config=config.generate(model_type),
         queue_trials=True,
-        scheduler=rtune.schedulers.ASHAScheduler(metric="ndcg", mode="max"),
+        scheduler=rtune.schedulers.ASHAScheduler(metric=tune_metric, mode=tune_metric_mode),
         num_samples=num_samples,
         resources_per_trial={
             "cpu": 1,
             "gpu": 0.5,
         })
 
-    config = analysis.get_best_config(metric="ndcg", mode="max")
+    config = analysis.get_best_config(metric=tune_metric, mode=tune_metric_mode)
     logger.info(f"best config {config}")
 
     if output:

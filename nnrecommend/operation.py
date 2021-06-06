@@ -166,11 +166,12 @@ class RunTracker:
                 color = np.array((0, 0, 1))
             self.__embedding_md.append((label, color))
 
-    def track_model_epoch(self, epoch: int, model: torch.nn.Module, loss: float):
+    def track_model_epoch(self, epoch: int, model: torch.nn.Module, loss: float, lr: float):
         self.__metrics["hparam/loss"] = loss
         if self.__tb is None:
             return
         self.__tb.add_scalar('train/loss', loss, epoch)
+        self.__tb.add_scalar('train/lr', lr, epoch)
 
         if hasattr(model, 'get_embedding_weight'):
             weight = model.get_embedding_weight()
