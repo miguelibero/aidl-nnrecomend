@@ -26,8 +26,9 @@ class Setup:
         idrange = self.src.trainset.idrange
         maxids = idrange - 1
         maxids[1] -= maxids[0]
-        tslen = len(self.src.trainset)
-        self.__logger.info(f"loaded {tslen} interactions of {maxids[0]} users and {maxids[1]} items")
+        trainlen = len(self.src.trainset)
+        testlen = len(self.src.testset)
+        self.__logger.info(f"loaded {trainlen}/{testlen} interactions of {maxids[0]} users and {maxids[1]} items")
 
         self.__logger.info("adding negative sampling...")
         matrix = self.src.matrix
@@ -143,12 +144,15 @@ class RunTracker:
 
     HPARAM_PREFIX = "hparam/"
 
-    def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None):
+    def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None, embedding_epoch_num=4):
         self.__hparams = hparams
         self.__tb = tb
         self.__metrics = {}
         self.__embedding_md = None
         self.__embedding_md_header = None
+        self.__embedding_epoch_num = embedding_epoch_num
+        if self.__tb:
+            self.__tb.add_text("hparams", str(self.__hparams))
 
     def setup_embedding(self, idrange: np.ndarray):
         if not self.__tb:
@@ -172,11 +176,11 @@ class RunTracker:
 
         if hasattr(model, 'get_embedding_weight'):
             weight = model.get_embedding_weight()
-            self.__tb.add_embedding(weight, global_step=epoch,
-                metadata=self.__embedding_md,
-                metadata_header=self.__embedding_md_header)
+            if epoch % self.__embedding_epoch_num == 0:
+                self.__tb.add_embedding(weight, global_step=epoch,
+                    metadata=self.__embedding_md,
+                    metadata_header=self.__embedding_md_header)
             self.__tb.add_histogram("embedding", weight, global_step=epoch)
-
         self.__tb.flush()
 
     def track_test_result(self, epoch: int, result: TestResult):

@@ -1,6 +1,7 @@
 
 from typing import Dict
 import json
+from ray import tune
 
 
 class HyperParameters:
@@ -18,6 +19,30 @@ class HyperParameters:
         with open(path) as fh:
             return cls(json.load(fh))
 
+    TUNE_CONFIG_BASE = {
+        "negatives_train": tune.randint(0, 11),
+        "negatives_test": tune.randint(90, 110),
+        "batch_size": tune.choice([128, 256, 512]),
+        "epochs": tune.choice([10, 20, 30, 40]),
+        "embed_dim": tune.choice([16, 32, 64, 128]),
+        "learning_rate": tune.grid_search([0.0001, 0.001, 0.01]),
+        "scheduler_step_size": tune.randint(1, 3),
+        "scheduler_gamma": tune.uniform(0.1, 1),
+    }
+
+    TUNE_CONFIG_GCN_ATT = {
+        "graph_attention_heads": tune.choice([2, 4, 8, 10, 12, 14, 16]),
+        "graph_attention_dropout": tune.uniform(0.3, 0.9),
+    }
+
+    @classmethod
+    def tuneconfig(cls, model_type: str) -> Dict:
+        if model_type == "fm-gcn-att":
+            return cls.TUNE_CONFIG_BASE + cls.TUNE_CONFIG_GCN_ATT
+        else:
+            return cls.TUNE_CONFIG_BASE
+
+
     DEFAULT_VALUES = {
         "max_interactions": -1,
         "negatives_train": 4,
@@ -28,8 +53,8 @@ class HyperParameters:
         "learning_rate": 0.001,
         "scheduler_step_size": 1,
         "scheduler_gamma": 0.99,
-        "graph_attention_heads": 4,
-        "graph_attention_dropout": 0.5,
+        "graph_attention_heads": 8,
+        "graph_attention_dropout": 0.6,
     }
 
     def __init__(self, data: Dict):
@@ -39,6 +64,12 @@ class HyperParameters:
             else:
                 data[k] = type(v)(data[k])
         self.data = data
+
+    def copy(self, data: Dict=None):
+        cdata = self.data.copy()
+        if data:
+            cdata.update(data)
+        return __class__(cdata)
 
     def __str__(self):
         data = " ".join([f"{k}={v}" for k, v in self.data.items()])

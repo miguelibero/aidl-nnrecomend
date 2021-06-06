@@ -13,9 +13,9 @@ from nnrecommend.logging import get_logger
               type=click.Choice(DATASET_TYPES, case_sensitive=False), help="type of dataset")
 @click.option('--algorithm', 'algorithm_types', default=[], multiple=True, 
               type=click.Choice(ALGORITHM_TYPES, case_sensitive=False), help="the algorithm to use to fit the data")
-@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
-def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboard_dir: str, topk: int) -> None:
+@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
+def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int, tensorboard_dir: str) -> None:
     """
     fit a given recommender algorithm on a dataset
 
@@ -45,7 +45,8 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], tensorboa
         algo = create_algorithm(algorithm_type, hparams, idrange)
 
         testloader = setup.create_testloader()
-        tb = create_tensorboard_writer(tensorboard_dir, f"{dataset_type}-{algorithm_type}")
+        tensorboard_tag = f"{dataset_type}-{algorithm_type}"
+        tb = create_tensorboard_writer(tensorboard_dir, tensorboard_tag)
         tester = Tester(algo, testloader, topk)
         tracker = RunTracker(hparams, tb)
 

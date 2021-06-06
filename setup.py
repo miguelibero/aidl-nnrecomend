@@ -39,7 +39,8 @@ setup(
         'plotly~=4.14.3',
         'scikit-learn~=0.24.2',
         'tensorboard~=2.5.0',
-        'scikit-surprise~=1.1.1'
+        'scikit-surprise~=1.1.1',
+        'ray[default,tune]~=1.3.0'
     ],
     extras_require={
         'test': [

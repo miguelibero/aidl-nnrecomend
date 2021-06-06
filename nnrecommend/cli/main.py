@@ -23,6 +23,7 @@ class Context:
         self.hparams = HyperParameters.fromcli(hparams)
 
     def create_dataset_source(self, path, dataset_type: str) -> BaseDatasetSource:
+        path = os.path.realpath(path)
         if dataset_type == "movielens":
             self.logger.info("creating movielens dataset")
             path = os.path.join(path, "movielens")

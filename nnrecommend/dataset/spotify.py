@@ -41,5 +41,3 @@ class SpotifyDatasetSource(BaseDatasetSource):
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
         self.testset.normalize_ids(mapping)
-        if c > 0:
-            self._logger.info(f"removed {c} test interactions")

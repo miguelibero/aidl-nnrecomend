@@ -18,9 +18,10 @@ from nnrecommend.logging import get_logger
 @click.option('--model', 'model_type', default=MODEL_TYPES[0],
               type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
-@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tensorboard_dir: str, topk: int, ) -> None:
+@click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
+@click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk: int, tensorboard_dir: str, tensorboard_tag: str) -> None:
     """
     train a pytorch recommender model on a given dataset
 
@@ -32,8 +33,8 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, tenso
     hparams = ctx.obj.hparams
 
     logger.info(f"using hparams {hparams}")
-
-    tb = create_tensorboard_writer(tensorboard_dir, f"{dataset_type}-{model_type}")
+    tensorboard_tag = tensorboard_tag or f"{dataset_type}-{model_type}"
+    tb = create_tensorboard_writer(tensorboard_dir, tensorboard_tag)
 
     if not src:
         raise Exception("could not create dataset")
