@@ -3,7 +3,7 @@ import click
 import torch
 import sys
 
-from nnrecommend.model import create_model
+from nnrecommend.model import create_model, create_model_training
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.model import create_model, MODEL_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Trainer, Tester, create_tensorboard_writer
@@ -44,17 +44,15 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
     logger.info(f"creating model {model_type}...")
 
     model = create_model(model_type, src, hparams).to(device)
-    criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hparams.learning_rate, gamma=hparams.scheduler_gamma)
+    criterion, optimizer, scheduler = create_model_training(model, hparams)
 
     tracker = RunTracker(hparams, tb)
     tracker.setup_embedding(src.trainset.idrange)
 
     try:
         logger.info("preparing training...")
-        trainloader = setup.create_trainloader(hparams.batch_size)
-        testloader = setup.create_testloader()
+        trainloader = setup.create_trainloader(hparams)
+        testloader = setup.create_testloader(hparams)
         trainer = Trainer(model, trainloader, optimizer, criterion, device)
         tester = Tester(model, testloader, topk, device)
 
@@ -70,7 +68,8 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
             tracker.track_model_epoch(i, model, loss)
             logger.info(f"evaluating...")
             result = tester()
-            scheduler.step()
+            if scheduler:
+                scheduler.step()
             lr = scheduler.get_last_lr()[0]
             logger.info(f'{i:03}/{hparams.epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
             tracker.track_test_result(i, result)

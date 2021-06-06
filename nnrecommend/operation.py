@@ -17,7 +17,6 @@ class Setup:
     def __init__(self, src: BaseDatasetSource, logger: Logger=None):
         self.src = src
         self.__logger = logger or get_logger(self)
-        self.__negatives_test = 0
 
     def __call__(self, hparams: HyperParameters):
         self.__logger.info("loading dataset...")
@@ -34,16 +33,15 @@ class Setup:
         matrix = self.src.matrix
         self.src.trainset.add_negative_sampling(matrix, hparams.negatives_train)
         self.src.testset.add_negative_sampling(matrix, hparams.negatives_test)
-        self.__negatives_test = hparams.negatives_test
 
         return idrange
 
-    def create_testloader(self):
+    def create_testloader(self, hparams: HyperParameters):
         # test loader should not be shuffled since the negative samples need to be consecutive
-        return DataLoader(self.src.testset, batch_size=self.__negatives_test+1, num_workers=0)
+        return DataLoader(self.src.testset, batch_size=hparams.negatives_test+1, num_workers=0)
 
-    def create_trainloader(self, batch_size: int):
-        return DataLoader(self.src.trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+    def create_trainloader(self, hparams: HyperParameters):
+        return DataLoader(self.src.trainset, batch_size=hparams.batch_size, shuffle=True, num_workers=0)
 
 
 class Trainer:

@@ -24,10 +24,10 @@ class HyperParameters:
         "negatives_test": tune.randint(90, 110),
         "batch_size": tune.choice([128, 256, 512]),
         "epochs": tune.choice([10, 20, 30, 40]),
-        "embed_dim": tune.choice([16, 32, 64, 128]),
-        "learning_rate": tune.grid_search([0.0001, 0.001, 0.01]),
-        "scheduler_step_size": tune.randint(1, 3),
-        "scheduler_gamma": tune.uniform(0.1, 1),
+        "embed_dim": tune.randint(16, 128),
+        "learning_rate": tune.loguniform(0.0001, 0.01),
+        "lr_scheduler_step_size": tune.randint(1, 3),
+        "lr_scheduler_gamma": tune.uniform(0.1, 1),
     }
 
     TUNE_CONFIG_GCN_ATT = {
@@ -51,8 +51,8 @@ class HyperParameters:
         "epochs": 20,
         "embed_dim": 64,
         "learning_rate": 0.001,
-        "scheduler_step_size": 1,
-        "scheduler_gamma": 0.99,
+        "lr_scheduler_step_size": 1,
+        "lr_scheduler_gamma": 0.99,
         "graph_attention_heads": 8,
         "graph_attention_dropout": 0.6,
     }
@@ -116,12 +116,12 @@ class HyperParameters:
         return self.__get("learning_rate")
 
     @property
-    def scheduler_step_size(self):
-        return self.__get("scheduler_step_size")
+    def lr_scheduler_step_size(self):
+        return self.__get("lr_scheduler_step_size")
 
     @property
-    def scheduler_gamma(self):
-        return self.__get("scheduler_gamma")
+    def lr_scheduler_gamma(self):
+        return self.__get("lr_scheduler_gamma")
 
     @property
     def graph_attention_heads(self):

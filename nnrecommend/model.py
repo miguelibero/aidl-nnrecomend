@@ -133,7 +133,7 @@ def sparse_tensor_to_scipy_matrix(tensor: torch.Tensor) -> sp.spmatrix:
 MODEL_TYPES = ['fm-linear', 'fm-gcn', 'fm-gcn-att']
 
 
-def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters):
+def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters) -> torch.nn.Module:
     if model_type == "fm-gcn-att":
         return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.graph_attention_dropout)
     if model_type == "fm-gcn":
@@ -141,3 +141,9 @@ def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParamete
     elif model_type == "fm-linear" or not model_type:
         return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim)
     raise Exception("could not create model")
+
+def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
+    criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hparams.lr_scheduler_step_size, gamma=hparams.lr_scheduler_gamma)
+    return criterion, optimizer, scheduler
