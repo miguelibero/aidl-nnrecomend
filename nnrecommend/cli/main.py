@@ -18,9 +18,9 @@ class Context:
             raise Exception("You should enable GPU runtime")
         self.device = torch.device("cuda")
 
-    def setup(self, verbose: bool, logoutput: str, hparams: Container[str]) -> None:
+    def setup(self, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str) -> None:
         self.logger = setup_log(verbose, logoutput)
-        self.hparams = HyperParameters.fromcli(hparams)
+        self.hparams = HyperParameters.load(hparams, hparams_path)
 
     def create_dataset_source(self, path, dataset_type: str) -> BaseDatasetSource:
         path = os.path.realpath(path)
@@ -44,8 +44,10 @@ class Context:
 @click.option('--logoutput', type=str, help='append output to this file')
 @click.option('--hparam', 'hparams', default=[], multiple=True, 
               type=str, help="hyperparam specified with name:value")
-def main(ctx, verbose: bool, logoutput: str, hparams: Container[str]):
+@click.option('--hparams-path', 'hparams_path', 
+              type=str, help="path to json dictionary file with hyperparam values")
+def main(ctx, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str):
     """recommender system using deep learning"""
     ctx.ensure_object(Context)
-    ctx.obj.setup(verbose, logoutput, hparams)
+    ctx.obj.setup(verbose, logoutput, hparams, hparams_path)
     

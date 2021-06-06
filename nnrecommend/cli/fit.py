@@ -44,7 +44,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int
         logger.info(f"creating algorithm {algorithm_type}...")
         algo = create_algorithm(algorithm_type, hparams, idrange)
 
-        testloader = setup.create_testloader()
+        testloader = setup.create_testloader(hparams)
         tensorboard_tag = f"{dataset_type}-{algorithm_type}"
         tb = create_tensorboard_writer(tensorboard_dir, tensorboard_tag)
         tester = Tester(algo, testloader, topk)

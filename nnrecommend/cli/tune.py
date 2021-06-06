@@ -8,7 +8,7 @@ from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.model import create_model, MODEL_TYPES
 from nnrecommend.operation import Setup, Trainer, Tester
 from nnrecommend.logging import get_logger
-from nnrecommend.hparams import HyperParameters
+from nnrecommend.hparams import HyperParameters, RayTuneConfigFile
 import os
 
 
@@ -21,8 +21,10 @@ import os
               type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--num-samples', type=int, default=10, help="amount of samples to tune")
+@click.option('--config', 'config_path', required=True,
+              type=str, help="path to json dictionary file with ray tune config values")
 @click.option('--output', type=str, help="save the trained model to a file")
-def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samples: int, output: str) -> None:
+def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samples: int, config_path: str, output: str) -> None:
     """
     train a pytorch recommender model on a given dataset
 
@@ -31,6 +33,7 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(tune)
     device = ctx.obj.device
+    config = RayTuneConfigFile.load(config_path)
 
     if not src:
         raise Exception("could not create dataset")
@@ -45,17 +48,19 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
         testloader = setup.create_testloader(hparams)
         trainer = Trainer(model, trainloader, optimizer, criterion, device)
         tester = Tester(model, testloader, topk, device)
+        lr = hparams.learning_rate
 
         for i in range(hparams.epochs):
             loss = trainer()
             result = tester()
-            rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage)
             if scheduler:
+                lr = scheduler.get_last_lr()[0]
                 scheduler.step()
+            rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
 
     analysis = rtune.run(
         training_function,
-        config=HyperParameters.tuneconfig(model_type),
+        config=config.generate(model_type),
         queue_trials=True,
         scheduler=rtune.schedulers.ASHAScheduler(metric="ndcg", mode="max"),
         num_samples=num_samples,

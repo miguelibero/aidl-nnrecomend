@@ -1,5 +1,5 @@
 
-from typing import Dict
+from typing import Any, Dict
 import json
 from ray import tune
 
@@ -7,41 +7,22 @@ from ray import tune
 class HyperParameters:
 
     @classmethod
-    def fromcli(cls, hparams):
+    def load(cls, hparams: None, path=None):
         data = {}
-        for hparam in hparams:
-            k, v = hparam.split(":", 2)
-            data[k] = v
+        try:
+            with open(path) as fh:
+                data.update(json.load(fh))
+        except:
+            pass
+        if isinstance(hparams, str):
+            hparams = hparams.split(";")
+        if isinstance(hparams, (tuple, list)):
+            for hparam in hparams:
+                k, v = hparam.trim().split(":", 2)
+                data[k] = v
+        if isinstance(hparams, dict):
+            data.update(hparams)
         return cls(data)
-
-    @classmethod
-    def fromfile(cls, path):
-        with open(path) as fh:
-            return cls(json.load(fh))
-
-    TUNE_CONFIG_BASE = {
-        "negatives_train": tune.randint(0, 11),
-        "negatives_test": tune.randint(90, 110),
-        "batch_size": tune.choice([128, 256, 512]),
-        "epochs": tune.choice([10, 20, 30, 40]),
-        "embed_dim": tune.randint(16, 128),
-        "learning_rate": tune.loguniform(0.0001, 0.01),
-        "lr_scheduler_step_size": tune.randint(1, 3),
-        "lr_scheduler_gamma": tune.uniform(0.1, 1),
-    }
-
-    TUNE_CONFIG_GCN_ATT = {
-        "graph_attention_heads": tune.choice([2, 4, 8, 10, 12, 14, 16]),
-        "graph_attention_dropout": tune.uniform(0.3, 0.9),
-    }
-
-    @classmethod
-    def tuneconfig(cls, model_type: str) -> Dict:
-        if model_type == "fm-gcn-att":
-            return cls.TUNE_CONFIG_BASE + cls.TUNE_CONFIG_GCN_ATT
-        else:
-            return cls.TUNE_CONFIG_BASE
-
 
     DEFAULT_VALUES = {
         "max_interactions": -1,
@@ -130,3 +111,23 @@ class HyperParameters:
     @property
     def graph_attention_dropout(self):
         return self.__get("graph_attention_dropout")
+
+
+class RayTuneConfigFile:
+
+    @classmethod
+    def load(cls, path=None):
+        with open(path) as fh:
+            return cls(json.load(fh))
+
+    def __init__(self, data=Dict[str, Any]):
+        self.data = data
+
+    def generate(self, model_type=None):
+        config = {}
+        for k, v in self.data.items():
+            try:
+                config[k] = getattr(tune, v[0])(*v[1:])
+            except:
+                config[k] = v
+        return config
