@@ -3,7 +3,7 @@ import click
 import torch
 from nnrecommend.cli.main import main
 from nnrecommend.logging import get_logger
-from nnrecommend.operation import Finder, Recommender
+from nnrecommend.operation import Finder
 
 @main.command()
 @click.pass_context

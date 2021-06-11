@@ -15,7 +15,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.rating"
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
-        return np.array(data, dtype=np.int64)
+        return np.array(data, dtype=np.int64)[:, :2]
 
     def load(self, maxsize: int=-1) -> None:
         self._logger.info("loading training dataset...")
@@ -40,7 +40,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = self.__path
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
-        data = np.array(data, dtype=np.int64)
+        data = np.array(data, dtype=np.int64)[:, :2]
         data[:, 2] = 1
         return data
 

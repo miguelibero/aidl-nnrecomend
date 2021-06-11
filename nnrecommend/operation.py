@@ -252,21 +252,7 @@ class Finder:
             r = process.extractOne(v, f)
             if best is None or best[1] < r[1]:
                 best = r + (name,)
-        print(best)
         return FinderResult(best[2], best[3], best[0], best[1])
-
-
-class Recommender:
-
-    def __init__(self, model: Callable, idrange: np.ndarray):
-        self.model = model
-        self.idrange = idrange
-
-    def __call__(self, items: Container[int]):
-        self.model.learn()
-        uid = self.idrange
-        rows = np.array()
-
 
 
 def create_tensorboard_writer(tb_dir: str, tb_tag: str=None) -> SummaryWriter:

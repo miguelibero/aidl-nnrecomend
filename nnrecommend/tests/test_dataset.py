@@ -47,7 +47,7 @@ def test_dataset_pass_mapping():
 def test_dataset_bad_mapping():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
-    dataset.normalize_ids(((1, 2),(1, 2)))
+    dataset.normalize_ids(((1, 2),(1, 2)), remove_missing=False)
     assert (dataset[0] == (1, 3, 1)).all()
     assert (dataset[1] == (-1, 2, 1)).all()
 
@@ -59,8 +59,12 @@ def test_adjacency_matrix():
     assert (0, 3) in matrix
     assert (0, 2) not in matrix
     assert (1, 2) in matrix
-    nitems = dataset.get_random_negative_items(matrix, 0, 3)
-    assert (nitems == (2)).all()
+    assert (dataset[0] == (0, 3, 1)).all()
+    nitems = dataset.get_random_negative_rows(matrix, dataset[0], 3)
+    assert nitems.shape[0] == 3
+    assert (nitems[0] == (0, 2, 0)).all()
+    assert (nitems[1] == (0, 2, 0)).all()
+    assert (nitems[2] == (0, 2, 0)).all()
 
 
 def test_negative_sampling():
@@ -87,6 +91,7 @@ def test_extract_test_dataset():
     assert type(testset) == Dataset
     assert len(dataset) == 10
     assert len(testset) == 2
+
 
 def test_remove_low():
     data = ((2, 2), (2, 3), (3, 1), (3, 4), (4, 1))

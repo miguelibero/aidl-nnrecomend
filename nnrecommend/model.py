@@ -148,6 +148,7 @@ def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParamete
         return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim, dropout=hparams.embed_dropout)
     raise Exception("could not create model")
 
+
 def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
     criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)
@@ -156,6 +157,7 @@ def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
         factor=hparams.lr_scheduler_factor,
         threshold=hparams.lr_scheduler_threshold)
     return criterion, optimizer, scheduler
+
 
 def get_optimizer_lr(optimizer: torch.optim.Optimizer) -> float:
     for param_group in optimizer.param_groups:
