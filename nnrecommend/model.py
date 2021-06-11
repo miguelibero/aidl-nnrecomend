@@ -76,6 +76,7 @@ class BaseFactorizationMachine(torch.nn.Module):
     def __init__(self, field_dim: int):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
+        #self.linear = torch.nn.Linear(field_dim, 1, bias=True)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
         self.embedding = None
 
@@ -92,7 +93,9 @@ class FactorizationMachine(BaseFactorizationMachine):
     def __init__(self, field_dim: int, embed_dim: int):
         super().__init__(field_dim)
         self.embedding = torch.nn.Embedding(field_dim, embed_dim)
-        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
+        torch.nn.init.xavier_uniform_(self.embedding.weight)
+        #torch.nn.init.normal_(self.embedding.weight, std=0.01)
+        #torch.nn.init.constant_(self.embedding.weight, 0.0)
 
 
 class GraphFactorizationMachine(BaseFactorizationMachine):

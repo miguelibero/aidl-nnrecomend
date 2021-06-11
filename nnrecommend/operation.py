@@ -23,11 +23,10 @@ class Setup:
 
         self.src.load(hparams.max_interactions)
         idrange = self.src.trainset.idrange
-        maxids = idrange - 1
-        maxids[1] -= maxids[0]
+        ulen, ilen = idrange[0], idrange[1] - idrange[0]
         trainlen = len(self.src.trainset)
         testlen = len(self.src.testset)
-        self.__logger.info(f"loaded {trainlen}/{testlen} interactions of {maxids[0]} users and {maxids[1]} items")
+        self.__logger.info(f"loaded {trainlen}/{testlen} interactions of {ulen} users and {ilen} items")
 
         self.__logger.info("adding negative sampling...")
         matrix = self.src.matrix

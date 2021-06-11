@@ -1,3 +1,4 @@
+import random
 import scipy.sparse as sp
 import numpy as np
 import torch
@@ -115,15 +116,23 @@ class Dataset(torch.utils.data.Dataset):
         :param item: should not be this item
         :param num: length of the array
         """
-        if self.idrange is None:
-            self.normalize_ids()
-        items = np.zeros(num, dtype=np.int64)
+        items = set()
         for i in range(num):
             j = self.__get_random_item()
-            while j == item or (user, j) in container:
+            while j == item or j in items or (user, j) in container:
                 j = self.__get_random_item()
-            items[i] = j
-        return items
+            items.add(j)
+        return np.array(list(items), dtype=np.int64)
+
+    def get_random_negative_items_2(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
+        # slower implementation avoiding duplicate items
+        assert self.idrange is not None
+
+        items = range(self.idrange[0], self.idrange[1])
+        items = [i for i in items if i != item and (user, i) not in container]
+        num = min(len(items), num)
+        items = random.sample(items, num)
+        return np.array(items, dtype=np.int64)
 
     def add_negative_sampling(self, container: Container, num: int=1) -> None:
         """
@@ -172,6 +181,7 @@ class Dataset(torch.utils.data.Dataset):
             rows += userrows[-num_user_interactions:]
         testset = Dataset(self.__interactions[rows])
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
+        testset.idrange = self.idrange
         return testset
 
 

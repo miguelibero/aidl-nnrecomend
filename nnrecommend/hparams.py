@@ -18,8 +18,9 @@ class HyperParameters:
             hparams = hparams.split(";")
         if isinstance(hparams, (tuple, list)):
             for hparam in hparams:
-                k, v = hparam.trim().split(":", 2)
-                data[k] = v
+                if isinstance(hparam, str):
+                    k, v = hparam.strip().split(":", 2)
+                    data[k] = v
         if isinstance(hparams, dict):
             data.update(hparams)
         return cls(data)
