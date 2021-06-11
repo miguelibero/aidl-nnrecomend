@@ -56,7 +56,7 @@ class Dataset(torch.utils.data.Dataset):
 
         in case the mapping is passed and some id is not in the list, row will be removed
 
-        :param mapping: an array with two rows of raw user & item ids in order
+        :param mapping: a tuple with each element a numpy array of raw ids in order
         """
 
         def calcmap(ids):
@@ -219,12 +219,34 @@ class Dataset(torch.utils.data.Dataset):
 
 
 class BaseDatasetSource:
+    """
+    basic class to load a dataset
+    both trainset and testset should have the following structure
+    (user id, item id, rating, context 1, context 2)
+
+    user id, item id and context columns should be normalized,
+    meaning that the values are consecutive and don't overlap
+
+    item_info should be a dictionary with item_id keys
+    and values should be a dictionary with the diferent decriptive fields
+    """
 
     def __init__(self, logger: Logger=None):
         self._logger = logger or get_logger(self)
         self.trainset = None
         self.testset = None
         self.matrix = None
+        self.item_info = None
 
     def load(self, max_interactions: int=-1):
         raise NotImplementedError()
+
+
+def save_model(path: str, model, src: BaseDatasetSource):
+    data = {
+        "model": model,
+        "idrange": src.trainset.idrange,
+        "item_info": src.item_info
+    }
+    with open(path, "wb") as fh:
+        torch.save(data, fh)

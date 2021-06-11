@@ -1,4 +1,5 @@
 
+from nnrecommend.dataset import save_model
 import click
 import torch
 import sys
@@ -80,12 +81,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
             tb.close()
         if output:
             logger.info("saving model...")
-            data = {
-                "model": model,
-                "idrange": idrange
-            }
-            with open(output, "wb") as fh:
-                torch.save(data, fh)
+            save_model(output, model, src)
 
 
 if __name__ == "__main__":

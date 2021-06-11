@@ -1,16 +1,17 @@
 from logging import Logger
-from nnrecommend.hparams import HyperParameters
-from typing import Dict
+from typing import Any, Callable, Container, Dict
 from torch.utils.data.dataloader import DataLoader
-from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource
-from statistics import mean
+import statistics
 import math
 import torch
 import numpy as np
 import os
+from fuzzywuzzy import process
 from torch.utils.tensorboard import SummaryWriter
 
+from nnrecommend.hparams import HyperParameters
+from nnrecommend.logging import get_logger
+from nnrecommend.dataset import BaseDatasetSource
 
 class Setup:
 
@@ -73,7 +74,7 @@ class Trainer:
             self.optimizer.step()
             total_loss.append(loss.item())
 
-        return mean(total_loss)
+        return statistics.mean(total_loss)
 
 
 class TestResult:
@@ -92,9 +93,9 @@ class TestResult:
 
 class Tester:
 
-    def __init__(self, algorithm, testloader: torch.utils.data.DataLoader,
+    def __init__(self, model: Callable, testloader: torch.utils.data.DataLoader,
       topk: int=10, device: str=None):
-        self.algorithm = algorithm
+        self.model = model
         self.testloader = testloader
         self.topk = topk
         self.device = device
@@ -126,7 +127,7 @@ class Tester:
                 rows = rows.to(self.device)
             interactions = rows[:,:2].long()
             real_item = interactions[0][1]
-            predictions = self.algorithm(interactions)
+            predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)
             recommended_items = interactions[indices][:, 1]
             total_recommended_items.update(recommended_items.tolist())
@@ -134,7 +135,7 @@ class Tester:
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
 
         cov = len(total_recommended_items) / len(total_items)
-        return TestResult(self.topk, mean(hr), mean(ndcg), cov)
+        return TestResult(self.topk, statistics.mean(hr), statistics.mean(ndcg), cov)
 
 
 class RunTracker:
@@ -199,6 +200,73 @@ class RunTracker:
         for k, v in self.__hparams.data.items():
             hparams[f"{self.HPARAM_PREFIX}{k}"] = v
         self.__tb.add_hparams(hparams, self.__metrics, run_name=run_name)
+
+
+class FinderResult:
+    def __init__(self, id: int, field: str, value: str, score: int):
+        self.id = id
+        self.field = field
+        self.value = value
+        self.score = score
+
+    def __str__(self):
+        return f"FinderResult(id={self.id}, field={self.field}, value={self.value}, score={self.score})"
+
+
+class Finder:
+    """
+    given an info dictionary finds the element that matches a string best
+    info dictionary should be in the form of:
+
+    {
+        id1: {
+            "field_name": "field value",
+            "other_field_name": "other field value",
+        },
+        id2: {
+            "field_name": "field value",
+            "other_field_name": "other field value",
+        },
+        ...
+    }
+    """
+
+    def __init__(self, info: Dict[int, Dict[str, Any]], fields: Container[str]=None):
+        self.__fields = {}
+        assert isinstance(info, dict)
+        for id, elm in info.items():
+            assert isinstance(elm, dict)
+            for k, v in elm.items():
+                if fields is not None and k not in fields:
+                    continue
+                if k not in self.__fields:
+                    f = {}
+                    self.__fields[k] = f
+                else:
+                    f = self.__fields[k]
+                f[id] = v
+
+    def __call__(self, v: str) -> FinderResult:
+        best = None
+        for name, f in self.__fields.items():
+            r = process.extractOne(v, f)
+            if best is None or best[1] < r[1]:
+                best = r + (name,)
+        print(best)
+        return FinderResult(best[2], best[3], best[0], best[1])
+
+
+class Recommender:
+
+    def __init__(self, model: Callable, idrange: np.ndarray):
+        self.model = model
+        self.idrange = idrange
+
+    def __call__(self, items: Container[int]):
+        self.model.learn()
+        uid = self.idrange
+        rows = np.array()
+
 
 
 def create_tensorboard_writer(tb_dir: str, tb_tag: str=None) -> SummaryWriter:

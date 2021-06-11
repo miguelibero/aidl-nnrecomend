@@ -1,13 +1,14 @@
-from nnrecommend.logging import get_logger
 import click
 import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
 import torch
 import numpy as np
+from matplotlib.ticker import MaxNLocator
+
 from nnrecommend.operation import Setup
 from nnrecommend.cli.main import main
 from nnrecommend.model import sparse_tensor_to_scipy_matrix
-from matplotlib.ticker import MaxNLocator
+from nnrecommend.logging import get_logger
 
 @main.command()
 @click.pass_context

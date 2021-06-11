@@ -4,6 +4,7 @@ from nnrecommend.cli.explore import explore_dataset, explore_model
 from nnrecommend.cli.train import train
 from nnrecommend.cli.fit import fit
 from nnrecommend.cli.tune import tune
+from nnrecommend.cli.recommend import recommend
 
 main.add_command(train)
 main.add_command(fit)
