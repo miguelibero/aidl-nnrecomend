@@ -134,4 +134,3 @@ datasets/
 models/
 data/
 tensorboard/
-hparams/

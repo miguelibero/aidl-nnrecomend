@@ -19,7 +19,7 @@ setup(
     url='http://github.com/miguelibero/aidl-nnrecommend',
     license=license,
     python_requires='>=3.8.0',
-    packages=find_packages(exclude=('tests', 'docs')),
+    packages=find_packages(exclude=('docs')),
     entry_points={
         'console_scripts': [
             'nnrecommend=nnrecommend.cli:main',

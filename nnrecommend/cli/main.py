@@ -11,7 +11,7 @@ from nnrecommend.dataset.spotify import SpotifyDatasetSource
 from nnrecommend.hparams import HyperParameters
 
 
-DATASET_TYPES = ['movielens-lab', 'movielens-100k', 'podcasts','spotify']
+DATASET_TYPES = ['movielens-lab', 'movielens-100k', 'podcasts', 'spotify']
 
 class Context:
 

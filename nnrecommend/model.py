@@ -73,25 +73,28 @@ class GraphAttentionEmbedding(BaseGraphEmbedding):
 
 class BaseFactorizationMachine(torch.nn.Module):
 
-    def __init__(self, field_dim: int):
+    def __init__(self, field_dim: int, dropout: int=0.0):
         super().__init__()
         self.linear = LinearFeatures(field_dim)
         #self.linear = torch.nn.Linear(field_dim, 1, bias=True)
         self.fm = FactorizationMachineOperation(reduce_sum=True)
+        self.dropout = torch.nn.Dropout(dropout)
         self.embedding = None
 
     def get_embedding_weight(self):
         return self.embedding.weight
 
     def forward(self, interactions: torch.Tensor):
-        out = self.linear(interactions) + self.fm(self.embedding(interactions))
+        out = self.embedding(interactions)
+        out = self.dropout(out)
+        out = self.linear(interactions) + self.fm(out)
         return out.squeeze(1)
 
 
 class FactorizationMachine(BaseFactorizationMachine):
 
-    def __init__(self, field_dim: int, embed_dim: int):
-        super().__init__(field_dim)
+    def __init__(self, field_dim: int, embed_dim: int, dropout: int=0.0):
+        super().__init__(field_dim, dropout)
         self.embedding = torch.nn.Embedding(field_dim, embed_dim)
         torch.nn.init.xavier_uniform_(self.embedding.weight)
         #torch.nn.init.normal_(self.embedding.weight, std=0.01)
@@ -100,8 +103,8 @@ class FactorizationMachine(BaseFactorizationMachine):
 
 class GraphFactorizationMachine(BaseFactorizationMachine):
 
-    def __init__(self, embed_dim: int, matrix: sp.spmatrix, features: sp.spmatrix = None):
-        super().__init__(matrix.shape[0])
+    def __init__(self, embed_dim: int, matrix: sp.spmatrix, features: sp.spmatrix = None, dropout: int=0.0):
+        super().__init__(matrix.shape[0], dropout)
         self.embedding = GraphEmbedding(embed_dim, matrix, features)
 
     def get_embedding_weight(self):
@@ -138,11 +141,11 @@ MODEL_TYPES = ['fm-linear', 'fm-gcn', 'fm-gcn-att']
 
 def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters) -> torch.nn.Module:
     if model_type == "fm-gcn-att":
-        return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.graph_attention_dropout)
+        return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.embed_dropout)
     if model_type == "fm-gcn":
-        return GraphFactorizationMachine(hparams.embed_dim, src.matrix)
+        return GraphFactorizationMachine(hparams.embed_dim, src.matrix, dropout=hparams.embed_dropout)
     elif model_type == "fm-linear" or not model_type:
-        return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim)
+        return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim, dropout=hparams.embed_dropout)
     raise Exception("could not create model")
 
 def create_model_training(model: torch.nn.Module, hparams: HyperParameters):

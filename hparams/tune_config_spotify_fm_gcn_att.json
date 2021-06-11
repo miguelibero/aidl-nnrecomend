@@ -1,0 +1,5 @@
+{
+    "embed_dim": ["grid_search", [80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]],
+    "embed_dropout": ["choice", [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]],
+    "graph_attention_heads": ["randint", 1, 12]
+}

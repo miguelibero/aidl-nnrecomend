@@ -26,7 +26,7 @@ import os
 @click.option('--output', type=str, help="save the trained model to a file")
 def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samples: int, config_path: str, output: str) -> None:
     """
-    train a pytorch recommender model on a given dataset
+    hyperparameter tuning of a pytorch recommender model on a given dataset
 
     PATH: path to the dataset files
     """

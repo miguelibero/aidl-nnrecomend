@@ -37,7 +37,7 @@ class HyperParameters:
         "lr_scheduler_factor": 0.8,
         "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
-        "graph_attention_dropout": 0.6,
+        "embed_dropout": 0.6,
     }
 
     def __init__(self, data: Dict):
@@ -120,12 +120,18 @@ class HyperParameters:
         return self.__get("lr_scheduler_threshold")
 
     @property
-    def graph_attention_heads(self):
-        return self.__get("graph_attention_heads")
+    def embed_dropout(self):
+        """
+        dropout vale for the embedding module
+        """
+        return self.__get("embed_dropout")
 
     @property
-    def graph_attention_dropout(self):
-        return self.__get("graph_attention_dropout")
+    def graph_attention_heads(self):
+        """
+        amount of heads in the GCN with attention
+        """
+        return self.__get("graph_attention_heads")
 
 
 class RayTuneConfigFile:
