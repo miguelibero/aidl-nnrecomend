@@ -20,7 +20,7 @@ import os
 @click.option('--model', 'model_type', default=MODEL_TYPES[0],
               type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
-@click.option('--num-samples', type=int, default=10, help="amount of samples to tune")
+@click.option('--num-samples', type=int, default=1, help="amount of samples to tune")
 @click.option('--config', 'config_path', required=True,
               type=str, help="path to json dictionary file with ray tune config values")
 @click.option('--output', type=str, help="save the trained model to a file")
