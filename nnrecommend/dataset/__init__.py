@@ -37,6 +37,7 @@ class Dataset(torch.utils.data.Dataset):
         convert from normalized ids back to the original ones
 
         :param mapping: a container with each element a numpy array of raw ids in order
+        :param remove_missing: remove rows if some of the ids are not in the mapping
         """
         mapping = self.__validate_mapping(mapping)
 
@@ -57,18 +58,23 @@ class Dataset(torch.utils.data.Dataset):
         self.idrange = None
         return mapping
 
-    def normalize_ids(self, remove_missing=True) -> Container[np.ndarray]:
+    def normalize_ids(self, assume_consecutive=False) -> Container[np.ndarray]:
         """
         calculate a mapping for all the columns except the last one (label)
-        so that the values are consecutive integers
+        so that the values are consecutive integers starting with 0
 
+        :param assume_consecutive: assume the ids are consecutive already (only shift)
         :return mapping: a container with each element a numpy array of raw ids in order
         """
         mapping = []
         for i in range(self.__interactions.shape[1] - 1):
             ids = self.__interactions[:, i]
-            mapping.append(np.sort(np.unique(ids)))
-        self.__normalize_ids(mapping, remove_missing)
+            if assume_consecutive:
+                colmapping = np.arange(np.min(ids), np.max(ids)+1)
+            else:
+                colmapping = np.sort(np.unique(ids))
+            mapping.append(colmapping)
+        self.__normalize_ids(mapping, False)
         return mapping
 
     def map_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
@@ -76,6 +82,7 @@ class Dataset(torch.utils.data.Dataset):
         apply an existing mapping to the ids
 
         :param mapping: a container with each element a numpy array of raw ids in order
+        :param remove_missing: remove rows if some of the ids are not in the mapping
         """
         assert self.idrange is None
         mapping = self.__validate_mapping(mapping)
