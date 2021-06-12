@@ -137,3 +137,16 @@ def test_dataset_context_denormalize(n, s, l):
     assert len(dataset) == n
     for i in range(len(dataset)):
         assert (dataset[i] == data[i]).all()
+
+
+def test_add_prev_item():
+    data = ((2, 2), (2, 3), (3, 1), (4, 1), (3, 4))
+    dataset = Dataset(data)
+    dataset.add_previous_item_column()
+    assert dataset[0].shape[0] == 4
+    assert (dataset.idrange == (3, 7, 10)).all()
+    assert (dataset[0] == (0, 4, 7, 1)).all()
+    assert (dataset[1] == (0, 5, 9, 1)).all()
+    assert (dataset[2] == (1, 3, 7, 1)).all()
+    assert (dataset[3] == (2, 3, 7, 1)).all()
+    assert (dataset[4] == (1, 6, 8, 1)).all()

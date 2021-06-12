@@ -23,11 +23,10 @@ class Setup:
         self.__logger.info("loading dataset...")
 
         self.src.load(hparams)
+        self.__log_dataset()
+        
         idrange = self.src.trainset.idrange
-        ulen, ilen = idrange[0], idrange[1] - idrange[0]
-        trainlen = len(self.src.trainset)
-        testlen = len(self.src.testset)
-        self.__logger.info(f"loaded {trainlen}/{testlen} interactions of {ulen} users and {ilen} items")
+        self.__log_idrange(idrange)
 
         self.__logger.info("adding negative sampling...")
         matrix = self.src.matrix
@@ -35,6 +34,24 @@ class Setup:
         self.src.testset.add_negative_sampling(matrix, hparams.negatives_test)
 
         return idrange
+
+    def __log_dataset(self):
+        trainlen = len(self.src.trainset)
+        testlen = len(self.src.testset)
+        self.__logger.info(f"loaded {trainlen} train and {testlen} test interactions")
+
+    def __log_idrange(self, idrange):
+        assert len(idrange) >= 2
+        lens = []
+        lastlen = 0
+        for v in idrange:
+            lens.append(v - lastlen)
+            lastlen = v
+        if len(lens) == 2:
+            self.__logger.info(f"loaded {lens[0]} users and {lens[1]} items")
+        else:
+            clens = "/".join([str(v) for v in lens[2:]])
+            self.__logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
 
     def create_testloader(self, hparams: HyperParameters):
         # test loader should not be shuffled since the negative samples need to be consecutive

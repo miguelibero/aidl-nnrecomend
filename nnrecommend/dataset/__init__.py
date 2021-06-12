@@ -264,6 +264,35 @@ class Dataset(torch.utils.data.Dataset):
         for (col1, col2) in itertools.combinations(range(0, cols), 2):
             count += self.remove_low(matrix, lim, col1, col2)
         return count
+    
+    def add_previous_item_column(self):
+        """
+        adds a new context column with the values of the previous item
+        by the same user. The values are consecutive to the last column
+        range and the first value represents no previous item.
+        """
+        self.__require_normalized()
+
+        # fill the new column with zeros
+        col = np.zeros(self.__interactions.shape[0])
+        self.__interactions = np.insert(self.__interactions, -1, col, axis=1)
+
+        for i in range(self.idrange[0]):
+            # find all the interactions of a user
+            cond = self.__interactions[:, 0] == i
+            # get the items
+            items = self.__interactions[cond, 1]
+            # shift them so they start with 0
+            items -= self.idrange[0]
+            # add a -1 in the beginning and remove the last one
+            items = np.insert(items, 0, -1)[:-1]
+            # shift them to the end of the last range
+            items += self.idrange[-1] + 1
+            # assign them to the new column
+            self.__interactions[cond, -2] = items
+
+        r = np.max(self.__interactions[:, -2])
+        self.idrange = np.append(self.idrange, r + 1)
 
 
 class BaseDatasetSource:
