@@ -23,7 +23,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         mapping = self.trainset.normalize_ids()
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
-        self.testset.normalize_ids(mapping)
+        self.testset.map_ids(mapping)
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
 

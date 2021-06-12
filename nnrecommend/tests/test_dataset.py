@@ -39,7 +39,7 @@ def test_dataset_denormalize():
 def test_dataset_pass_mapping():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
-    mapping = dataset.normalize_ids(((2, 3),(1, 2)))
+    mapping = dataset.map_ids(((2, 3),(1, 2)))
     assert (mapping[0] == (2, 3)).all()
     assert (mapping[1] == (1, 2)).all()
     assert (dataset[0] == (0, 3, 1)).all()
@@ -49,7 +49,7 @@ def test_dataset_pass_mapping():
 def test_dataset_bad_mapping():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
-    dataset.normalize_ids(((1, 2),(1, 2)), remove_missing=False)
+    dataset.map_ids(((1, 2),(1, 2)), remove_missing=False)
     assert (dataset[0] == (1, 3, 1)).all()
     assert (dataset[1] == (-1, 2, 1)).all()
 

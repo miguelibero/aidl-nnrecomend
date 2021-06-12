@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from logging import Logger
 from nnrecommend.logging import get_logger
-from typing import Container, Dict
+from typing import Container
 from bisect import bisect_left
 
 
@@ -31,7 +31,7 @@ class Dataset(torch.utils.data.Dataset):
         assert len(mapping) < self.__interactions.shape[1]
         return mapping
 
-    def denormalize_ids(self, mapping: Container[np.ndarray], remove_missing=True):
+    def denormalize_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
         """
         convert from normalized ids back to the original ones
 
@@ -51,28 +51,37 @@ class Dataset(torch.utils.data.Dataset):
                 row[i] = find(colmapping, row[i] - diff)
             diff += len(colmapping)
             i += 1
-        
         if remove_missing:
             self.__remove_negative_ids()
-
         self.idrange = None
+        return mapping
 
-
-    def normalize_ids(self, mapping: Container[np.ndarray]=None, remove_missing=True) -> Container[np.ndarray]:
+    def normalize_ids(self, remove_missing=True) -> Container[np.ndarray]:
         """
         calculate a mapping for all the columns except the last one (label)
         so that the values are consecutive integers
 
+        :return mapping: a container with each element a numpy array of raw ids in order
+        """
+        mapping = []
+        for i in range(self.__interactions.shape[1] - 1):
+            ids = self.__interactions[:, i]
+            mapping.append(np.sort(np.unique(ids)))
+        self.__normalize_ids(mapping, remove_missing)
+        return mapping
+
+    def map_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
+        """
+        apply an existing mapping to the ids
+
         :param mapping: a container with each element a numpy array of raw ids in order
         """
-        if isinstance(mapping, type(None)):
-            mapping = []
-            for i in range(self.__interactions.shape[1] - 1):
-                ids = self.__interactions[:, i]
-                mapping.append(np.sort(np.unique(ids)))
-        else:
-            mapping = self.__validate_mapping(mapping)
+        assert self.idrange is None
+        mapping = self.__validate_mapping(mapping)
+        self.__normalize_ids(mapping, remove_missing)
+        return mapping
 
+    def __normalize_ids(self, mapping: Container[np.ndarray], remove_missing: bool) -> None:
         def find(container, val):
             idx = bisect_left(container, val)
             if idx < 0 or idx >= len(container) or container[idx] != val:
@@ -91,8 +100,6 @@ class Dataset(torch.utils.data.Dataset):
         
         if remove_missing:
             self.__remove_negative_ids()
-
-        return mapping
 
     def __remove_negative_ids(self):
         cond = (self.__interactions[:, :2] >= 0).all(axis=1)
@@ -118,20 +125,35 @@ class Dataset(torch.utils.data.Dataset):
             nrow[i] = v
         return nrow
 
-    def __row_comb_in_container(self, row: np.ndarray, container: Container) -> bool:
+    def __get_row_pairs(self, row: np.ndarray) -> Container[np.ndarray]:
+        max = -1 if self.idrange is None else len(self.idrange)
+        return itertools.combinations(row[:max], 2)
+
+    def __row_pair_in_container(self, row: np.ndarray, container: Container) -> bool:
         row = np.array(row)
-        for comb in itertools.combinations(row[:-1], 2):
-            if comb in container:
+        for pair in self.__get_row_pairs(row):
+            if pair in container:
                 return True
         return False
 
+    MAX_RANDOM_TRIES = 100
+
     def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1) -> np.ndarray:
+        """
+        generate num random rows that don't have values in row and are not in the container
+
+        current implementation may throw after some time if it's not possible to find empty pairs in the container
+        """
         row = np.array(row)
         nrows = np.zeros((num, len(self.idrange) + 1))
         for i in range(num):
             nrow = None
-            while nrow is None or self.__row_comb_in_container(nrow, container):
+            count = 0
+            while nrow is None or self.__row_pair_in_container(nrow, container):
                 nrow = self.get_random_negative_row(row)
+                count += 1
+                if count > self.MAX_RANDOM_TRIES:
+                    raise Exception("failed to find negative random row")
             nrows[i] = nrow
         return nrows
 
@@ -191,12 +213,12 @@ class Dataset(torch.utils.data.Dataset):
         create the adjacency matrix for the dataset
         """
         self.__require_normalized()
-        size = self.idrange[1]
+        size = self.idrange[-1]
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
-            user, item = row[:2]
-            matrix[user, item] = 1.0
-            matrix[item, user] = 1.0
+            for a, b in self.__get_row_pairs(row):
+                matrix[a, b] = 1
+                matrix[b, a] = 1
         return matrix
 
     def __get_col_range(self, col: int) -> None:
