@@ -1,4 +1,4 @@
-import random
+import itertools
 import scipy.sparse as sp
 import numpy as np
 import torch
@@ -12,82 +12,94 @@ class Dataset(torch.utils.data.Dataset):
     """
     basic dataset class
     """
-    def __init__(self, interactions: np.ndarray, dtype=None):
+    def __init__(self, interactions: np.ndarray):
         """
-        :param interactions: 2d array with columns (user id, item id, label, features...)
+        :param interactions: 2d array with columns (user id, item id, context, label...)
         """
         interactions = np.array(interactions)
-        if dtype:
-            interactions = interactions.astype(dtype)
         assert len(interactions.shape) == 2 # should be two dimensions
         if interactions.shape[1] == 2:
             # if the interactions don't come with label column, create it with ones
             interactions = np.c_[interactions, np.ones(interactions.shape[0], interactions.dtype)]
         assert interactions.shape[1] > 2 # should have at least 3 columns
-
         self.__interactions = interactions
         self.idrange = None
 
-    def denormalize_ids(self, mapping: Container[np.ndarray]):
+    def __validate_mapping(self, mapping: Container[np.ndarray]):
+        mapping = [np.array(v) for v in mapping]
         assert isinstance(mapping, (list, tuple))
-        assert len(mapping) > 1
-        mapping = (np.array(mapping[0]), np.array(mapping[1]))
+        assert len(mapping) < self.__interactions.shape[1]
+        return mapping
+
+    def denormalize_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
+        """
+        convert from normalized ids back to the original ones
+
+        :param mapping: a container with each element a numpy array of raw ids in order
+        """
+        mapping = self.__validate_mapping(mapping)
 
         def find(container, val):
             if val < 0 or val >= len(container):
                 return -1
             return container[int(val)]
 
-        lu = len(mapping[0])
-        for row in self.__interactions:
-            row[0] = find(mapping[0], row[0])
-            row[1] = find(mapping[1], row[1] - lu)
-        
-        self.__remove_negative_ids()
-
+        i = 0
+        diff = 0
+        for colmapping in mapping:
+            for row in self.__interactions:
+                row[i] = find(colmapping, row[i] - diff)
+            diff += len(colmapping)
+            i += 1
+        if remove_missing:
+            self.__remove_negative_ids()
         self.idrange = None
+        return mapping
 
-
-    def normalize_ids(self, mapping: Container[np.ndarray]=None) -> Container[np.ndarray]:
+    def normalize_ids(self, remove_missing=True) -> Container[np.ndarray]:
         """
-        if mapping parameter is passed, method will calculate one
-        so that the dataset has normalized user & item ids to start with 0 and be consecutive
-        (item ids start after user ids)
+        calculate a mapping for all the columns except the last one (label)
+        so that the values are consecutive integers
 
-        in case the mapping is passed and some id is not in the list, row will be removed
-
-        :param mapping: a tuple with each element a numpy array of raw ids in order
+        :return mapping: a container with each element a numpy array of raw ids in order
         """
+        mapping = []
+        for i in range(self.__interactions.shape[1] - 1):
+            ids = self.__interactions[:, i]
+            mapping.append(np.sort(np.unique(ids)))
+        self.__normalize_ids(mapping, remove_missing)
+        return mapping
 
-        def calcmap(ids):
-            return np.sort(np.unique(ids))
+    def map_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
+        """
+        apply an existing mapping to the ids
 
-        if isinstance(mapping, type(None)):
-            mapping = (
-                calcmap(self.__interactions[:, 0]),
-                calcmap(self.__interactions[:, 1]))
-        else:
-            assert isinstance(mapping, (list, tuple))
-            assert len(mapping) > 1
-            mapping = (np.array(mapping[0]), np.array(mapping[1]))
+        :param mapping: a container with each element a numpy array of raw ids in order
+        """
+        assert self.idrange is None
+        mapping = self.__validate_mapping(mapping)
+        self.__normalize_ids(mapping, remove_missing)
+        return mapping
 
-        missed = False
-
+    def __normalize_ids(self, mapping: Container[np.ndarray], remove_missing: bool) -> None:
         def find(container, val):
             idx = bisect_left(container, val)
             if idx < 0 or idx >= len(container) or container[idx] != val:
                 return -1
             return idx
 
-        lu, li = len(mapping[0]), len(mapping[1])
-        self.idrange = np.array((lu, lu+li))
-        for row in self.__interactions:
-            row[0] = find(mapping[0], row[0])
-            row[1] = find(mapping[1], row[1]) + lu
+        i = 0
+        diff = 0
+        self.idrange = np.zeros(len(mapping), dtype=np.int64)
+        for colmapping in mapping:
+            for row in self.__interactions:
+                row[i] = find(colmapping, row[i]) + diff
+            diff += len(colmapping)
+            self.idrange[i] = diff
+            i += 1
         
-        self.__remove_negative_ids()
-
-        return mapping
+        if remove_missing:
+            self.__remove_negative_ids()
 
     def __remove_negative_ids(self):
         cond = (self.__interactions[:, :2] >= 0).all(axis=1)
@@ -99,45 +111,56 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> np.ndarray:
         return self.__interactions[index]
 
-    def __get_random_item(self) -> int:
-        """
-        return a valid random item id
-        """
+    def get_random_negative_row(self, row: np.ndarray) -> np.ndarray:
+        row = np.array(row)
         assert self.idrange is not None
-        return np.random.randint(self.idrange[0], self.idrange[1], dtype=np.int64)
+        assert row.shape[0] >= len(self.idrange)
+        nrow = np.zeros(len(self.idrange) + 1)
+        nrow[0] = row[0]
+        for i in range(1, nrow.shape[0]-1):
+            v = None
+            minv, maxv = self.idrange[i-1:i+1]
+            while v is None or v == row[i]:
+                v = np.random.randint(minv, maxv, dtype=np.int64)
+            nrow[i] = v
+        return nrow
 
-    def get_random_negative_items(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
-        """
-        return an array of random item ids that meet certain conditions
-        TODO: this method can produce infinite loops if there is no item that meets the requirements
+    def __get_row_pairs(self, row: np.ndarray) -> Container[np.ndarray]:
+        max = -1 if self.idrange is None else len(self.idrange)
+        return itertools.combinations(row[:max], 2)
 
-        :param container: container to check if the interaction exists (usually the adjacency matrix)
-        :param user: should not have an interaction with the given user
-        :param item: should not be this item
-        :param num: length of the array
+    def __row_pair_in_container(self, row: np.ndarray, container: Container) -> bool:
+        row = np.array(row)
+        for pair in self.__get_row_pairs(row):
+            if pair in container:
+                return True
+        return False
+
+    MAX_RANDOM_TRIES = 100
+
+    def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1) -> np.ndarray:
         """
-        items = set()
+        generate num random rows that don't have values in row and are not in the container
+
+        current implementation may throw after some time if it's not possible to find empty pairs in the container
+        """
+        row = np.array(row)
+        nrows = np.zeros((num, len(self.idrange) + 1))
         for i in range(num):
-            j = self.__get_random_item()
-            while j == item or j in items or (user, j) in container:
-                j = self.__get_random_item()
-            items.add(j)
-        return np.array(list(items), dtype=np.int64)
-
-    def get_random_negative_items_2(self, container: Container, user: int, item: int, num: int=1) -> np.ndarray:
-        # slower implementation avoiding duplicate items
-        assert self.idrange is not None
-
-        items = range(self.idrange[0], self.idrange[1])
-        items = [i for i in items if i != item and (user, i) not in container]
-        num = min(len(items), num)
-        items = random.sample(items, num)
-        return np.array(items, dtype=np.int64)
+            nrow = None
+            count = 0
+            while nrow is None or self.__row_pair_in_container(nrow, container):
+                nrow = self.get_random_negative_row(row)
+                count += 1
+                if count > self.MAX_RANDOM_TRIES:
+                    raise Exception("failed to find negative random row")
+            nrows[i] = nrow
+        return nrows
 
     def add_negative_sampling(self, container: Container, num: int=1) -> None:
         """
         add negative samples to the dataset interactions
-        with random item ids that don't match existing interactions
+        with random ids that don't match existing interactions
         the negative samples will be placed in the rows immediately after the original one
 
         :param container: container to check if the interaction exists (usually the adjacency matrix)
@@ -145,13 +168,15 @@ class Dataset(torch.utils.data.Dataset):
         """
         if num <= 0:
             return
-
-        n = num+1
+        n = num + 1
         data = np.repeat(self.__interactions, n, axis=0)
         for i, row in enumerate(self.__interactions):
-            data[1+n*i:n*(i+1), 1] = self.get_random_negative_items(container, row[0], row[1], num)
-            data[1+n*i:n*(i+1), 2] = 0
+            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num)
         self.__interactions = data
+
+    def __require_normalized(self):
+        if self.idrange is None:
+            self.normalize_ids()
 
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1) -> 'Dataset':
         """
@@ -161,11 +186,10 @@ class Dataset(torch.utils.data.Dataset):
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
         """
-        if self.idrange is None:
-            self.normalize_ids()
+        self.__require_normalized()
         rowsbyuser = {}
         for i, row in enumerate(self.__interactions):
-            if row[2] <= 0:
+            if row[-1] <= 0:
                 continue
             u = row[0]
             if u not in rowsbyuser:
@@ -184,38 +208,54 @@ class Dataset(torch.utils.data.Dataset):
         testset.idrange = self.idrange
         return testset
 
-
     def create_adjacency_matrix(self) -> sp.spmatrix:
         """
         create the adjacency matrix for the dataset
         """
-        if self.idrange is None:
-            self.normalize_ids()
-        size = self.idrange[1]
+        self.__require_normalized()
+        size = self.idrange[-1]
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
-            user, item = row[:2]
-            matrix[user, item] = 1.0
-            matrix[item, user] = 1.0
+            for a, b in self.__get_row_pairs(row):
+                matrix[a, b] = 1
+                matrix[b, a] = 1
         return matrix
 
-    def __remove_low(self, matrix: sp.spmatrix, lim: int, idx: int) -> None:
-        if self.idrange is None:
-            self.normalize_ids()
-        counts = np.asarray(matrix.sum(0)).flatten()
-        ids = self.__interactions[:, idx].astype(np.int64)
+    def __get_col_range(self, col: int) -> None:
+        self.__require_normalized()
+        assert col >= 0 and col < len(self.idrange)
+        start = self.idrange[col-1] if col > 0 else 0
+        end = self.idrange[col]
+        return start, end
+
+    def __get_submatrix(self, matrix: sp.spmatrix, col1: int, col2: int):
+        rs, re = self.__get_col_range(col1)
+        cs, ce = self.__get_col_range(col2)
+        return matrix[rs:re, cs:ce]
+
+    def remove_low(self, matrix: sp.spmatrix, lim: int, col1: int, col2: int) -> int:
+        self.__require_normalized()
+        submatrix = self.__get_submatrix(matrix, col1, col2)
+        counts = np.asarray(submatrix.sum(1)).flatten()
+        ids = self.__interactions[:, col1].astype(np.int64)
+        ids -= self.idrange[col1]
         cond = counts[ids] > lim
         self.__interactions =  self.__interactions[cond]
         return np.count_nonzero(cond == False)
 
-    def remove_low(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.remove_low_users(matrix, lim) + self.remove_low_items(matrix, lim)
+    def remove_low_users(self, matrix: sp.spmatrix, lim: int) -> int:
+        return self.remove_low(matrix, lim, 0, 1)
 
-    def remove_low_users(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.__remove_low(matrix, lim, 0)
+    def remove_low_items(self, matrix: sp.spmatrix, lim: int) -> int:
+        return self.remove_low(matrix, lim, 1, 0)
 
-    def remove_low_items(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.__remove_low(matrix, lim, 1)
+    def remove_low_all(self, matrix: sp.spmatrix, lim: int) -> int:
+        self.__require_normalized()
+        count = 0
+        cols = len(self.idrange)
+        for (col1, col2) in itertools.combinations(range(0, cols), 2):
+            count += self.remove_low(matrix, lim, col1, col2)
+        return count
 
 
 class BaseDatasetSource:

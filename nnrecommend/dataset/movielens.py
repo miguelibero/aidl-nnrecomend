@@ -15,7 +15,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.rating"
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
-        return np.array(data, dtype=np.int64)
+        return np.array(data, dtype=np.int64)[:, :2]
 
     def load(self, maxsize: int=-1) -> None:
         self._logger.info("loading training dataset...")
@@ -23,7 +23,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         mapping = self.trainset.normalize_ids()
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
-        self.testset.normalize_ids(mapping)
+        self.testset.map_ids(mapping)
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
 
@@ -40,7 +40,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = self.__path
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
-        data = np.array(data, dtype=np.int64)
+        data = np.array(data, dtype=np.int64)[:, :2]
         data[:, 2] = 1
         return data
 

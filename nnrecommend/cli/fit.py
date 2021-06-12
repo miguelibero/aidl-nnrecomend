@@ -7,6 +7,7 @@ from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
 
+
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))

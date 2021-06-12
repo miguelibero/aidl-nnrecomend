@@ -11,15 +11,12 @@ class SpotifyDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    STRING_ROWS = ("context_type",)
+    COLUMNS = ("user_id", "song_id")
 
     def __load_data(self, type:str, maxsize: int):
         nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.csv"
-        data = pd.read_csv(path, sep=',', nrows=nrows)
-        for row in self.STRING_ROWS:
-            if row in data:
-                del data[row]
+        data = pd.read_csv(path, sep=',', nrows=nrows, usecols=self.COLUMNS)
         return data
 
     def load(self, maxsize: int=-1) -> None:
@@ -41,4 +38,4 @@ class SpotifyDatasetSource(BaseDatasetSource):
             self.matrix = self.trainset.create_adjacency_matrix()
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
-        self.testset.normalize_ids(mapping)
+        self.testset.map_ids(mapping)
