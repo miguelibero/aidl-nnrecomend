@@ -1,4 +1,5 @@
 import itertools
+from nnrecommend.hparams import HyperParameters
 import scipy.sparse as sp
 import numpy as np
 import torch
@@ -278,7 +279,7 @@ class BaseDatasetSource:
         self.matrix = None
         self.item_info = None
 
-    def load(self, max_interactions: int=-1):
+    def load(self, hparams: HyperParameters):
         raise NotImplementedError()
 
 

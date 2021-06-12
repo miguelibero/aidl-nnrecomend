@@ -40,7 +40,7 @@ class HyperParameters:
         "embed_dropout": 0.6,
     }
 
-    def __init__(self, data: Dict):
+    def __init__(self, data: Dict = {}):
         for k, v in self.DEFAULT_VALUES.items():
             if k not in data:
                 data[k] = v

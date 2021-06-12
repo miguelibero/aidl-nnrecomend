@@ -22,7 +22,7 @@ class Setup:
     def __call__(self, hparams: HyperParameters):
         self.__logger.info("loading dataset...")
 
-        self.src.load(hparams.max_interactions)
+        self.src.load(hparams)
         idrange = self.src.trainset.idrange
         ulen, ilen = idrange[0], idrange[1] - idrange[0]
         trainlen = len(self.src.trainset)
@@ -66,8 +66,8 @@ class Trainer:
             self.optimizer.zero_grad()
             if self.device:
                 rows = rows.to(self.device)
-            interactions = rows[:,:2].long()
-            targets = rows[:,2].float()
+            interactions = rows[:,:-1].long()
+            targets = rows[:,-1].float()
             predictions = self.model(interactions)
             loss = self.criterion(predictions, targets)
             loss.backward()
@@ -125,7 +125,7 @@ class Tester:
             total_items.update(rows[:, 1].tolist())
             if self.device:
                 rows = rows.to(self.device)
-            interactions = rows[:,:2].long()
+            interactions = rows[:,:-1].long()
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)

@@ -1,4 +1,5 @@
 from logging import Logger
+from nnrecommend.hparams import HyperParameters
 import pandas as pd
 from nnrecommend.dataset import BaseDatasetSource, Dataset
 
@@ -19,7 +20,8 @@ class SpotifyDatasetSource(BaseDatasetSource):
         data = pd.read_csv(path, sep=',', nrows=nrows, usecols=self.COLUMNS)
         return data
 
-    def load(self, maxsize: int=-1) -> None:
+    def load(self, hparams: HyperParameters) -> None:
+        maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
         self.trainset = Dataset(self.__load_data("train", maxsize))
         self._logger.info("normalizing ids...")

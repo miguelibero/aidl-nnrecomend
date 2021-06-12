@@ -1,4 +1,5 @@
 from logging import Logger
+from nnrecommend.hparams import HyperParameters
 import sqlite3
 from sqlite3.dbapi2 import Cursor
 from typing import Container, Dict
@@ -80,7 +81,8 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             interactions[i] = (u, v)
         return interactions, items
 
-    def load(self, maxsize: int=-1) -> None:
+    def load(self, hparams: HyperParameters) -> None:
+        maxsize = hparams.max_interactions
 
         with sqlite3.connect(self.__path) as con:
             cur = con.cursor()

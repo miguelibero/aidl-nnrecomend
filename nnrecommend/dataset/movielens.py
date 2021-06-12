@@ -1,7 +1,9 @@
 from logging import Logger
 import pandas as pd
-from nnrecommend.dataset import Dataset, BaseDatasetSource
 import numpy as np
+from nnrecommend.hparams import HyperParameters
+from nnrecommend.dataset import Dataset, BaseDatasetSource
+
 
 class MovielensLabDatasetSource(BaseDatasetSource):
     """
@@ -17,7 +19,8 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows)
         return np.array(data, dtype=np.int64)[:, :2]
 
-    def load(self, maxsize: int=-1) -> None:
+    def load(self, hparams: HyperParameters) -> None:
+        maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
         self.trainset = Dataset(self.__load_data("train", maxsize))
         mapping = self.trainset.normalize_ids()
