@@ -1,3 +1,5 @@
+import numpy as np
+import pytest
 from nnrecommend.dataset import Dataset
 
 
@@ -102,3 +104,36 @@ def test_remove_low():
     assert len(dataset) == 4
     dataset.remove_low_items(matrix, 1)
     assert len(dataset) == 1
+
+
+def test_dataset_context():
+    # last column is the label
+    data = ((2, 20, 2, 0), (3, 20, 0, 1), (2, 20, 7, 0.5))
+    dataset = Dataset(data)
+    assert len(dataset) == 3
+    assert (dataset[0] == (2, 20, 2, 0)).all()
+    assert (dataset[1] == (3, 20, 0, 1)).all()
+    assert (dataset[2] == (2, 20, 7, 0.5)).all()
+    mapping = dataset.normalize_ids()
+    assert len(mapping) == 3
+    assert (mapping[0] == (2, 3)).all()
+    assert (mapping[1] == (20)).all()
+    assert (mapping[2] == (0, 2, 7)).all()
+    assert (dataset.idrange == (2, 3, 6)).all()
+    assert len(dataset) == 3
+    assert (dataset[0] == (0, 2, 4, 0)).all()
+    assert (dataset[1] == (1, 2, 3, 1)).all()
+    assert (dataset[2] == (0, 2, 5, 0.5)).all()
+
+
+@pytest.mark.parametrize("n, s, l", [(10, 10, 100)])
+def test_dataset_context_denormalize(n, s, l):
+    data = []
+    for i in range(n):
+        data.append(np.random.randint(0, l, size=s))
+    dataset = Dataset(data)
+    mapping = dataset.normalize_ids()
+    dataset.denormalize_ids(mapping)
+    assert len(dataset) == n
+    for i in range(len(dataset)):
+        assert (dataset[i] == data[i]).all()

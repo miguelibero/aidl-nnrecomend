@@ -12,21 +12,24 @@ class Dataset(torch.utils.data.Dataset):
     """
     basic dataset class
     """
-    def __init__(self, interactions: np.ndarray, dtype=None):
+    def __init__(self, interactions: np.ndarray):
         """
         :param interactions: 2d array with columns (user id, item id, context, label...)
         """
         interactions = np.array(interactions)
-        if dtype:
-            interactions = interactions.astype(dtype)
         assert len(interactions.shape) == 2 # should be two dimensions
         if interactions.shape[1] == 2:
             # if the interactions don't come with label column, create it with ones
             interactions = np.c_[interactions, np.ones(interactions.shape[0], interactions.dtype)]
         assert interactions.shape[1] > 2 # should have at least 3 columns
-
         self.__interactions = interactions
         self.idrange = None
+
+    def __validate_mapping(self, mapping: Container[np.ndarray]):
+        mapping = [np.array(v) for v in mapping]
+        assert isinstance(mapping, (list, tuple))
+        assert len(mapping) < self.__interactions.shape[1]
+        return mapping
 
     def denormalize_ids(self, mapping: Container[np.ndarray], remove_missing=True):
         """
@@ -34,9 +37,7 @@ class Dataset(torch.utils.data.Dataset):
 
         :param mapping: a container with each element a numpy array of raw ids in order
         """
-        assert isinstance(mapping, (list, tuple))
-        assert len(mapping) == self.__interactions.shape[1] - 1
-        mapping = [np.array(v) for v in mapping]
+        mapping = self.__validate_mapping(mapping)
 
         def find(container, val):
             if val < 0 or val >= len(container):
@@ -70,9 +71,7 @@ class Dataset(torch.utils.data.Dataset):
                 ids = self.__interactions[:, i]
                 mapping.append(np.sort(np.unique(ids)))
         else:
-            assert isinstance(mapping, (list, tuple))
-            assert len(mapping) + 1 == self.__interactions.shape[1]
-            mapping = [np.array(v) for v in mapping]
+            mapping = self.__validate_mapping(mapping)
 
         def find(container, val):
             idx = bisect_left(container, val)
@@ -153,6 +152,10 @@ class Dataset(torch.utils.data.Dataset):
             data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num)
         self.__interactions = data
 
+    def __require_normalized(self):
+        if self.idrange is None:
+            self.normalize_ids()
+
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1) -> 'Dataset':
         """
         extract the last positive interaction of every user for the test dataset,
@@ -161,8 +164,7 @@ class Dataset(torch.utils.data.Dataset):
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
         """
-        if self.idrange is None:
-            self.normalize_ids()
+        self.__require_normalized()
         rowsbyuser = {}
         for i, row in enumerate(self.__interactions):
             if row[-1] <= 0:
@@ -188,8 +190,7 @@ class Dataset(torch.utils.data.Dataset):
         """
         create the adjacency matrix for the dataset
         """
-        if self.idrange is None:
-            self.normalize_ids()
+        self.__require_normalized()
         size = self.idrange[1]
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
@@ -198,23 +199,41 @@ class Dataset(torch.utils.data.Dataset):
             matrix[item, user] = 1.0
         return matrix
 
-    def __remove_low(self, matrix: sp.spmatrix, lim: int, idx: int) -> None:
-        if self.idrange is None:
-            self.normalize_ids()
-        counts = np.asarray(matrix.sum(0)).flatten()
-        ids = self.__interactions[:, idx].astype(np.int64)
+    def __get_col_range(self, col: int) -> None:
+        self.__require_normalized()
+        assert col >= 0 and col < len(self.idrange)
+        start = self.idrange[col-1] if col > 0 else 0
+        end = self.idrange[col]
+        return start, end
+
+    def __get_submatrix(self, matrix: sp.spmatrix, col1: int, col2: int):
+        rs, re = self.__get_col_range(col1)
+        cs, ce = self.__get_col_range(col2)
+        return matrix[rs:re, cs:ce]
+
+    def remove_low(self, matrix: sp.spmatrix, lim: int, col1: int, col2: int) -> int:
+        self.__require_normalized()
+        submatrix = self.__get_submatrix(matrix, col1, col2)
+        counts = np.asarray(submatrix.sum(1)).flatten()
+        ids = self.__interactions[:, col1].astype(np.int64)
+        ids -= self.idrange[col1]
         cond = counts[ids] > lim
         self.__interactions =  self.__interactions[cond]
         return np.count_nonzero(cond == False)
 
-    def remove_low(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.remove_low_users(matrix, lim) + self.remove_low_items(matrix, lim)
+    def remove_low_users(self, matrix: sp.spmatrix, lim: int) -> int:
+        return self.remove_low(matrix, lim, 0, 1)
 
-    def remove_low_users(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.__remove_low(matrix, lim, 0)
+    def remove_low_items(self, matrix: sp.spmatrix, lim: int) -> int:
+        return self.remove_low(matrix, lim, 1, 0)
 
-    def remove_low_items(self, matrix: sp.spmatrix, lim: int) -> None:
-        return self.__remove_low(matrix, lim, 1)
+    def remove_low_all(self, matrix: sp.spmatrix, lim: int) -> int:
+        self.__require_normalized()
+        count = 0
+        cols = len(self.idrange)
+        for (col1, col2) in itertools.combinations(range(0, cols), 2):
+            count += self.remove_low(matrix, lim, col1, col2)
+        return count
 
 
 class BaseDatasetSource:
