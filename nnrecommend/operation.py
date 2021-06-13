@@ -158,6 +158,14 @@ class Tester:
 class RunTracker:
 
     HPARAM_PREFIX = "hparam/"
+    COLORS = (
+        (1, 0, 0),
+        (0, 0, 1),
+        (0, 1, 0),
+        (1, 1, 0),
+        (1, 0, 1),
+        (0, 1, 1),
+    )
 
     def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None, embedding_epoch_num=4):
         self.__hparams = hparams
@@ -174,14 +182,13 @@ class RunTracker:
             return
         self.__embedding_md = []
         self.__embedding_md_header = ['label', 'color']
-        for i in range(idrange[1]):
-            if i < idrange[0]:
-                label = f"u{i}"
-                color = np.array((1, 0, 0))
-            else:
-                label = f"i{i}"
-                color = np.array((0, 0, 1))
-            self.__embedding_md.append((label, color))
+        last = 0
+        for i, current in enumerate(idrange):
+            for j in range(last, current):
+                label = f"{i}_{j}"
+                color = self.COLORS[i % len(self.COLORS)]
+                self.__embedding_md.append((label, color))
+            last = current
 
     def track_model_epoch(self, epoch: int, model: torch.nn.Module, loss: float, lr: float):
         self.__metrics["hparam/loss"] = loss

@@ -38,6 +38,7 @@ class HyperParameters:
         "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
         "embed_dropout": 0.6,
+        "use_interaction_context": True
     }
 
     def __init__(self, data: Dict = {}):
@@ -132,6 +133,13 @@ class HyperParameters:
         amount of heads in the GCN with attention
         """
         return self.__get("graph_attention_heads")
+
+    @property
+    def use_interaction_context(self):
+        """
+        add interaction context columns to the dataset
+        """
+        return self.__get("use_interaction_context")
 
 
 class RayTuneConfigFile:

@@ -27,6 +27,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
         self.trainset = Dataset(self.__load_data("train", maxsize))
+        self._logger.info("normalizing dataset ids..")
         mapping = self.trainset.normalize_ids(assume_consecutive=True)
         self._logger.info("loading test dataset...")
         self.testset = Dataset(self.__load_data("test", maxsize))
@@ -57,8 +58,9 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self.trainset = Dataset(self.__load_data(maxsize))
         self._logger.info("normalizing dataset ids..")
         self.trainset.normalize_ids()
-        self._logger.info("adding previous item column..")
-        self.trainset.add_previous_item_column()
+        if hparams.use_interaction_context:
+            self._logger.info("adding previous item column...")
+            self.trainset.add_previous_item_column()
         self._logger.info("extracting test dataset..")
         self.testset = self.trainset.extract_test_dataset()
         self._logger.info("calculating adjacency matrix..")

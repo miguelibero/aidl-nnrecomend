@@ -25,7 +25,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         if maxsize > 0 and maxsize < size:
             size = maxsize
         self._logger.info(f"loading {size} reviews...")
-        r = cur.execute(f'SELECT author_id, podcast_id FROM reviews {self.COND} LIMIT ?', (size,))
+        r = cur.execute(f'SELECT author_id, podcast_id FROM reviews {self.COND} ORDER BY created_at ASC LIMIT ?', (size,))
         return r, size
 
     def __load_item_info(self, cur: Cursor, items: Container[str]) -> Dict[str, Dict[str, str]]:
@@ -97,9 +97,22 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         self.trainset = Dataset(interactions)
         self._logger.info("normalizing dataset ids..")
         mapping = self.trainset.normalize_ids()
-        self._logger.info("fixing item info..")
-        self.item_info = self.__fix_item_info(item_info, items, mapping[1])
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
         self._logger.info("calculating adjacency matrix..")
         self.matrix = self.trainset.create_adjacency_matrix()
+        self._logger.info("removing low interactions...")
+        ci = self.trainset.remove_low_items(self.matrix, 1)
+        cu = self.trainset.remove_low_users(self.matrix, 1)
+        if cu > 0 or ci > 0:
+            self._logger.info(f"removed {cu} users and {ci} items")
+            self._logger.info("normalizing ids again...")
+            self.trainset.denormalize_ids(mapping)
+            mapping = self.trainset.normalize_ids()
+            self._logger.info("calculating adjacency matrix again...")
+            self.matrix = self.trainset.create_adjacency_matrix()
+        if hparams.use_interaction_context:
+            self._logger.info("adding previous item column...")
+            self.trainset.add_previous_item_column()
+        self._logger.info("extracting test dataset..")
+        self.testset = self.trainset.extract_test_dataset()
+        self._logger.info("fixing item info..")
+        self.item_info = self.__fix_item_info(item_info, items, mapping[1])
