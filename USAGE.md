@@ -42,6 +42,7 @@ Once installed make sure you have the python environment scripts directory in yo
 * `lr_scheduler_factor` lr factor for the plateau lr scheduler
 * `lr_scheduler_threshold` threshold for the plateau lr scheduler
 * `graph_attention_heads` amount of heads in the GCN with attention model
+* `interaction_context` the amount of context rows to add (default -1 adds all available)
 
 ## Command Line Interface
 
