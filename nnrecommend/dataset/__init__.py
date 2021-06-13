@@ -183,13 +183,14 @@ class Dataset(torch.utils.data.Dataset):
         if self.idrange is None:
             self.normalize_ids()
 
-    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1) -> 'Dataset':
+    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=False) -> 'Dataset':
         """
-        extract the last positive interaction of every user for the test dataset,
+        extract the first or last positive interaction of every user for the test dataset,
         check that the user has a minimum amount of interactions before extracting the last one
 
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
+        :param take_bottom: set to true to take the last interactions
         """
         self.__require_normalized()
         rowsbyuser = {}
@@ -207,7 +208,11 @@ class Dataset(torch.utils.data.Dataset):
         for userrows in rowsbyuser.values():
             if len(userrows) < num_user_interactions + min_keep_user_interactions:
                 continue
-            rows += userrows[-num_user_interactions:]
+            if take_bottom:
+                rows += userrows[-num_user_interactions:]
+            else:
+                rows += userrows[:num_user_interactions]
+
         testset = Dataset(self.__interactions[rows])
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
         testset.idrange = self.idrange
