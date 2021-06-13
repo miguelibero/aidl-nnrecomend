@@ -1,3 +1,4 @@
+import collections
 import itertools
 from nnrecommend.hparams import HyperParameters
 import scipy.sparse as sp
@@ -5,7 +6,7 @@ import numpy as np
 import torch
 from logging import Logger
 from nnrecommend.logging import get_logger
-from typing import Container
+from typing import Any, Container, List
 from bisect import bisect_left
 
 
@@ -40,17 +41,12 @@ class Dataset(torch.utils.data.Dataset):
         :param remove_missing: remove rows if some of the ids are not in the mapping
         """
         mapping = self.__validate_mapping(mapping)
-
-        def find(container, val):
-            if val < 0 or val >= len(container):
-                return -1
-            return container[int(val)]
-
         i = 0
         diff = 0
         for colmapping in mapping:
+            colgen = IdFinder(colmapping)
             for row in self.__interactions:
-                row[i] = find(colmapping, row[i] - diff)
+                row[i] = colgen.reverse(row[i] - diff)
             diff += len(colmapping)
             i += 1
         if remove_missing:
@@ -90,18 +86,13 @@ class Dataset(torch.utils.data.Dataset):
         return mapping
 
     def __normalize_ids(self, mapping: Container[np.ndarray], remove_missing: bool) -> None:
-        def find(container, val):
-            idx = bisect_left(container, val)
-            if idx < 0 or idx >= len(container) or container[idx] != val:
-                return -1
-            return idx
-
         i = 0
         diff = 0
         self.idrange = np.zeros(len(mapping), dtype=np.int64)
         for colmapping in mapping:
+            colgen = IdFinder(colmapping)
             for row in self.__interactions:
-                row[i] = find(colmapping, row[i]) + diff
+                row[i] = colgen.find(row[i]) + diff
             diff += len(colmapping)
             self.idrange[i] = diff
             i += 1
@@ -137,14 +128,20 @@ class Dataset(torch.utils.data.Dataset):
         max = -1 if self.idrange is None else len(self.idrange)
         return itertools.combinations(row[:max], 2)
 
-    def __row_pair_in_container(self, row: np.ndarray, container: Container) -> bool:
+    def __row_in_container(self, row: np.ndarray, container: Container) -> bool:
+        row = np.array(row)
+        assert row.shape[0] > 1
+        # TODO: should we only check if the user-item pair exists?
+        return tuple(row[:2]) in container
+
+    def __row_pairs_in_container(self, row: np.ndarray, container: Container) -> bool:
         row = np.array(row)
         for pair in self.__get_row_pairs(row):
             if pair in container:
                 return True
         return False
 
-    MAX_RANDOM_TRIES = 100
+    MAX_RANDOM_TRIES = 1000
 
     def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1) -> np.ndarray:
         """
@@ -157,7 +154,7 @@ class Dataset(torch.utils.data.Dataset):
         for i in range(num):
             nrow = None
             count = 0
-            while nrow is None or self.__row_pair_in_container(nrow, container):
+            while nrow is None or self.__row_in_container(nrow, container):
                 nrow = self.get_random_negative_row(row)
                 count += 1
                 if count > self.MAX_RANDOM_TRIES:
@@ -291,7 +288,7 @@ class Dataset(torch.utils.data.Dataset):
             # assign them to the new column
             self.__interactions[cond, -2] = items
 
-        r = np.max(self.__interactions[:, -2])
+        r = np.max(self.__interactions[:, -2]) if self.__interactions.shape[0] > 0 else 0
         self.idrange = np.append(self.idrange, r + 1)
 
 
@@ -327,3 +324,43 @@ def save_model(path: str, model, src: BaseDatasetSource):
     }
     with open(path, "wb") as fh:
         torch.save(data, fh)
+
+
+class IdFinder:
+
+    def __init__(self, data: Container=[], hash: bool=False):
+        self.data = data
+        self.__hash = hash
+
+    def _fix(self, v):
+        if self.__hash:
+            v = hash(v)
+        return v
+
+    def find(self, v) -> int:
+        v = self._fix(v)
+        id = bisect_left(self.data, v)
+        if not self._check(id, v):
+            return -1
+        return id
+
+    def _check(self, id, v):
+        return id >= 0 and id < len(self.data) and self.data[id] == v
+
+    def reverse(self, v: int) -> Any:
+        v = int(v)
+        if v < 0 or v >= len(self.data):
+            return -1
+        return self.data[v]
+
+
+class IdGenerator(IdFinder):
+
+    def __init__(self, hash: bool=False):
+        super().__init__([], hash)
+
+    def add(self, v) -> None:
+        v = self._fix(v)
+        id = bisect_left(self.data, v)
+        if not self._check(id, v):
+            self.data.insert(id, v)

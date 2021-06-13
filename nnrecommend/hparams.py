@@ -38,7 +38,7 @@ class HyperParameters:
         "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
         "embed_dropout": 0.6,
-        "use_interaction_context": True
+        "interaction_context": -1
     }
 
     def __init__(self, data: Dict = {}):
@@ -134,12 +134,12 @@ class HyperParameters:
         """
         return self.__get("graph_attention_heads")
 
-    @property
-    def use_interaction_context(self):
+    def should_have_interaction_context(self, v: int):
         """
-        add interaction context columns to the dataset
+        check if the dataset should add an interaction context
         """
-        return self.__get("use_interaction_context")
+        c = self.__get("interaction_context")
+        return c < 0 or c > v 
 
 
 class RayTuneConfigFile:

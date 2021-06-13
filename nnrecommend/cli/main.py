@@ -7,11 +7,11 @@ from nnrecommend.logging import setup_log
 from nnrecommend.dataset import BaseDatasetSource
 from nnrecommend.dataset.movielens import MovielensLabDatasetSource, Movielens100kDatasetSource
 from nnrecommend.dataset.podcasts import ItunesPodcastsDatasetSource
-from nnrecommend.dataset.spotify import SpotifyDatasetSource
+from nnrecommend.dataset.spotify import SpotifyDatasetSource, SpotifyRawDatasetSource
 from nnrecommend.hparams import HyperParameters
 
 
-DATASET_TYPES = ['movielens-lab', 'movielens-100k', 'podcasts', 'spotify']
+DATASET_TYPES = ['movielens-lab', 'movielens-100k', 'podcasts', 'spotify', 'spotify-raw']
 
 class Context:
 
@@ -41,8 +41,11 @@ class Context:
             self.logger.info("creating itunes podcasts dataset")
             return ItunesPodcastsDatasetSource(path, self.logger)
         elif dataset_type == "spotify":
-            self.logger.info("creating Spotify dataset")
+            self.logger.info("creating spotify dataset")
             return SpotifyDatasetSource(path, self.logger)
+        elif dataset_type == "spotify-raw":
+            self.logger.info("creating spotify raw dataset")
+            return SpotifyRawDatasetSource(path, self.logger)
         else:
             raise ValueError(f"unknow dataset type {dataset_type}")
 

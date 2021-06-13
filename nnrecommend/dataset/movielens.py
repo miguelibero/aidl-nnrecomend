@@ -21,7 +21,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = f"{self.__path}.{type}.rating"
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows, names=COLUMN_NAMES)
-        return np.array(data[[*LOAD_COLUMNS]], dtype=np.int64)
+        return data[[*LOAD_COLUMNS]]
 
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
@@ -58,7 +58,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self.trainset = Dataset(self.__load_data(maxsize))
         self._logger.info("normalizing dataset ids..")
         self.trainset.normalize_ids()
-        if hparams.use_interaction_context:
+        if hparams.should_have_interaction_context(0):
             self._logger.info("adding previous item column...")
             self.trainset.add_previous_item_column()
         self._logger.info("extracting test dataset..")
