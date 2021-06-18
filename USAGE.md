@@ -42,7 +42,11 @@ Once installed make sure you have the python environment scripts directory in yo
 * `lr_scheduler_factor` lr factor for the plateau lr scheduler
 * `lr_scheduler_threshold` threshold for the plateau lr scheduler
 * `graph_attention_heads` amount of heads in the GCN with attention model
-* `interaction_context` the amount of context rows to add (default -1 adds all available)
+* `negatives_train_random_context` if the context values should be randomized when adding negative samples to the train dataset
+* `negatives_test_random_context` if the context values should be randomized when adding negative samples to the test dataset
+* `interaction_context` context rows to add, separated by comma (default `all` adds any context) 
+
+Supported context values are `previous` & `skip`, and they depend on each dataset.
 
 ## Command Line Interface
 
@@ -108,8 +112,9 @@ Check the [tune documentation](https://docs.ray.io/en/master/tune/api_docs/searc
 
 ```json
 {
-    "embed_dim": ["grid_search", [80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]],
+    "learning_rate": ["qloguniform", 1e-4, 1e-1, 5e-4],
     "embed_dropout": ["choice", [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]],
+    "batch_size": ["lograndint", 128, 2048],
     "graph_attention_heads": ["randint", 1, 12]
 }
 ```

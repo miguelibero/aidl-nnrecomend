@@ -19,7 +19,7 @@ class Setup:
         self.src = src
         self.__logger = logger or get_logger(self)
 
-    def __call__(self, hparams: HyperParameters):
+    def __call__(self, hparams: HyperParameters, negative_sampling=True):
         self.__logger.info("loading dataset...")
 
         self.src.load(hparams)
@@ -28,10 +28,11 @@ class Setup:
         idrange = self.src.trainset.idrange
         self.__log_idrange(idrange)
 
-        self.__logger.info("adding negative sampling...")
-        matrix = self.src.matrix
-        self.src.trainset.add_negative_sampling(matrix, hparams.negatives_train)
-        self.src.testset.add_negative_sampling(matrix, hparams.negatives_test)
+        if negative_sampling:
+            self.__logger.info("adding negative sampling...")
+            matrix = self.src.matrix
+            self.src.trainset.add_negative_sampling(matrix, hparams.negatives_train, hparams.negatives_train_random_context)
+            self.src.testset.add_negative_sampling(matrix, hparams.negatives_test, hparams.negatives_test_random_context)
 
         return idrange
 
@@ -223,7 +224,8 @@ class RunTracker:
         hparams = {}
         for k, v in self.__hparams.data.items():
             hparams[f"{self.HPARAM_PREFIX}{k}"] = v
-        self.__tb.add_hparams(hparams, self.__metrics, run_name=run_name)
+        # disabled since it does not look to good in tensorboard
+        # self.__tb.add_hparams(hparams, self.__metrics, run_name=run_name)
 
 
 class FinderResult:

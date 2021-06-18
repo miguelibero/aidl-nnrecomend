@@ -77,11 +77,8 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
     logger = ctx.obj.logger or get_logger(explore_dataset)
     hparams = ctx.obj.hparams
 
-    #setup = Setup(src, logger)
-    #idrange = setup(hparams)
-
-    src.load(hparams)
-    idrange = src.trainset.idrange
+    setup = Setup(src, logger)
+    idrange = setup(hparams, negative_sampling=False)
 
     logger.info("calculating statistics...")
 

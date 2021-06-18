@@ -33,8 +33,8 @@ class SpotifyDatasetSource(BaseDatasetSource):
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading data...")
-        load_skip = hparams.should_have_interaction_context(0)
-        load_prev = hparams.should_have_interaction_context(1)
+        load_skip = hparams.should_have_interaction_context("skip")
+        load_prev = hparams.should_have_interaction_context("previous")
         self.trainset = Dataset(self.__load_data(maxsize, load_skip, load_prev))
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
@@ -102,7 +102,7 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading data...")
-        load_skip = hparams.should_have_interaction_context(0)
+        load_skip = hparams.should_have_interaction_context("skip")
         self.trainset = Dataset(self.__load_data(maxsize, load_skip))
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
@@ -117,7 +117,7 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
             self._logger.info("normalizing ids again...")
             self.trainset.denormalize_ids(mapping)
             mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context(1):
+        if hparams.should_have_interaction_context("previous"):
             self._logger.info("adding previous item column...")
             self.trainset.add_previous_item_column()
         if recalc:

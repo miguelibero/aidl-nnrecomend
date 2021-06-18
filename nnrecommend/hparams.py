@@ -38,7 +38,9 @@ class HyperParameters:
         "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
         "embed_dropout": 0.6,
-        "interaction_context": -1
+        "interaction_context": "all",
+        "negatives_train_random_context": False,
+        "negatives_test_random_context": False,
     }
 
     def __init__(self, data: Dict = {}):
@@ -134,12 +136,34 @@ class HyperParameters:
         """
         return self.__get("graph_attention_heads")
 
-    def should_have_interaction_context(self, v: int):
+    @property
+    def negatives_train_random_context(self):
+        """
+        if the context values for negative sampling in the train dataset should be random
+        """
+        return self.__get("negatives_train_random_context")
+
+    @property
+    def negatives_test_random_context(self):
+        """
+        if the context values for negative sampling in the test dataset should be random
+        """
+        return self.__get("negatives_test_random_context")
+
+    def should_have_interaction_context(self, v: str):
         """
         check if the dataset should add an interaction context
         """
-        c = self.__get("interaction_context")
-        return c < 0 or c > v 
+        parm = self.__get("interaction_context")
+        if not parm:
+            return False
+        if parm == "all":
+            return True
+        v = str(v)
+        if not isinstance(parm, (list, tuple)):
+            parm = str(parm).split(",")
+        return v in parm
+
 
 
 class RayTuneConfigFile:

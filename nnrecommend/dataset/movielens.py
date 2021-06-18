@@ -58,7 +58,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self.trainset = Dataset(self.__load_data(maxsize))
         self._logger.info("normalizing dataset ids..")
         self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context(0):
+        if hparams.should_have_interaction_context("previous"):
             self._logger.info("adding previous item column...")
             self.trainset.add_previous_item_column()
         self._logger.info("extracting test dataset..")

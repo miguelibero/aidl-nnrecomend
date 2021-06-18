@@ -102,7 +102,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             self._logger.info("normalizing ids again...")
             self.trainset.denormalize_ids(mapping)
             mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context(0):
+        if hparams.should_have_interaction_context("previous"):
             self._logger.info("adding previous item column...")
             self.trainset.add_previous_item_column()
         if recalc:

@@ -110,18 +110,28 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> np.ndarray:
         return self.__interactions[index]
 
-    def get_random_negative_row(self, row: np.ndarray) -> np.ndarray:
+    def get_random_negative_row(self, row: np.ndarray, rand_context=False) -> np.ndarray:
+        """
+        generates a random negative row, by default the context values
+        will be the same as the positive row, use rand_context=True to get random values
+        for them too
+
+        :param row: the positive row
+        :param rand_context: set to true if the context values should be random
+        """
         row = np.array(row)
         assert self.idrange is not None
         assert row.shape[0] >= len(self.idrange)
-        nrow = np.zeros(len(self.idrange) + 1)
-        nrow[0] = row[0]
+        nrow = row.copy()
+        nrow[-1] = 0
         for i in range(1, nrow.shape[0]-1):
             v = None
             minv, maxv = self.idrange[i-1:i+1]
             while v is None or v == row[i]:
                 v = np.random.randint(minv, maxv, dtype=np.int64)
             nrow[i] = v
+            if not rand_context:
+                break
         return nrow
 
     def __get_row_pairs(self, row: np.ndarray) -> Container[np.ndarray]:
@@ -143,7 +153,7 @@ class Dataset(torch.utils.data.Dataset):
 
     MAX_RANDOM_TRIES = 1000
 
-    def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1) -> np.ndarray:
+    def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1, rand_context=False) -> np.ndarray:
         """
         generate num random rows that don't have values in row and are not in the container
 
@@ -155,14 +165,14 @@ class Dataset(torch.utils.data.Dataset):
             nrow = None
             count = 0
             while nrow is None or self.__row_in_container(nrow, container):
-                nrow = self.get_random_negative_row(row)
+                nrow = self.get_random_negative_row(row, rand_context)
                 count += 1
                 if count > self.MAX_RANDOM_TRIES:
                     raise Exception("failed to find negative random row")
             nrows[i] = nrow
         return nrows
 
-    def add_negative_sampling(self, container: Container, num: int=1) -> None:
+    def add_negative_sampling(self, container: Container, num: int=1, rand_context=False) -> None:
         """
         add negative samples to the dataset interactions
         with random ids that don't match existing interactions
@@ -170,13 +180,14 @@ class Dataset(torch.utils.data.Dataset):
 
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param num: amount of samples per interaction
+        :param rand_context: if context values should be random too
         """
         if num <= 0:
             return
         n = num + 1
         data = np.repeat(self.__interactions, n, axis=0)
         for i, row in enumerate(self.__interactions):
-            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num)
+            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num, rand_context)
         self.__interactions = data
 
     def __require_normalized(self):
