@@ -1,12 +1,13 @@
+import itertools
 import click
 import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
+from matplotlib.ticker import MaxNLocator
 import torch
 import numpy as np
-from matplotlib.ticker import MaxNLocator
 
 from nnrecommend.operation import Setup
-from nnrecommend.cli.main import main
+from nnrecommend.cli.main import main, DATASET_TYPES
 from nnrecommend.model import sparse_tensor_to_scipy_matrix
 from nnrecommend.logging import get_logger
 
@@ -63,10 +64,11 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
-@click.option('--type', 'dataset_type', default="movielens",
-              type=click.Choice(['movielens', 'podcasts', 'spotify'], case_sensitive=False))
+@click.option('--type', 'dataset_type', default=DATASET_TYPES[0],
+              type=click.Choice(DATASET_TYPES, case_sensitive=False))
 @click.option('--hist-bins', type=int, default=20, help="amount bins for the histograms")
-def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
+@click.option('--full', type=bool, is_flag=True, help='show full adjacency matrix')
+def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: bool) -> None:
     """
     show information about a dataset
     """
@@ -75,57 +77,59 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int) -> None:
     logger = ctx.obj.logger or get_logger(explore_dataset)
     hparams = ctx.obj.hparams
 
-    setup = Setup(src, logger)
-    idrange = setup(hparams)
+    #setup = Setup(src, logger)
+    #idrange = setup(hparams)
+
+    src.load(hparams)
+    idrange = src.trainset.idrange
 
     logger.info("calculating statistics...")
 
     nnz = src.matrix.getnnz()
     tot = np.prod(src.matrix.shape)
-    logger.info(f"users-items matrix {src.matrix.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
+    logger.info(f"adjacency matrix {src.matrix.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
 
-    def fix_count(data):
-        data = np.asarray(data).flatten()
-        return data[np.nonzero(data)]
+    def get_over(count, th, tot):
+        return np.count_nonzero(count >= th)*100/tot if tot > 0 else 0
 
-    logger.info("calculating histograms...")
+    def get_idrange(i):
+        return idrange[i-1] if i > 0 else 0, idrange[i]
 
-    maxuser = idrange[0]
-    users = src.matrix[:maxuser, maxuser+1:]
-    usercount = fix_count(users.sum(1))
-    itemcount = fix_count(users.sum(0))
+    def get_rangename(i):
+        if i == 0: return "users"
+        if i == 1: return "items"
+        return f"context{i-2}"
 
-    def print_stats(count, name, other):
+    if full:
+        plt.spy(src.matrix, markersize=1)
+        plt.show()
+        return
+
+    pairs = list(itertools.combinations(range(0, len(idrange)), 2))
+    fig, axs = plt.subplots(len(pairs), 2)
+
+    i = 0
+    for (x, y) in pairs:
+        xname, yname = get_rangename(x), get_rangename(y)
+        x, y = get_idrange(x), get_idrange(y)
+        submatrix = src.matrix[x[0]:x[1], y[0]:y[1]]
+        count = np.asarray(submatrix.sum(1)).flatten()
+        count = count[np.nonzero(count)]
+
         tot = len(count)
-        more2 = np.count_nonzero(count >= 2)*100/tot
-        more10 = np.count_nonzero(count >= 10)*100/tot
-        logger.info(f"{name} total = {tot}, 2 or more {other} = {more2:.2f}%, 10 or more {other} = {more10:.2f}%")
+        more2 = get_over(count, 2, tot)
+        more10 = get_over(count, 10, tot)
+        logger.info(f"{xname}-{yname} total = {tot}, over 2 = {more2:.2f}%, over 10 = {more10:.2f}%")
 
-    print_stats(usercount, "users", "items")
-    print_stats(itemcount, "items", "users")
+        axs[i][0].set_title(f'{xname}-{yname} submatrix')
+        axs[i][0].spy(submatrix, markersize=1)
+        axs[i][0].xticks(500)
+        axs[i][0].yticks(500)
 
-    logger.info("generating graph...")
-
-    def matrix_spy_graph(ax):
-        ax.set_ylabel('users')
-        ax.set_xlabel('items')
-        ax.set_title('adjacency matrix')
-        ax.spy(users, markersize=1)
-
-    def log_histogram_graph(ax, x, log=True):
-        ax.hist(x, bins=hist_bins, log=log)
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-    def user_histogram_graph(ax):
-        ax.set_title('amount of items per user')
-        log_histogram_graph(ax, usercount)
-
-    def item_histogram_graph(ax):
-        ax.set_title('amount of users per item')
-        log_histogram_graph(ax, itemcount)
-
-    _, axs = plt.subplots(1, 3)
-    matrix_spy_graph(axs[0])
-    user_histogram_graph(axs[1])
-    item_histogram_graph(axs[2])
+        axs[i][1].set_title(f'{xname}-{yname} histogram')
+        axs[i][1].hist(count, bins=hist_bins, log=False)
+        axs[i][1].xaxis.set_major_locator(MaxNLocator(integer=True))
+        i += 1
+    
+    fig.tight_layout()
     plt.show()
