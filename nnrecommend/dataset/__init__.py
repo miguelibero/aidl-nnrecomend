@@ -1,17 +1,17 @@
 import itertools
-from nnrecommend.hparams import HyperParameters
+import torch
 import scipy.sparse as sp
 import numpy as np
-import torch
 from logging import Logger
-from nnrecommend.logging import get_logger
-from typing import Any, Container, List
+from typing import Any, Container, List, Tuple
 from bisect import bisect_left
+from nnrecommend.hparams import HyperParameters
+from nnrecommend.logging import get_logger
 
 
-class Dataset(torch.utils.data.Dataset):
+class InteractionDataset(torch.utils.data.Dataset):
     """
-    basic dataset class
+    basic interaction dataset class
     """
     def __init__(self, interactions: np.ndarray):
         """
@@ -197,12 +197,12 @@ class Dataset(torch.utils.data.Dataset):
         extract a new dataset with the negative values
         """
         cond = self.__interactions[:, -1] == 0
-        negset = Dataset(self.__interactions[cond])
+        negset = InteractionDataset(self.__interactions[cond])
         self.__interactions = np.delete(self.__interactions, cond, axis=0)
         negset.idrange = self.idrange
         return negset
 
-    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=False) -> 'Dataset':
+    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=False) -> 'InteractionDataset':
         """
         extract the first or last positive interaction of every user for the test dataset,
         check that the user has a minimum amount of interactions before extracting the last one
@@ -233,7 +233,7 @@ class Dataset(torch.utils.data.Dataset):
             else:
                 rows += userrows[:num_user_interactions]
 
-        testset = Dataset(self.__interactions[rows])
+        testset = InteractionDataset(self.__interactions[rows])
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
         testset.idrange = self.idrange
         return testset
@@ -317,23 +317,25 @@ class Dataset(torch.utils.data.Dataset):
         self.idrange = np.append(self.idrange, r + 1)
 
 
-class TupleDataset(torch.utils.data.Dataset):
+class InteractionPairDataset(torch.utils.data.Dataset):
+    """
+    returns pairs of positive and negative interactions
+    """
 
-    def __init__(self, *datasets):
-        self.lens = []
-        for dataset in datasets:
-            assert isinstance(dataset, torch.utils.data.Dataset)
-            self.lens.append(len(dataset))
-        self.datasets = datasets
+    def __init__(self, positive: torch.utils.data.Dataset, negative: torch.utils.data.Dataset):
+        self.positive = positive
+        self.negative = negative
 
     def __len__(self) -> int:
-        return min(self.lens)
+        return max(len(self.positive), len(self.negative))
 
-    def __getitem__(self, index) -> np.ndarray:
-        vals = []
-        for dataset in self.datasets:
-            vals.append(dataset[index])
-        return vals
+    def __getitem__(self, index) -> Tuple:
+        f = len(self.negative) / len(self.positive)
+        pos = int(index / f)
+        neg = index
+        if f < 1:
+            pos, neg = neg, pos
+        return (self.positive[pos], self.negative[neg])
 
 
 class BaseDatasetSource:

@@ -1,17 +1,18 @@
-from logging import Logger
-from typing import Any, Callable, Container, Dict
-from torch.utils.data.dataloader import DataLoader
 import statistics
 import math
 import torch
 import numpy as np
 import os
 from fuzzywuzzy import process
+from logging import Logger
+from typing import Any, Callable, Container, Dict
+from torch.functional import Tensor
+from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource
+from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset
+
 
 class Setup:
 
@@ -59,12 +60,16 @@ class Setup:
         return DataLoader(self.src.testset, batch_size=hparams.negatives_test+1, num_workers=0)
 
     def create_trainloader(self, hparams: HyperParameters):
-        return DataLoader(self.src.trainset, batch_size=hparams.batch_size, shuffle=True, num_workers=0)
+        dataset = self.src.trainset
+        if hparams.pairwise_loss:
+            negset = dataset.extract_negative_dataset()
+            dataset = InteractionPairDataset(dataset, negset)
+        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=0)
 
 
 class Trainer:
 
-    def __init__(self, model: torch.nn.Module, trainloader: torch.utils.data.DataLoader,
+    def __init__(self, model: torch.nn.Module, trainloader: DataLoader,
             optimizer: torch.optim.Optimizer, criterion: torch.nn.Module, device: str=None):
         self.model = model
         self.trainloader = trainloader
@@ -72,22 +77,34 @@ class Trainer:
         self.criterion = criterion
         self.device = device
 
-    def __call__(self, epoch: int=None) -> float:
+    def __forward(self, rows):
+        if self.device:
+            rows = rows.to(self.device)
+        interactions = rows[:,:-1].long()
+        targets = rows[:,-1].float()
+        predictions = self.model(interactions)
+        return predictions, targets
+
+    def __call__(self) -> float:
         """
         run a training epoch
         :return: the mean loss
         """
         total_loss = []
-        self.model.train()
 
-        for rows in self.trainloader:
+        for batch in self.trainloader:
             self.optimizer.zero_grad()
-            if self.device:
-                rows = rows.to(self.device)
-            interactions = rows[:,:-1].long()
-            targets = rows[:,-1].float()
-            predictions = self.model(interactions)
-            loss = self.criterion(predictions, targets)
+            
+            if isinstance(batch, Tensor):
+                predictions, targets = self.__forward(batch)
+                loss = self.criterion(predictions, targets)
+            elif isinstance(batch, (list, tuple)):
+                predpos, _ = self.__forward(batch[0])
+                predneg, _ = self.__forward(batch[1])
+                loss = self.criterion(predpos, predneg)
+            else:
+                raise ValueError("batch")
+
             loss.backward()
             self.optimizer.step()
             total_loss.append(loss.item())
@@ -139,11 +156,11 @@ class Tester:
         total_recommended_items = set()
         total_items = set()
 
-        for rows in self.testloader:
-            total_items.update(rows[:, 1].tolist())
+        for batch in self.testloader:
+            total_items.update(batch[:, 1].tolist())
             if self.device:
-                rows = rows.to(self.device)
-            interactions = rows[:,:-1].long()
+                batch = batch.to(self.device)
+            interactions = batch[:,:-1].long()
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)

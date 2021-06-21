@@ -32,7 +32,7 @@ class HyperParameters:
         "batch_size": 1024,
         "epochs": 20,
         "embed_dim": 64,
-        "learning_rate": 0.0005,
+        "learning_rate": 0.001,
         "lr_scheduler_patience": 1,
         "lr_scheduler_factor": 0.8,
         "lr_scheduler_threshold": 1e-4,
@@ -41,6 +41,7 @@ class HyperParameters:
         "interaction_context": "all",
         "negatives_train_random_context": False,
         "negatives_test_random_context": False,
+        "pairwise_loss": False
     }
 
     def __init__(self, data: Dict = {}):
@@ -149,6 +150,13 @@ class HyperParameters:
         if the context values for negative sampling in the test dataset should be random
         """
         return self.__get("negatives_test_random_context")
+
+    @property
+    def pairwise_loss(self):
+        """
+        train the model using pairwise loss
+        """
+        return self.__get("pairwise_loss")
 
     def should_have_interaction_context(self, v: str):
         """

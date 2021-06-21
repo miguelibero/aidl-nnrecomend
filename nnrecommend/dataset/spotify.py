@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from nnrecommend.dataset.movielens import LOAD_COLUMNS
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import BaseDatasetSource, Dataset, IdGenerator
+from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerator
 
 
 class SpotifyDatasetSource(BaseDatasetSource):
@@ -35,7 +35,7 @@ class SpotifyDatasetSource(BaseDatasetSource):
         self._logger.info("loading data...")
         load_skip = hparams.should_have_interaction_context("skip")
         load_prev = hparams.should_have_interaction_context("previous")
-        self.trainset = Dataset(self.__load_data(maxsize, load_skip, load_prev))
+        self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip, load_prev))
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
         self._logger.info("calculating adjacency matrix...")
@@ -103,7 +103,7 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         maxsize = hparams.max_interactions
         self._logger.info("loading data...")
         load_skip = hparams.should_have_interaction_context("skip")
-        self.trainset = Dataset(self.__load_data(maxsize, load_skip))
+        self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip))
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
         self._logger.info("calculating adjacency matrix...")
@@ -148,7 +148,7 @@ class SpotifySplitDatasetSource(BaseDatasetSource):
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
-        self.trainset = Dataset(self.__load_data("train", maxsize))
+        self.trainset = InteractionDataset(self.__load_data("train", maxsize))
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
         self._logger.info("calculating adjacency matrix...")
@@ -164,5 +164,5 @@ class SpotifySplitDatasetSource(BaseDatasetSource):
             self._logger.info("calculating adjacency matrix again...")
             self.matrix = self.trainset.create_adjacency_matrix()
         self._logger.info("loading test dataset...")
-        self.testset = Dataset(self.__load_data("test", maxsize))
+        self.testset = InteractionDataset(self.__load_data("test", maxsize))
         self.testset.map_ids(mapping)

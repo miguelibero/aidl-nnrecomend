@@ -121,6 +121,11 @@ class GraphAttentionFactorizationMachine(BaseFactorizationMachine):
         return self.embedding.get_embedding_weight()
 
 
+class PairwiseDistanceLoss:
+    def __call__(self, positive_predictions: torch.Tensor, negative_predictions: torch.Tensor):
+        return -(positive_predictions - negative_predictions).sigmoid().log().mean()
+
+
 def sparse_scipy_matrix_to_tensor(matrix: sp.spmatrix) -> torch.Tensor: 
     """convert a scipy sparse matrix to a torch sparse tensor"""
     matrix = matrix.tocoo()
@@ -150,7 +155,10 @@ def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParamete
 
 
 def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
-    criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
+    if hparams.pairwise_loss:
+        criterion = PairwiseDistanceLoss()
+    else:
+        criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
         patience=hparams.lr_scheduler_patience,

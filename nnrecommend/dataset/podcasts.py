@@ -4,7 +4,7 @@ import sqlite3
 from sqlite3.dbapi2 import Cursor
 from typing import Container, Dict
 import numpy as np
-from nnrecommend.dataset import BaseDatasetSource, Dataset, IdGenerator
+from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerator
 from bisect import bisect_left
 
 
@@ -88,7 +88,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             item_info = self.__load_item_info(cur, items)
 
         self._logger.info("setting up datasets..")
-        self.trainset = Dataset(interactions)
+        self.trainset = InteractionDataset(interactions)
         self._logger.info("normalizing dataset ids..")
         mapping = self.trainset.normalize_ids()
         self._logger.info("calculating adjacency matrix..")

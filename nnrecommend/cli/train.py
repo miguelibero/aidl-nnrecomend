@@ -60,15 +60,18 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
         def result_info(result):
             return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
 
+        model.eval()
         result = tester()
         logger.info(f'initial topk={topk} {result_info(result)}')
 
         for i in range(hparams.epochs):
             logger.info(f"training epoch {i}...")
+            model.train()
             loss = trainer()
             lr = get_optimizer_lr(optimizer)
             tracker.track_model_epoch(i, model, loss, lr)
             logger.info(f"evaluating...")
+            model.eval()
             result = tester()
             logger.info(f'{i:03}/{hparams.epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
             tracker.track_test_result(i, result)

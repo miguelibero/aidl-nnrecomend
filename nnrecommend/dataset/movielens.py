@@ -2,7 +2,7 @@ from logging import Logger
 import pandas as pd
 import numpy as np
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import Dataset, BaseDatasetSource
+from nnrecommend.dataset import InteractionDataset, BaseDatasetSource
 
 
 COLUMN_NAMES = ('user_id', 'item_id', 'label', 'timestamp')
@@ -26,11 +26,11 @@ class MovielensLabDatasetSource(BaseDatasetSource):
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
-        self.trainset = Dataset(self.__load_data("train", maxsize))
+        self.trainset = InteractionDataset(self.__load_data("train", maxsize))
         self._logger.info("normalizing dataset ids..")
         mapping = self.trainset.normalize_ids(assume_consecutive=True)
         self._logger.info("loading test dataset...")
-        self.testset = Dataset(self.__load_data("test", maxsize))
+        self.testset = InteractionDataset(self.__load_data("test", maxsize))
         self.testset.map_ids(mapping)
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
@@ -55,7 +55,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
-        self.trainset = Dataset(self.__load_data(maxsize))
+        self.trainset = InteractionDataset(self.__load_data(maxsize))
         self._logger.info("normalizing dataset ids..")
         self.trainset.normalize_ids()
         if hparams.should_have_interaction_context("previous"):
