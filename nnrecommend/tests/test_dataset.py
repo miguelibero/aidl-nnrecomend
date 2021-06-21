@@ -69,7 +69,7 @@ def test_adjacency_matrix():
     assert (nitems[2] == (0, 2, 0)).all()
 
 
-def test_negative_sampling():
+def test_add_negative_sampling():
     data = ((2, 2), (3, 1))
     dataset = Dataset(data)
     matrix = dataset.create_adjacency_matrix()
@@ -81,6 +81,19 @@ def test_negative_sampling():
     assert (dataset[3] == (1, 2, 1)).all()
     assert (dataset[4] == (1, 3, 0)).all()
     assert (dataset[5] == (1, 3, 0)).all()
+
+
+def test_create_negative_sampling():
+    data = ((2, 2), (3, 1))
+    dataset = Dataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    data = dataset.create_negative_sampling(matrix, 2)
+    assert len(dataset) == 2
+    assert len(data) == 4
+    assert (data[0] == (0, 2, 0)).all()
+    assert (data[1] == (0, 2, 0)).all()
+    assert (data[2] == (1, 3, 0)).all()
+    assert (data[3] == (1, 3, 0)).all()
 
 
 def test_extract_test_dataset():

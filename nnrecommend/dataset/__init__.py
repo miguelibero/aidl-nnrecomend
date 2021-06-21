@@ -182,13 +182,30 @@ class Dataset(torch.utils.data.Dataset):
         :param num: amount of samples per interaction
         :param rand_context: if context values should be random too
         """
-        if num <= 0:
-            return
+        assert num > 0
         n = num + 1
         data = np.repeat(self.__interactions, n, axis=0)
         for i, row in enumerate(self.__interactions):
             data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num, rand_context)
         self.__interactions = data
+
+    def create_negative_sampling(self, container: Container, num: int=1, rand_context=False) -> None:
+        """
+        create negative samples for the dataset interactions
+        with random ids that don't match existing interactions
+        the negative samples will be placed in the rows immediately after the original one
+
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        :param num: amount of samples per interaction
+        :param rand_context: if context values should be random too
+        :return data: numpy array with negative samples
+        """
+        assert num > 0
+        shape = self.__interactions.shape
+        data = np.zeros((num * shape[0], shape[1]))
+        for i, row in enumerate(self.__interactions):
+            data[num*i:num*(i+1), :] = self.get_random_negative_rows(container, row, num, rand_context)
+        return data
 
     def __require_normalized(self):
         if self.idrange is None:
