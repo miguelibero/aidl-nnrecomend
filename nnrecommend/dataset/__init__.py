@@ -1,4 +1,3 @@
-import collections
 import itertools
 from nnrecommend.hparams import HyperParameters
 import scipy.sparse as sp
@@ -189,27 +188,19 @@ class Dataset(torch.utils.data.Dataset):
             data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num, rand_context)
         self.__interactions = data
 
-    def create_negative_sampling(self, container: Container, num: int=1, rand_context=False) -> None:
-        """
-        create negative samples for the dataset interactions
-        with random ids that don't match existing interactions
-        the negative samples will be placed in the rows immediately after the original one
-
-        :param container: container to check if the interaction exists (usually the adjacency matrix)
-        :param num: amount of samples per interaction
-        :param rand_context: if context values should be random too
-        :return data: numpy array with negative samples
-        """
-        assert num > 0
-        shape = self.__interactions.shape
-        data = np.zeros((num * shape[0], shape[1]))
-        for i, row in enumerate(self.__interactions):
-            data[num*i:num*(i+1), :] = self.get_random_negative_rows(container, row, num, rand_context)
-        return data
-
     def __require_normalized(self):
         if self.idrange is None:
             self.normalize_ids()
+
+    def extract_negative_dataset(self) -> None:
+        """
+        extract a new dataset with the negative values
+        """
+        cond = self.__interactions[:, -1] == 0
+        negset = Dataset(self.__interactions[cond])
+        self.__interactions = np.delete(self.__interactions, cond, axis=0)
+        negset.idrange = self.idrange
+        return negset
 
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=False) -> 'Dataset':
         """
@@ -219,6 +210,7 @@ class Dataset(torch.utils.data.Dataset):
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
         :param take_bottom: set to true to take the last interactions
+        :return: test Dataset
         """
         self.__require_normalized()
         rowsbyuser = {}
@@ -323,6 +315,25 @@ class Dataset(torch.utils.data.Dataset):
 
         r = np.max(self.__interactions[:, -2]) if self.__interactions.shape[0] > 0 else 0
         self.idrange = np.append(self.idrange, r + 1)
+
+
+class TupleDataset(torch.utils.data.Dataset):
+
+    def __init__(self, *datasets):
+        self.lens = []
+        for dataset in datasets:
+            assert isinstance(dataset, torch.utils.data.Dataset)
+            self.lens.append(len(dataset))
+        self.datasets = datasets
+
+    def __len__(self) -> int:
+        return min(self.lens)
+
+    def __getitem__(self, index) -> np.ndarray:
+        vals = []
+        for dataset in self.datasets:
+            vals.append(dataset[index])
+        return vals
 
 
 class BaseDatasetSource:
