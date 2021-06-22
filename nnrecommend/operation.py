@@ -32,8 +32,8 @@ class Setup:
         if negative_sampling:
             self.__logger.info("adding negative sampling...")
             matrix = self.src.matrix
-            self.src.trainset.add_negative_sampling(matrix, hparams.negatives_train)
-            self.src.testset.add_negative_sampling(matrix, hparams.negatives_test)
+            self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+            self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
 
         return idrange
 

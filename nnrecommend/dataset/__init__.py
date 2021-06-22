@@ -1,9 +1,10 @@
 import itertools
 import torch
+import random
 import scipy.sparse as sp
 import numpy as np
 from logging import Logger
-from typing import Any, Container, List, Tuple
+from typing import Any, Container, Tuple
 from bisect import bisect_left
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
@@ -115,62 +116,96 @@ class InteractionDataset(torch.utils.data.Dataset):
 
     MAX_RANDOM_TRIES = 1000
 
-    def get_random_negative_row(self, row: np.ndarray, container: Container = None) -> np.ndarray:
+    def get_random_negative_item(self, user: int, item: int, container: Container = None) -> int:
         """
-        generates a random negative row, by default the context values
-        will be the same as the positive row, use rand_context=True to get random values
-        for them too
-        :param row: the positive row
-        :param container: pass a container to check that the value is not in it
+        generate a random negative item
+        :param user: the user of the positive interaction
+        :param user: the item of the positive interaction
+        :param container: pass a container to check that the interaction is not in it
         """
-        row = np.array(row)
         assert self.idrange is not None
-        assert row.shape[0] >= len(self.idrange)
         c = 0
         v = None
         minv, maxv = self.idrange[0:2]
         while True:
             if c > self.MAX_RANDOM_TRIES:
-                return None
+                raise ValueError("too many random tries")
             v = np.random.randint(minv, maxv, dtype=np.int64)
             c += 1
-            if v == row[1]:
+            if v == item:
                 continue
-            if container is not None and tuple(row[0], v) in container:
+            if container is not None and (user, v) in container:
                 continue
             break
-        nrow = row.copy()
-        nrow[-1] = 0
-        nrow[1] = v
-        return nrow
+        return v
 
-    def get_random_negative_rows(self, container: Container, row: np.ndarray, num: int=1) -> np.ndarray:
+    def get_unique_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
         """
-        generate num random rows that don't have values in row and are not in the container
+        generate a list of random negative items without repeats
+        :param user: the user id of the positive interaction
+        :param item: the item id of the positive interaction
+        :param num: amount of items to generate
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        """
+        assert self.idrange is not None
+        candidates = list(range(self.idrange[0], self.idrange[1]))
+        candidates.remove(item)
+        if container is not None:
+            candidates = [c for c in candidates if (user, c) not in container]
+        if len(candidates) < num:
+            raise ValueError("not enough candidates to generate random items")
+        return np.array(random.sample(candidates, num))
 
-        current implementation may throw after some time if it's not possible to find empty pairs in the container
+    def get_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
         """
-        nrows = []
+        generate a list of random negative items
+        :param user: the user id of the positive interaction
+        :param item: the item id of the positive interaction
+        :param num: amount of items to generate
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        """
+        items = []
         for i in range(num):
-            nrow = self.get_random_negative_row(row)
-            if nrow is not None:
-                nrows.append(nrow)
-        return np.vstack(nrows)
+            items.append(self.get_random_negative_item(user, item, container))
+        return np.array(items)
 
-    def add_negative_sampling(self, container: Container, num: int=1) -> None:
+    def get_random_negative_rows(self, row: np.ndarray, num: int=1, container: Container=None, unique: bool=False) -> np.ndarray:
+        """
+        generate num random rows that don't have the item in row and are not in the container
+
+        :param row: the positive row
+        :param num: amount of rows to generate
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        :param unique: if the items for each user should not be repeated
+        """
+        row = np.array(row)
+        assert len(row.shape) == 1
+        assert row.shape[0] > 1
+        func = self.get_unique_random_negative_items if unique else self.get_random_negative_items
+        items = func(row[0], row[1], num, container)
+        if not isinstance(items, np.ndarray) or items.shape[0] != num:
+            raise ValueError("could not generate enough random items")
+        nrows = np.repeat(np.expand_dims(row, 0), num, axis=0)
+        nrows[:, 1] = items
+        nrows[:, -1] = 0
+        return nrows
+
+    def add_negative_sampling(self, num: int=1, container: Container=None, unique: bool=False) -> None:
         """
         add negative samples to the dataset interactions
         with random ids that don't match existing interactions
         the negative samples will be placed in the rows immediately after the original one
 
-        :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param num: amount of samples per interaction
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        :param unique: if the items for each user should not be repeated
         """
+        self.__require_normalized()
         assert num > 0
         n = num + 1
         data = np.repeat(self.__interactions, n, axis=0)
         for i, row in enumerate(self.__interactions):
-            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(container, row, num)
+            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(row, num, container, unique)
         self.__interactions = data
 
     def __require_normalized(self):
@@ -249,6 +284,9 @@ class InteractionDataset(torch.utils.data.Dataset):
         return matrix[rs:re, cs:ce]
 
     def remove_low(self, matrix: sp.spmatrix, lim: int, col1: int, col2: int) -> int:
+        """
+        remove rows that have under a give amount of duplicated pairs
+        """
         self.__require_normalized()
         submatrix = self.__get_submatrix(matrix, col1, col2)
         counts = np.asarray(submatrix.sum(1)).flatten()

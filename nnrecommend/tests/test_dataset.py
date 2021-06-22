@@ -62,7 +62,7 @@ def test_adjacency_matrix():
     assert (0, 2) not in matrix
     assert (1, 2) in matrix
     assert (dataset[0] == (0, 3, 1)).all()
-    nitems = dataset.get_random_negative_rows(matrix, dataset[0], 3)
+    nitems = dataset.get_random_negative_rows(dataset[0], 3, matrix)
     assert nitems.shape[0] == 3
     assert (nitems[0] == (0, 2, 0)).all()
     assert (nitems[1] == (0, 2, 0)).all()
@@ -73,7 +73,7 @@ def test_add_negative_sampling():
     data = ((2, 2), (3, 1))
     dataset = InteractionDataset(data)
     matrix = dataset.create_adjacency_matrix()
-    dataset.add_negative_sampling(matrix, 2)
+    dataset.add_negative_sampling(2, matrix)
     assert len(dataset) == 6
     assert (dataset[0] == (0, 3, 1)).all()
     assert (dataset[1] == (0, 2, 0)).all()
@@ -83,11 +83,26 @@ def test_add_negative_sampling():
     assert (dataset[5] == (1, 3, 0)).all()
 
 
+def test_add_unique_negative_sampling():
+    data = ((2, 2), (3, 1))
+    dataset = InteractionDataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    dataset.add_negative_sampling(1, matrix, unique=True)
+    assert len(dataset) == 4
+    assert (dataset[0] == (0, 3, 1)).all()
+    assert (dataset[1] == (0, 2, 0)).all()
+    assert (dataset[2] == (1, 2, 1)).all()
+    assert (dataset[3] == (1, 3, 0)).all()
+    with pytest.raises(ValueError):
+        # not enough values
+        dataset.add_negative_sampling(2, matrix, unique=True)
+
+
 def test_extract_negative_dataset():
     data = ((2, 2), (3, 1))
     dataset = InteractionDataset(data)
     matrix = dataset.create_adjacency_matrix()
-    dataset.add_negative_sampling(matrix, 2)
+    dataset.add_negative_sampling(2, matrix)
     dataset2 = dataset.extract_negative_dataset()
     assert len(dataset) == 2
     assert len(dataset2) == 4
@@ -101,7 +116,7 @@ def test_extract_test_dataset():
     data = ((2, 2), (2, 3), (3, 1), (3, 4))
     dataset = InteractionDataset(data)
     matrix = dataset.create_adjacency_matrix()
-    dataset.add_negative_sampling(matrix, 2)
+    dataset.add_negative_sampling(2, matrix)
     assert len(dataset) == 12
     testset = dataset.extract_test_dataset()
     assert type(testset) == InteractionDataset

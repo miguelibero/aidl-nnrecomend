@@ -18,8 +18,8 @@ SOURCES = (
 def test_dataset(src: BaseDatasetSource):
     hparams = HyperParameters()
     src.load(hparams)
-    src.trainset.add_negative_sampling(src.matrix, hparams.negatives_train)
-    src.testset.add_negative_sampling(src.matrix, hparams.negatives_test)
+    src.trainset.add_negative_sampling(hparams.negatives_train, src.matrix)
+    src.testset.add_negative_sampling(hparams.negatives_test, src.matrix)
 
     assert len(src.trainset) == 5*99057
     assert (src.trainset.idrange == (943, 2625)).all()
