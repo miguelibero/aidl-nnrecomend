@@ -39,8 +39,6 @@ class HyperParameters:
         "graph_attention_heads": 8,
         "embed_dropout": 0.5,
         "interaction_context": "all",
-        "negatives_train_random_context": False,
-        "negatives_test_random_context": False,
         "pairwise_loss": False
     }
 
@@ -136,20 +134,6 @@ class HyperParameters:
         amount of heads in the GCN with attention
         """
         return self.__get("graph_attention_heads")
-
-    @property
-    def negatives_train_random_context(self):
-        """
-        if the context values for negative sampling in the train dataset should be random
-        """
-        return self.__get("negatives_train_random_context")
-
-    @property
-    def negatives_test_random_context(self):
-        """
-        if the context values for negative sampling in the test dataset should be random
-        """
-        return self.__get("negatives_test_random_context")
 
     @property
     def pairwise_loss(self):
