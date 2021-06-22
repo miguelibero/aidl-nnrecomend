@@ -16,7 +16,7 @@ SOURCES = (
 
 @pytest.mark.parametrize("src", SOURCES)
 def test_dataset(src: BaseDatasetSource):
-    hparams = HyperParameters()
+    hparams = HyperParameters({'interaction_context': None})
     src.load(hparams)
     src.trainset.add_negative_sampling(hparams.negatives_train, src.matrix)
     src.testset.add_negative_sampling(hparams.negatives_test, src.matrix)

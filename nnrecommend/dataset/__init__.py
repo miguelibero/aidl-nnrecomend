@@ -148,8 +148,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         """
         assert self.idrange is not None
-        candidates = list(range(self.idrange[0], self.idrange[1]))
-        candidates.remove(item)
+        candidates = set(range(self.idrange[0], self.idrange[1]))
+        candidates.discard(item)
         if container is not None:
             candidates = [c for c in candidates if (user, c) not in container]
         if len(candidates) < num:
@@ -158,7 +158,9 @@ class InteractionDataset(torch.utils.data.Dataset):
 
     def get_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
         """
-        generate a list of random negative items
+        generate a list of random negative items, much faster than the unique method but
+        may produce duplicate negative items (usually ok for the trainset)
+
         :param user: the user id of the positive interaction
         :param item: the item id of the positive interaction
         :param num: amount of items to generate
@@ -176,7 +178,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param row: the positive row
         :param num: amount of rows to generate
         :param container: container to check if the interaction exists (usually the adjacency matrix)
-        :param unique: if the items for each user should not be repeated
+        :param unique: if the items for each user should not be repeated (slower)
         """
         row = np.array(row)
         assert len(row.shape) == 1
@@ -198,7 +200,7 @@ class InteractionDataset(torch.utils.data.Dataset):
 
         :param num: amount of samples per interaction
         :param container: container to check if the interaction exists (usually the adjacency matrix)
-        :param unique: if the items for each user should not be repeated
+        :param unique: if the items for each user should not be repeated (slower)
         """
         self.__require_normalized()
         assert num > 0
@@ -222,7 +224,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         negset.idrange = self.idrange
         return negset
 
-    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=False) -> 'InteractionDataset':
+    def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=True) -> 'InteractionDataset':
         """
         extract the first or last positive interaction of every user for the test dataset,
         check that the user has a minimum amount of interactions before extracting the last one

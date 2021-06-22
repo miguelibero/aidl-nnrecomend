@@ -98,6 +98,19 @@ def test_add_unique_negative_sampling():
         dataset.add_negative_sampling(2, matrix, unique=True)
 
 
+@pytest.mark.parametrize("size", (10, 50, 100, 500))
+def test_get_unique_random_negative_items(size):
+    data = ((0, 0), (0, 1))
+    dataset = InteractionDataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    dataset.idrange[1] = size + 3
+    items = dataset.get_unique_random_negative_items(0, 0, size, matrix)
+    assert 0 not in items
+    assert 1 not in items
+    assert len(items) == size
+    assert len(np.unique(items)) == size
+    
+
 def test_extract_negative_dataset():
     data = ((2, 2), (3, 1))
     dataset = InteractionDataset(data)
