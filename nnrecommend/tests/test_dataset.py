@@ -101,12 +101,15 @@ def test_complete_negative_sampling():
     data = ((2, 2), (3, 1))
     dataset = InteractionDataset(data)
     matrix = dataset.create_adjacency_matrix()
-    dataset.add_negative_sampling(-1, matrix, unique=True)
+    indices = dataset.add_negative_sampling(-1, matrix, unique=True)
     assert len(dataset) == 4
     assert (dataset[0] == (0, 3, 1)).all()
     assert (dataset[1] == (0, 2, 0)).all()
     assert (dataset[2] == (1, 2, 1)).all()
     assert (dataset[3] == (1, 3, 0)).all()
+    assert len(indices) == 2
+    assert (indices[0] == (0, 1)).all()
+    assert (indices[1] == (2, 3)).all()
 
 @pytest.mark.parametrize("size", (10, 50, 100, 500))
 def test_get_unique_random_negative_items(size):

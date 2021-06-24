@@ -59,9 +59,11 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
         trainer = Trainer(model, trainloader, optimizer, criterion, device)
         tester = Tester(model, testloader, topk, device)
 
-        def result_info(result):
-            return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}"
 
+        def result_info(result):
+            return f"hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.4f}"
+
+        logger.info("evaluating...")
         model.eval()
         result = tester()
         logger.info(f'initial topk={topk} {result_info(result)}')

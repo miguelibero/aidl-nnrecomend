@@ -11,7 +11,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, ColumnGroupingDataset, vstack_collate_fn
+from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, GroupingDataset, vstack_collate_fn
 
 
 class Setup:
@@ -33,7 +33,7 @@ class Setup:
             self.__logger.info("adding negative sampling...")
             matrix = self.src.matrix
             self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
-            self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+            self.test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
 
         return idrange
 
@@ -56,15 +56,17 @@ class Setup:
             self.__logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
 
     def create_testloader(self, hparams: HyperParameters):
-        dataset = ColumnGroupingDataset(self.src.testset)
-        return DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=vstack_collate_fn, num_workers=0)
+        dataset = self.src.testset
+        if self.test_groups:
+            dataset = GroupingDataset(dataset, self.test_groups)
+        return DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=vstack_collate_fn, num_workers=hparams.test_loader_workers)
 
     def create_trainloader(self, hparams: HyperParameters):
         dataset = self.src.trainset
         if hparams.pairwise_loss:
             negset = dataset.extract_negative_dataset()
             dataset = InteractionPairDataset(dataset, negset)
-        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=0)
+        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
 
 
 class Trainer:
@@ -157,6 +159,8 @@ class Tester:
         total_items = set()
 
         for batch in self.testloader:
+            if batch is None or batch.shape[0] == 0:
+                continue
             total_items.update(batch[:, 1].tolist())
             if self.device:
                 batch = batch.to(self.device)

@@ -198,7 +198,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         nrows[:, -1] = 0
         return nrows
 
-    def add_negative_sampling(self, num: int=1, container: Container=None, unique: bool=False) -> None:
+    def add_negative_sampling(self, num: int=1, container: Container=None, unique: bool=False) -> Container[np.ndarray]:
         """
         add negative samples to the dataset interactions
         with random ids that don't match existing interactions
@@ -207,14 +207,23 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param num: amount of negative samples per interaction (None or negative means add all possible)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param unique: if the items for each user should not be repeated (slower)
+        :return: container of arrays with row indices for every group
         """
         self.__require_normalized()
         interactions = []
         for row in self.__interactions:
-            interactions.append(row)
             nrows = self.get_random_negative_rows(row, num, container, unique)
-            interactions.append(nrows)
+            interactions.append(np.vstack((row, nrows)))
         self.__interactions = np.vstack(interactions)
+
+        p = 0
+        indices = []
+        for group in interactions:
+            n = p + len(group)
+            indices.append(np.arange(p, n, dtype=np.int64))
+            p = n
+
+        return indices
 
     def __require_normalized(self) -> None:
         if self.idrange is None:
@@ -386,40 +395,21 @@ class InteractionPairDataset(torch.utils.data.Dataset):
         return (self.positive[pos], self.negative[neg])
 
 
-class ColumnGroupingDataset(torch.utils.data.Dataset):
+class GroupingDataset(torch.utils.data.Dataset):
     """
     groups the data by values in one column
     used for the testset to get batches separated by user
     """
 
-    def __init__(self, dataset: torch.utils.data.Dataset, column: int=0):
+    def __init__(self, dataset: torch.utils.data.Dataset, groups: Container[np.ndarray]):
         self.dataset = dataset
-        self.column = column
-        self.data = None
-
-    def load(self):
-        if self.data is not None:
-            return
-        datadict = {}
-        for row in self.dataset:
-            v = row[self.column]
-            if v in datadict:
-                group = datadict[v]
-            else:
-                group = []
-                datadict[v] = group
-            group.append(row)
-        self.data = []
-        for group in datadict.values():
-            self.data.append(np.vstack(group))
+        self.groups = groups
 
     def __len__(self) -> int:
-        self.load()
-        return len(self.data)
+        return len(self.groups)
 
     def __getitem__(self, index) -> Tuple:
-        self.load()
-        return self.data[index]
+        return self.dataset[self.groups[index]]
 
 
 def vstack_collate_fn(batch: Container[np.ndarray]):

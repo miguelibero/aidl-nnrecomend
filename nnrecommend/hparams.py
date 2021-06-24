@@ -39,7 +39,9 @@ class HyperParameters:
         "graph_attention_heads": 8,
         "embed_dropout": 0.5,
         "interaction_context": "all",
-        "pairwise_loss": False
+        "pairwise_loss": False,
+        "train_loader_workers": 0,
+        "test_loader_workers": 0,
     }
 
     def __init__(self, data: Dict = {}):
@@ -144,6 +146,21 @@ class HyperParameters:
         train the model using pairwise loss
         """
         return self.__get("pairwise_loss")
+
+    @property
+    def train_loader_workers(self):
+        """
+        amount of workers to use for the train_loader_workers DataLoader
+        """
+        return self.__get("train_loader_workers")
+
+    @property
+    def test_loader_workers(self):
+        """
+        amount of workers to use for the test DataLoader
+        """
+        return self.__get("test_loader_workers")
+
 
     def should_have_interaction_context(self, v: str):
         """

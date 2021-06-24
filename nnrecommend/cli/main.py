@@ -2,6 +2,7 @@ import click
 import os
 import numpy as np
 import torch
+import random
 from typing import Container
 from nnrecommend.logging import setup_log
 from nnrecommend.dataset import BaseDatasetSource
@@ -27,6 +28,7 @@ class Context:
         if random_seed is not None:
             np.random.seed(random_seed)
             torch.manual_seed(random_seed)
+            random.seed(random_seed)
         self.hparams = HyperParameters.load(hparams, hparams_path)
 
     def create_dataset_source(self, path, dataset_type: str) -> BaseDatasetSource:
