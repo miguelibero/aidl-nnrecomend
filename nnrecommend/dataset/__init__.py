@@ -27,7 +27,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.__interactions = interactions
         self.idrange = None
 
-    def __validate_mapping(self, mapping: Container[np.ndarray]):
+    def __validate_mapping(self, mapping: Container[np.ndarray]) -> Container[np.ndarray]:
         mapping = [np.array(v) for v in mapping]
         assert isinstance(mapping, (list, tuple))
         assert len(mapping) < self.__interactions.shape[1]
@@ -100,7 +100,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         if remove_missing:
             self.__remove_negative_ids()
 
-    def __remove_negative_ids(self):
+    def __remove_negative_ids(self) -> None:
         cond = (self.__interactions[:, :2] >= 0).all(axis=1)
         self.__interactions =  self.__interactions[cond]
 
@@ -118,7 +118,8 @@ class InteractionDataset(torch.utils.data.Dataset):
 
     def get_random_negative_item(self, user: int, item: int, container: Container = None) -> int:
         """
-        generate a random negative item
+        generate a random negative item, will keep trying to generate an item that is not in
+        the container or the item parameter value
         :param user: the user of the positive interaction
         :param user: the item of the positive interaction
         :param container: pass a container to check that the interaction is not in it
@@ -139,23 +140,6 @@ class InteractionDataset(torch.utils.data.Dataset):
             break
         return v
 
-    def get_unique_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
-        """
-        generate a list of random negative items without repeats
-        :param user: the user id of the positive interaction
-        :param item: the item id of the positive interaction
-        :param num: amount of items to generate
-        :param container: container to check if the interaction exists (usually the adjacency matrix)
-        """
-        assert self.idrange is not None
-        candidates = set(range(self.idrange[0], self.idrange[1]))
-        candidates.discard(item)
-        if container is not None:
-            candidates = [c for c in candidates if (user, c) not in container]
-        if len(candidates) < num:
-            raise ValueError("not enough candidates to generate random items")
-        return np.array(random.sample(candidates, num))
-
     def get_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
         """
         generate a list of random negative items, much faster than the unique method but
@@ -170,6 +154,25 @@ class InteractionDataset(torch.utils.data.Dataset):
         for i in range(num):
             items.append(self.get_random_negative_item(user, item, container))
         return np.array(items)
+
+    def get_unique_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
+        """
+        generate a list of random negative items without repeats, this is slower but more suited
+        for the testset to guarantee the same amount of negative items when evaluating the performance
+
+        :param user: the user id of the positive interaction
+        :param item: the item id of the positive interaction
+        :param num: amount of items to generate
+        :param container: container to check if the interaction exists (usually the adjacency matrix)
+        """
+        assert self.idrange is not None
+        candidates = set(range(self.idrange[0], self.idrange[1]))
+        candidates.discard(item)
+        if container is not None:
+            candidates = [c for c in candidates if (user, c) not in container]
+        if len(candidates) < num:
+            raise ValueError("not enough candidates to generate random items")
+        return np.array(random.sample(candidates, num))
 
     def get_random_negative_rows(self, row: np.ndarray, num: int=1, container: Container=None, unique: bool=False) -> np.ndarray:
         """
@@ -210,7 +213,7 @@ class InteractionDataset(torch.utils.data.Dataset):
             data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(row, num, container, unique)
         self.__interactions = data
 
-    def __require_normalized(self):
+    def __require_normalized(self) -> None:
         if self.idrange is None:
             self.normalize_ids()
 
@@ -226,8 +229,8 @@ class InteractionDataset(torch.utils.data.Dataset):
 
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=True) -> 'InteractionDataset':
         """
-        extract the first or last positive interaction of every user for the test dataset,
-        check that the user has a minimum amount of interactions before extracting the last one
+        extract positive interactions of every user for the test dataset,
+        check that the user has a minimum amount of interactions before extracting
 
         :param num_user_interactions: amount of user interactions to extract to the test dataset
         :param min_keep_user_interactions: minimum amount of user interactions to keep in the original dataset
@@ -280,14 +283,17 @@ class InteractionDataset(torch.utils.data.Dataset):
         end = self.idrange[col]
         return start, end
 
-    def __get_submatrix(self, matrix: sp.spmatrix, col1: int, col2: int):
+    def __get_submatrix(self, matrix: sp.spmatrix, col1: int, col2: int) -> sp.spmatrix:
         rs, re = self.__get_col_range(col1)
         cs, ce = self.__get_col_range(col2)
         return matrix[rs:re, cs:ce]
 
     def remove_low(self, matrix: sp.spmatrix, lim: int, col1: int, col2: int) -> int:
         """
-        remove rows that have under a give amount of duplicated pairs
+        remove rows that have under a given amount of duplicated pairs
+        :param lim: remove rows with less interactions than this value
+        :param col1: number of the first column (used as group)
+        :param col2: number of the second column (that will be counted)
         """
         self.__require_normalized()
         submatrix = self.__get_submatrix(matrix, col1, col2)
@@ -299,9 +305,15 @@ class InteractionDataset(torch.utils.data.Dataset):
         return np.count_nonzero(cond == False)
 
     def remove_low_users(self, matrix: sp.spmatrix, lim: int) -> int:
+        """
+        remove rows that users with low amount of items
+        """
         return self.remove_low(matrix, lim, 0, 1)
 
     def remove_low_items(self, matrix: sp.spmatrix, lim: int) -> int:
+        """
+        remove rows that items with low amount of users
+        """
         return self.remove_low(matrix, lim, 1, 0)
 
     def remove_low_all(self, matrix: sp.spmatrix, lim: int) -> int:
@@ -312,11 +324,15 @@ class InteractionDataset(torch.utils.data.Dataset):
             count += self.remove_low(matrix, lim, col1, col2)
         return count
     
-    def add_previous_item_column(self):
+    def add_previous_item_column(self, items_col: int=1) -> None:
         """
         adds a new context column with the values of the previous item
         by the same user. The values are consecutive to the last column
         range and the first value represents no previous item.
+
+        the interaction rows need to be sorted from older to newer.
+
+        :param items_col: the column index where the items are
         """
         self.__require_normalized()
 
@@ -328,7 +344,7 @@ class InteractionDataset(torch.utils.data.Dataset):
             # find all the interactions of a user
             cond = self.__interactions[:, 0] == i
             # get the items
-            items = self.__interactions[cond, 1]
+            items = self.__interactions[cond, items_col]
             # shift them so they start with 0
             items -= self.idrange[0]
             # add a -1 in the beginning and remove the last one
@@ -345,6 +361,10 @@ class InteractionDataset(torch.utils.data.Dataset):
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
     returns pairs of positive and negative interactions
+    if one of them has more items than the other, the pairs
+    will repeat the other value to have the same length in the end.
+    this is useful for negative sampling when multiple negatives
+    are related to one positive interacting.
     """
 
     def __init__(self, positive: torch.utils.data.Dataset, negative: torch.utils.data.Dataset):
@@ -398,6 +418,12 @@ def save_model(path: str, model, src: BaseDatasetSource):
 
 
 class IdFinder:
+    """
+    given a container with ordered ids,
+    this class uses bisect to find the position of one.
+    It's useful to convert non-consecutive ids in a dataset
+    into consecutive integers.
+    """
 
     def __init__(self, data: Container=[], hash: bool=False):
         self.data = data
@@ -426,6 +452,9 @@ class IdFinder:
 
 
 class IdGenerator(IdFinder):
+    """
+    additional methods to add the ids
+    """
 
     def __init__(self, hash: bool=False):
         super().__init__([], hash)

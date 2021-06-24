@@ -1,4 +1,7 @@
 {
-    "embed_dim": ["grid_search", [80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90]],
-    "embed_dropout": ["choice", [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]]
+    "embed_dropout": ["choice", [0.3, 0.4, 0.5, 0.6]],
+    "learning_rate": ["loguniform", 1e-5, 1e-3],
+    "batch_size": ["randint", 1024, 2048],
+    "embed_dim": 64,
+    "epochs": 40
 }

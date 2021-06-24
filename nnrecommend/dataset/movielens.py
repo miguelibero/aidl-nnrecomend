@@ -47,7 +47,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
     def __load_data(self, maxsize: int):
         nrows = maxsize if maxsize > 0 else None
         data = pd.read_csv(self.__path, sep='\t', header=None, nrows=nrows, names=COLUMN_NAMES)
-        data.sort_values(by='timestamp', inplace=True)
+        data.sort_values(by=['user_id', 'timestamp'], inplace=True, ascending=True)
         data = np.array(data[[*LOAD_COLUMNS]], dtype=np.int64)
         data[:, 2] = 1
         return data
