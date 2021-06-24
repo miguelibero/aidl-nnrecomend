@@ -1,11 +1,10 @@
-from logging import Logger
-from nnrecommend.hparams import HyperParameters
 import sqlite3
+import numpy as np
+from logging import Logger
 from sqlite3.dbapi2 import Cursor
 from typing import Container, Dict
-import numpy as np
+from nnrecommend.hparams import HyperParameters
 from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerator
-from bisect import bisect_left
 
 
 class ItunesPodcastsDatasetSource(BaseDatasetSource):

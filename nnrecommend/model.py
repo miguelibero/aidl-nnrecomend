@@ -1,11 +1,10 @@
-from nnrecommend.dataset import BaseDatasetSource
-from nnrecommend.hparams import HyperParameters
+import scipy.sparse as sp
+import numpy as np
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix, to_scipy_sparse_matrix
-import scipy.sparse as sp
-import numpy as np
-
+from nnrecommend.dataset import BaseDatasetSource
+from nnrecommend.hparams import HyperParameters
 
 class LinearFeatures(torch.nn.Module):
 

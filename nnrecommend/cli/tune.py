@@ -1,7 +1,6 @@
 
-import click
-import torch
 import sys
+import click
 from ray import tune as rtune
 from nnrecommend.model import create_model, create_model_training
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
@@ -9,7 +8,6 @@ from nnrecommend.model import create_model, get_optimizer_lr, MODEL_TYPES
 from nnrecommend.operation import Setup, Trainer, Tester
 from nnrecommend.logging import get_logger
 from nnrecommend.hparams import RayTuneConfigFile
-import os
 
 
 @main.command()

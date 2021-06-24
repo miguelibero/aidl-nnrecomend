@@ -1,9 +1,9 @@
 import itertools
 import click
+import torch
 import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
 from matplotlib.ticker import MaxNLocator
-import torch
 import numpy as np
 
 from nnrecommend.operation import Setup

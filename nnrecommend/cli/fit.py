@@ -1,7 +1,7 @@
-from nnrecommend.dataset import save_model
-from typing import List
 import click
 import sys
+from typing import List
+from nnrecommend.dataset import save_model
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer

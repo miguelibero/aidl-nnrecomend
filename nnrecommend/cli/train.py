@@ -1,14 +1,13 @@
-
-from nnrecommend.dataset import save_model
-import click
-import torch
 import sys
-
+import click
+import datetime
+from timeit import default_timer as timer
 from nnrecommend.model import create_model, create_model_training, get_optimizer_lr
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.model import create_model, MODEL_TYPES
 from nnrecommend.operation import RunTracker, Setup, Trainer, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
+from nnrecommend.dataset import save_model
 
 
 @main.command()
@@ -28,6 +27,9 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
 
     PATH: path to the dataset files
     """
+
+    start_time = timer()
+
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(train)
     device = ctx.obj.device
@@ -70,7 +72,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
             loss = trainer()
             lr = get_optimizer_lr(optimizer)
             tracker.track_model_epoch(i, model, loss, lr)
-            logger.info(f"evaluating...")
+            logger.info("evaluating...")
             model.eval()
             result = tester()
             logger.info(f'{i:03}/{hparams.epochs:03} loss={loss:.4f} lr={lr:.4f} {result_info(result)}')
@@ -85,6 +87,8 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
         if output:
             logger.info("saving model...")
             save_model(output, model, src)
+        duration = datetime.timedelta(seconds=(timer() - start_time))
+        logger.info(f"elapsed time: {duration}")
 
 
 if __name__ == "__main__":
