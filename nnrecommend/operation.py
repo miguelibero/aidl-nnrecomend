@@ -11,7 +11,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset
+from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, ColumnGroupingDataset, vstack_collate_fn
 
 
 class Setup:
@@ -56,8 +56,8 @@ class Setup:
             self.__logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
 
     def create_testloader(self, hparams: HyperParameters):
-        # test loader should not be shuffled since the negative samples need to be consecutive
-        return DataLoader(self.src.testset, batch_size=hparams.negatives_test+1, num_workers=0)
+        dataset = ColumnGroupingDataset(self.src.testset)
+        return DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=vstack_collate_fn, num_workers=0)
 
     def create_trainloader(self, hparams: HyperParameters):
         dataset = self.src.trainset

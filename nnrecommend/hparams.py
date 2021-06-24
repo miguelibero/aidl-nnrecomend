@@ -28,7 +28,7 @@ class HyperParameters:
     DEFAULT_VALUES = {
         "max_interactions": -1,
         "negatives_train": 4,
-        "negatives_test": 99,
+        "negatives_test": -1,
         "batch_size": 1024,
         "epochs": 20,
         "embed_dim": 64,
@@ -76,7 +76,10 @@ class HyperParameters:
 
     @property
     def negatives_test(self):
-        """amount of negative samples to generate for the testset"""
+        """
+        amount of negative samples to generate for the testset
+        negative or non means it will add all the possible item values
+        """
         return self.__get("negatives_test")
 
     @property

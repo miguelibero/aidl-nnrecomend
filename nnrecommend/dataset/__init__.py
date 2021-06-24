@@ -155,42 +155,45 @@ class InteractionDataset(torch.utils.data.Dataset):
             items.append(self.get_random_negative_item(user, item, container))
         return np.array(items)
 
-    def get_unique_random_negative_items(self, user: int, item: int, num: int=1, container: Container=None) -> np.ndarray:
+    def get_unique_random_negative_items(self, user: int, item: int, num: int=None, container: Container=None) -> np.ndarray:
         """
         generate a list of random negative items without repeats, this is slower but more suited
         for the testset to guarantee the same amount of negative items when evaluating the performance
 
         :param user: the user id of the positive interaction
         :param item: the item id of the positive interaction
-        :param num: amount of items to generate
+        :param num: amount of items to generate (negative or none means all the possible candidates)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         """
         assert self.idrange is not None
-        candidates = set(range(self.idrange[0], self.idrange[1]))
-        candidates.discard(item)
+        items = [i for i in range(self.idrange[0], self.idrange[1]) if i != item]
         if container is not None:
-            candidates = [c for c in candidates if (user, c) not in container]
-        if len(candidates) < num:
-            raise ValueError("not enough candidates to generate random items")
-        return np.array(random.sample(candidates, num))
+            items = [i for i in items if (user, i) not in container]
+        if isinstance(num, int) and num >= 0:
+            if len(items) < num:
+                raise ValueError("not enough items to generate random negatives")
+            items = random.sample(items, num)
+        return np.array(items)
 
-    def get_random_negative_rows(self, row: np.ndarray, num: int=1, container: Container=None, unique: bool=False) -> np.ndarray:
+    def get_random_negative_rows(self, row: np.ndarray, num: int=None, container: Container=None, unique: bool=False) -> np.ndarray:
         """
         generate num random rows that don't have the item in row and are not in the container
 
         :param row: the positive row
-        :param num: amount of rows to generate
+        :param num: amount of rows to generate (None or negative means all possible items)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param unique: if the items for each user should not be repeated (slower)
         """
         row = np.array(row)
         assert len(row.shape) == 1
         assert row.shape[0] > 1
+        if not isinstance(num, int) or num < 0:
+            unique = True
         func = self.get_unique_random_negative_items if unique else self.get_random_negative_items
         items = func(row[0], row[1], num, container)
-        if not isinstance(items, np.ndarray) or items.shape[0] != num:
+        if not isinstance(items, np.ndarray) or len(items.shape) != 1:
             raise ValueError("could not generate enough random items")
-        nrows = np.repeat(np.expand_dims(row, 0), num, axis=0)
+        nrows = np.repeat(np.expand_dims(row, 0), len(items), axis=0)
         nrows[:, 1] = items
         nrows[:, -1] = 0
         return nrows
@@ -201,17 +204,17 @@ class InteractionDataset(torch.utils.data.Dataset):
         with random ids that don't match existing interactions
         the negative samples will be placed in the rows immediately after the original one
 
-        :param num: amount of samples per interaction
+        :param num: amount of negative samples per interaction (None or negative means add all possible)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
         :param unique: if the items for each user should not be repeated (slower)
         """
         self.__require_normalized()
-        assert num > 0
-        n = num + 1
-        data = np.repeat(self.__interactions, n, axis=0)
-        for i, row in enumerate(self.__interactions):
-            data[1+n*i:n*(i+1), :] = self.get_random_negative_rows(row, num, container, unique)
-        self.__interactions = data
+        interactions = []
+        for row in self.__interactions:
+            interactions.append(row)
+            nrows = self.get_random_negative_rows(row, num, container, unique)
+            interactions.append(nrows)
+        self.__interactions = np.vstack(interactions)
 
     def __require_normalized(self) -> None:
         if self.idrange is None:
@@ -381,6 +384,49 @@ class InteractionPairDataset(torch.utils.data.Dataset):
         if f < 1:
             pos, neg = neg, pos
         return (self.positive[pos], self.negative[neg])
+
+
+class ColumnGroupingDataset(torch.utils.data.Dataset):
+    """
+    groups the data by values in one column
+    used for the testset to get batches separated by user
+    """
+
+    def __init__(self, dataset: torch.utils.data.Dataset, column: int=0):
+        self.dataset = dataset
+        self.column = column
+        self.data = None
+
+    def load(self):
+        if self.data is not None:
+            return
+        datadict = {}
+        for row in self.dataset:
+            v = row[self.column]
+            if v in datadict:
+                group = datadict[v]
+            else:
+                group = []
+                datadict[v] = group
+            group.append(row)
+        self.data = []
+        for group in datadict.values():
+            self.data.append(np.vstack(group))
+
+    def __len__(self) -> int:
+        self.load()
+        return len(self.data)
+
+    def __getitem__(self, index) -> Tuple:
+        self.load()
+        return self.data[index]
+
+
+def vstack_collate_fn(batch: Container[np.ndarray]):
+    """
+    used in a DataLoader.collate_fn to stack the batch vertically
+    """
+    return torch.from_numpy(np.vstack(batch))
 
 
 class BaseDatasetSource:
