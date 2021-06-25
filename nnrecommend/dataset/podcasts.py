@@ -4,7 +4,7 @@ from logging import Logger
 from sqlite3.dbapi2 import Cursor
 from typing import Container, Dict
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerator
+from nnrecommend.dataset import BaseDatasetSource, IdFinder, InteractionDataset, IdGenerator
 
 
 class ItunesPodcastsDatasetSource(BaseDatasetSource):
@@ -26,7 +26,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         r = cur.execute(f'SELECT author_id, podcast_id FROM reviews {self.COND} ORDER BY created_at ASC LIMIT ?', (size,))
         return r, size
 
-    def __load_item_info(self, cur: Cursor, items: Container[str]) -> Dict[str, Dict[str, str]]:
+    def __load_iteminfo(self, cur: Cursor, items: Container[str]) -> Dict[str, Dict[str, str]]:
         info = {}
         r = cur.execute(f'SELECT podcast_id, itunes_url, title FROM podcasts')
         for row in r:
@@ -37,10 +37,9 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         self._logger.info(f"loaded info for {len(info)} podcasts")
         return info
 
-    def __fix_item_info(self, info: Dict[str, Dict[str, str]], items: Container[str], mapping: np.ndarray) -> Dict[int, Dict[str, str]] :
-
-        items = IdGenerator(items)
-        mapping = None if mapping is None else IdGenerator(mapping)
+    def __fix_iteminfo(self, info: Dict[str, Dict[str, str]], items: Container[str], mapping: np.ndarray) -> Dict[int, Dict[str, str]] :
+        items = IdFinder(items)
+        mapping = None if mapping is None else IdFinder(mapping)
 
         finfo = {}
         for k, elm in info.items():
@@ -84,7 +83,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             self._logger.info("generating interactions...")
             interactions, items = self.__generate_interactions(reviews, size)
             self._logger.info("loading item info...")
-            item_info = self.__load_item_info(cur, items)
+            iteminfo = self.__load_iteminfo(cur, items)
 
         self._logger.info("setting up datasets..")
         self.trainset = InteractionDataset(interactions)
@@ -110,4 +109,4 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         self._logger.info("extracting test dataset..")
         self.testset = self.trainset.extract_test_dataset()
         self._logger.info("fixing item info..")
-        self.item_info = self.__fix_item_info(item_info, items, mapping[1])
+        self.iteminfo = self.__fix_iteminfo(iteminfo, items, mapping[1])

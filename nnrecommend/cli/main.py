@@ -12,7 +12,7 @@ from nnrecommend.dataset.spotify import SpotifyDatasetSource, SpotifyRawDatasetS
 from nnrecommend.hparams import HyperParameters
 
 
-DATASET_TYPES = ['movielens-lab', 'movielens-raw', 'podcasts', 'spotify', 'spotify-raw']
+DATASET_TYPES = ['movielens-lab', 'movielens', 'podcasts', 'spotify', 'spotify-raw']
 
 class Context:
 
@@ -36,7 +36,7 @@ class Context:
         if dataset_type == "movielens-lab":
             self.logger.info("creating movielens lab dataset")
             return MovielensLabDatasetSource(path, self.logger)
-        if dataset_type == "movielens-raw":
+        if dataset_type == "movielens":
             self.logger.info("creating movielens raw dataset")
             return Movielens100kDatasetSource(path, self.logger)
         elif dataset_type == "podcasts":

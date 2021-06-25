@@ -3,7 +3,7 @@ import sys
 from typing import List
 from nnrecommend.dataset import save_model
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
-from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES
+from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES, DEFAULT_ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
 
@@ -13,7 +13,7 @@ from nnrecommend.logging import get_logger
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=True))
 @click.option('--dataset', 'dataset_type', default=DATASET_TYPES[0],
               type=click.Choice(DATASET_TYPES, case_sensitive=False), help="type of dataset")
-@click.option('--algorithm', 'algorithm_types', default=[], multiple=True, 
+@click.option('--algorithm', 'algorithm_types', default=DEFAULT_ALGORITHM_TYPES, multiple=True, 
               type=click.Choice(ALGORITHM_TYPES, case_sensitive=False), help="the algorithm to use to fit the data")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--output', type=str, help="save the fitted algorythm to a file")
@@ -27,6 +27,8 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
     hparams = ctx.obj.hparams
+
+    logger.info(f"using hparams {hparams}")
     
     setup = Setup(src, logger)
     idrange = setup(hparams)
@@ -40,7 +42,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int
     def log_result(result: TestResult, prefix: str=""):
         if prefix:
             prefix = f"{prefix:10s}"
-        logger.info(f'{prefix}hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.2f}')
+        logger.info(f'{prefix}hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.4f}')
 
     for algorithm_type in algorithm_types:
         logger.info(f"creating algorithm {algorithm_type}...")

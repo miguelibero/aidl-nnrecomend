@@ -437,7 +437,7 @@ class BaseDatasetSource:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.item_info = None
+        self.iteminfo = None
 
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
