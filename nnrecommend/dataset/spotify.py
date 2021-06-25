@@ -9,6 +9,7 @@ from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerat
 class SpotifyDatasetSource(BaseDatasetSource):
     """
     the dataset can be downloaded from https://aicrowd-production.s3.eu-central-1.amazonaws.com/dataset_files/challenge_25/0654d015-d4b4-4357-8040-6a846dec093d_training_set_track_features_mini.tar.gz
+    with modifications in the dataset to have skipped and previous_song columns already how we want them
     """
     def __init__(self, path: str, logger: Logger=None):
         super().__init__(logger)
@@ -125,7 +126,6 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
             self.matrix = self.trainset.create_adjacency_matrix()
         self._logger.info("extracting test dataset..")
         self.testset = self.trainset.extract_test_dataset()
-
 
 
 class SpotifySplitDatasetSource(BaseDatasetSource):
