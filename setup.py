@@ -37,6 +37,7 @@ setup(
         'click~=7.1.2',
         'fuzzywuzzy~=0.18.0',
         'python-Levenshtein~=0.12.2',
+        'matplotlib~=3.4.1',
         'plotly~=4.14.3',
         'scikit-learn~=0.24.2',
         'tensorboard~=2.5.0',
