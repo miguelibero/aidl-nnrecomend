@@ -34,6 +34,7 @@ class Setup:
             matrix = self.src.matrix
             self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
             self.test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+            self.__log_dataset()
 
         return idrange
 

@@ -64,14 +64,16 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         path = os.path.join(self.__path, self.ITEMINFO_FILE)
         data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None, names=ITEMINFO_COLUMN_NAMES)
         data = data[[*ITEMINFO_LOAD_COLUMNS]]
-        infos = {}
+        info = {}
         mapping = None if mapping is None else IdFinder(mapping)
         for i, row in data.iterrows():
             if mapping:
                 i = mapping.find(i)
             if i >= 0:
-                infos[i] = row.to_dict()
-        return infos
+                info[i] = row.to_dict()
+
+        self._logger.info(f"loaded info for {len(info)} movies")
+        return info
 
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
@@ -84,6 +86,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
             self.trainset.add_previous_item_column()
         self._logger.info("extracting test dataset..")
         self.testset = self.trainset.extract_test_dataset()
-        self._logger.info("calculating adjacency matrix..")
+        self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
+        self._logger.info("loading movie info...")
         self.iteminfo = self.__load_iteminfo(mapping[0])

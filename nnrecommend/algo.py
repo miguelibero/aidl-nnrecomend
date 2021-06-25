@@ -25,8 +25,7 @@ class SurpriseAlgorithm:
             subcont.append((other, rating))
 
         for row in dataset:
-            u, i, r = row[0:3].tolist()
-            u, i = int(u), int(i)
+            u, i, r = int(row[0]), int(row[1]), row[-1]
             fi = i - self.itemdiff
             add_rating(ur, u, fi, r)
             add_rating(ir, fi, u, r)
@@ -36,7 +35,7 @@ class SurpriseAlgorithm:
         n_users = len(ur) 
         n_items = len(ir)
         n_ratings = len(dataset)
-        ratings = dataset[:, 2]
+        ratings = dataset[:, -1]
         rating_scale = (
             np.min(ratings).item(),
             np.max(ratings).item(),
@@ -61,8 +60,9 @@ class SurpriseAlgorithm:
         return predictions
 
 
+ALGORITHM_TYPES = ('baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'nmf')
+DEFAULT_ALGORITHM_TYPES = ('baseline', 'normal', 'knn')
 
-ALGORITHM_TYPES = ['baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'nmf']
 
 def create_algorithm(algorithm_type, hparams: HyperParameters, idrange: np.ndarray):
     algo = create_surprise_algorithm(algorithm_type, hparams)
