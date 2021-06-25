@@ -8,8 +8,10 @@ some conclusions:
 * using pairwise loss improves coverage a bit
 * gcn is not much better than linear
 
+comparing fm-linear without context with previous movie context
 ![comparing fm-linear without context with previous movie context](./linear_prev.png)
 
+comparing fm-gcn rating loss with pairwise loss
 ![comparing fm-gcn rating loss with pairwise loss](./gcn_pairwise.png)
 
 ### Evaluation
