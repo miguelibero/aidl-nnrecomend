@@ -18,6 +18,8 @@ Some conclusions (Same as movilens):
 | nnrecommend | fm-gcn | skip, previous |  |  |  |  |
 | nnrecommend | knn |  |  |  |  |  |  
 
+
+
 ### Hyperparameters
 
 | name | value |
