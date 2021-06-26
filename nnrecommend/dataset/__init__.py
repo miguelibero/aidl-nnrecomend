@@ -102,7 +102,7 @@ class InteractionDataset(torch.utils.data.Dataset):
 
     def __remove_negative_ids(self) -> None:
         cond = (self.__interactions[:, :2] >= 0).all(axis=1)
-        self.__interactions =  self.__interactions[cond]
+        self.__interactions = self.__interactions[cond]
 
     def __len__(self) -> int:
         return len(self.__interactions)
@@ -202,7 +202,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         """
         add negative samples to the dataset interactions
         with random ids that don't match existing interactions
-        the negative samples will be placed in the rows immediately after the original one
+        the negative samples will be placed at the end of the interactions array
+        we're trying to optimize memory consumption peaks by resizing the interactions array
 
         :param num: amount of negative samples per interaction (None or negative means add all possible)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
@@ -210,17 +211,20 @@ class InteractionDataset(torch.utils.data.Dataset):
         :return: container of arrays with row indices for every group
         """
         self.__require_normalized()
-        interactions = []
-        for row in self.__interactions:
-            nrows = self.get_random_negative_rows(row, num, container, unique)
-            interactions.append(np.vstack((row, nrows)))
-        self.__interactions = np.vstack(interactions)
-
-        p = 0
         indices = []
-        for group in interactions:
-            n = p + len(group)
-            indices.append(np.arange(p, n, dtype=np.int64))
+        p = len(self.__interactions)
+        c = self.__interactions.shape[1]
+        for i in range(p):
+            row = self.__interactions[i]
+            nrows = self.get_random_negative_rows(row, num, container, unique)
+            del row
+            n = p + len(nrows)
+            self.__interactions.resize((n, c), refcheck=False)
+            self.__interactions[p:] = nrows
+            del nrows
+            gidx = np.arange(p, n, dtype=np.int64)
+            gidx = np.insert(gidx, 0, i)
+            indices.append(gidx )
             p = n
 
         return indices
@@ -229,13 +233,21 @@ class InteractionDataset(torch.utils.data.Dataset):
         if self.idrange is None:
             self.normalize_ids()
 
-    def extract_negative_dataset(self) -> None:
+    def __is_row_positive(self, row: np.ndarray) -> bool:
+        """
+        check if row is considered a positive interaction
+        """
+        return row[-1] > 0
+
+    def extract_negative_dataset(self) -> 'InteractionDataset':
         """
         extract a new dataset with the negative values
         """
         cond = self.__interactions[:, -1] == 0
         negset = InteractionDataset(self.__interactions[cond])
-        self.__interactions = np.delete(self.__interactions, cond, axis=0)
+        old = self.__interactions
+        self.__interactions = self.__interactions[~cond]
+        del old
         negset.idrange = self.idrange
         return negset
 
@@ -252,7 +264,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.__require_normalized()
         rowsbyuser = {}
         for i, row in enumerate(self.__interactions):
-            if row[-1] <= 0:
+            if not self.__is_row_positive(row):
                 continue
             u = row[0]
             if u not in rowsbyuser:
@@ -269,6 +281,7 @@ class InteractionDataset(torch.utils.data.Dataset):
                 rows += userrows[-num_user_interactions:]
             else:
                 rows += userrows[:num_user_interactions]
+            del userrows
 
         testset = InteractionDataset(self.__interactions[rows])
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
@@ -283,6 +296,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         size = self.idrange[-1]
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
+            if not self.__is_row_positive(row):
+                continue
             for a, b in self.__get_row_pairs(row):
                 matrix[a, b] = 1
                 matrix[b, a] = 1

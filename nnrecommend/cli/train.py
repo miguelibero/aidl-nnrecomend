@@ -19,10 +19,11 @@ from nnrecommend.dataset import save_model
               type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--output', type=str, help="save the trained model to a file")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
+@click.option('--trace-mem', type=bool, is_flag=True, default=False, help='trace memory consumption')
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
 @click.option('--tensorboard-embedding', 'tensorboard_embedding', type=int, default=0, help="store full embedding in tensorboard every X epoch")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk: int, tensorboard_dir: str, tensorboard_tag: str, tensorboard_embedding: int) -> None:
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk: int, trace_mem: bool, tensorboard_dir: str, tensorboard_tag: str, tensorboard_embedding: int) -> None:
     """
     train a pytorch recommender model on a given dataset
 
@@ -42,7 +43,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
 
     if not src:
         raise Exception("could not create dataset")
-    setup = Setup(src, logger)
+    setup = Setup(src, logger, trace_mem)
     idrange = setup(hparams)
 
     logger.info(f"creating model {model_type}...")

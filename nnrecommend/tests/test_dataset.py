@@ -76,9 +76,9 @@ def test_add_negative_sampling():
     dataset.add_negative_sampling(2, matrix)
     assert len(dataset) == 6
     assert (dataset[0] == (0, 3, 1)).all()
-    assert (dataset[1] == (0, 2, 0)).all()
+    assert (dataset[1] == (1, 2, 1)).all()
     assert (dataset[2] == (0, 2, 0)).all()
-    assert (dataset[3] == (1, 2, 1)).all()
+    assert (dataset[3] == (0, 2, 0)).all()
     assert (dataset[4] == (1, 3, 0)).all()
     assert (dataset[5] == (1, 3, 0)).all()
 
@@ -90,26 +90,34 @@ def test_add_unique_negative_sampling():
     dataset.add_negative_sampling(1, matrix, unique=True)
     assert len(dataset) == 4
     assert (dataset[0] == (0, 3, 1)).all()
-    assert (dataset[1] == (0, 2, 0)).all()
-    assert (dataset[2] == (1, 2, 1)).all()
+    assert (dataset[1] == (1, 2, 1)).all()
+    assert (dataset[2] == (0, 2, 0)).all()
     assert (dataset[3] == (1, 3, 0)).all()
     with pytest.raises(ValueError):
         # not enough values
         dataset.add_negative_sampling(2, matrix, unique=True)
 
 def test_complete_negative_sampling():
-    data = ((2, 2), (3, 1))
+    data = ((2, 2), (3, 1), (4, 3), (4, 2))
     dataset = InteractionDataset(data)
     matrix = dataset.create_adjacency_matrix()
-    indices = dataset.add_negative_sampling(-1, matrix, unique=True)
-    assert len(dataset) == 4
-    assert (dataset[0] == (0, 3, 1)).all()
-    assert (dataset[1] == (0, 2, 0)).all()
-    assert (dataset[2] == (1, 2, 1)).all()
-    assert (dataset[3] == (1, 3, 0)).all()
-    assert len(indices) == 2
-    assert (indices[0] == (0, 1)).all()
-    assert (indices[1] == (2, 3)).all()
+    indices = dataset.add_negative_sampling(-1, matrix)
+    assert len(dataset) == 10
+    assert (dataset[0] == (0, 4, 1)).all()
+    assert (dataset[1] == (1, 3, 1)).all()
+    assert (dataset[2] == (2, 5, 1)).all()
+    assert (dataset[3] == (2, 4, 1)).all()
+    assert (dataset[4] == (0, 3, 0)).all()
+    assert (dataset[5] == (0, 5, 0)).all()
+    assert (dataset[6] == (1, 4, 0)).all()
+    assert (dataset[7] == (1, 5, 0)).all()
+    assert (dataset[8] == (2, 3, 0)).all()
+    assert (dataset[9] == (2, 3, 0)).all()
+    assert len(indices) == 4
+    assert (indices[0] == (0, 4, 5)).all()
+    assert (indices[1] == (1, 6, 7)).all()
+    assert (indices[2] == (2, 8)).all()
+    assert (indices[3] == (3, 9)).all()
 
 @pytest.mark.parametrize("size", (10, 50, 100, 500))
 def test_get_unique_random_negative_items(size):

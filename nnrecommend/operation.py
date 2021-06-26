@@ -3,6 +3,7 @@ import math
 import torch
 import numpy as np
 import os
+import tracemalloc
 from fuzzywuzzy import process
 from logging import Logger
 from typing import Any, Callable, Container, Dict
@@ -14,17 +15,30 @@ from nnrecommend.logging import get_logger
 from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, GroupingDataset, vstack_collate_fn
 
 
+def human_readable_size(size, decimal_places=2):
+    for unit in ['b', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb']:
+        if size < 1024.0 or unit == 'Pb':
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f}{unit}"
+
+
 class Setup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=True):
         self.src = src
         self.__logger = logger or get_logger(self)
+        self.__trace_memory = trace_memory
+        self.test_groups = None
 
     def __call__(self, hparams: HyperParameters, negative_sampling=True):
         self.__logger.info("loading dataset...")
 
+        if self.__trace_memory:
+            tracemalloc.start()
+
         self.src.load(hparams)
-        self.__log_dataset()
+        trainlen, testlen = self.__log_dataset()
         
         idrange = self.src.trainset.idrange
         self.__log_idrange(idrange)
@@ -34,7 +48,15 @@ class Setup:
             matrix = self.src.matrix
             self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
             self.test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
-            self.__log_dataset()
+            trainf = len(self.src.trainset) / trainlen
+            testf = len(self.src.testset) / testlen
+            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
+
+        if self.__trace_memory:
+            mem = tracemalloc.get_traced_memory()
+            curr_mem, peak_mem = human_readable_size(mem[0]), human_readable_size(mem[1])
+            self.__logger.info(f"taking up memory: current={curr_mem} peak={peak_mem}")
+            tracemalloc.stop()
 
         return idrange
 
@@ -42,6 +64,7 @@ class Setup:
         trainlen = len(self.src.trainset)
         testlen = len(self.src.testset)
         self.__logger.info(f"loaded {trainlen} train and {testlen} test interactions")
+        return trainlen, testlen
 
     def __log_idrange(self, idrange):
         assert len(idrange) >= 2
