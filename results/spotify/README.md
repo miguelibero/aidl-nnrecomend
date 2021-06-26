@@ -6,13 +6,13 @@ Some conclusions (Same as movilens):
 -   gcn is not much better than linear, sometimes it is worse
 
 Evaluation data
-(./eval.png)
+![Eval](./eval.png)
 
 Training data
-(./train.png)
+![Train](./train.png)
 
 Legend
-(./legend.png)
+![Legend](./legend.png)
 
 
 ### Evaluation
