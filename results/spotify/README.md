@@ -7,11 +7,7 @@ Some conclusions (Same as movilens):
 
 Evaluation data
 ![Eval](./eval.png)
-
-Training data
 ![Train](./train.png)
-
-Legend
 ![Legend](./legend.png)
 
 
