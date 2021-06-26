@@ -1,9 +1,19 @@
 # Model Evaluation using the Spotify Dataset
-We compared different models using the [Spotify Skip Predition Challenge](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge-old) as Dataset. We used skip values as context data. If one user skip some song it has a bad ratio and if the song is not skipped it has a better ratio. The tensorboard logdir can be downloaded [here](https://github.com/miguelibero/aidl-nnrecomend/blob/main/results/spotify/tensorboard.zip).
+We compared different models using the [Spotify Skip Predition Challenge](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge-old) as Dataset. We used skip values as context data. If one user skip some song it has a bad ratio and if the song is not skipped it has a better ratio. The tensorboard logdir is 1.5Gb zipped so you cannot donwload. 
 Some conclusions (Same as movilens):
 -   adding the previous item as a context improves the metrics substantially
 -   using pairwise loss improves coverage a little bit, but it has a lot of memory consumption so we decided not to use pairwise
--   gcn is not much better than linear
+-   gcn is not much better than linear, sometimes it is worse
+
+Evaluation data
+![Results](./eval.png)
+
+Training data
+![Loss](./train.png)
+
+Legend
+![Legend](./legend.png)
+
 
 ### Evaluation
 | type | model | context | loss | hit ratio | ndcg | coverage |
@@ -17,7 +27,6 @@ Some conclusions (Same as movilens):
 | nnrecommend | fm-linear | skip, previous | 0.1614 | 0.1050 | 0.0675 | 0.0557 |
 | nnrecommend | fm-gcn | skip, previous | 0.2555 | 0.1290 | 0.0712 | 0.0304 |
 | nnrecommend | knn |  |  |  |  |  |  
-
 
 
 ### Hyperparameters
