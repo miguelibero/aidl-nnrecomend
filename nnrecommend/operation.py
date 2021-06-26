@@ -190,7 +190,7 @@ class RunTracker:
         (0, 1, 1),
     )
 
-    def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None, embedding_epoch_num=4):
+    def __init__(self, hparams: HyperParameters, tb: SummaryWriter=None, embedding_epoch_num=False):
         self.__hparams = hparams
         self.__tb = tb
         self.__metrics = {}
@@ -222,7 +222,7 @@ class RunTracker:
 
         if hasattr(model, 'get_embedding_weight'):
             weight = model.get_embedding_weight()
-            if epoch % self.__embedding_epoch_num == 0:
+            if self.__embedding_epoch_num > 0 and epoch % self.__embedding_epoch_num == 0:
                 self.__tb.add_embedding(weight, global_step=epoch,
                     metadata=self.__embedding_md,
                     metadata_header=self.__embedding_md_header)

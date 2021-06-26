@@ -21,7 +21,8 @@ from nnrecommend.dataset import save_model
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
-def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk: int, tensorboard_dir: str, tensorboard_tag: str) -> None:
+@click.option('--tensorboard-embedding', 'tensorboard_embedding', type=int, default=0, help="store full embedding in tensorboard every X epoch")
+def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk: int, tensorboard_dir: str, tensorboard_tag: str, tensorboard_embedding: int) -> None:
     """
     train a pytorch recommender model on a given dataset
 
@@ -49,7 +50,7 @@ def train(ctx, path: str, dataset_type: str, model_type: str, output: str, topk:
     model = create_model(model_type, src, hparams).to(device)
     criterion, optimizer, scheduler = create_model_training(model, hparams)
 
-    tracker = RunTracker(hparams, tb)
+    tracker = RunTracker(hparams, tb, tensorboard_embedding)
     tracker.setup_embedding(src.trainset.idrange)
 
     try:

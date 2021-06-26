@@ -8,11 +8,19 @@ some conclusions:
 * using pairwise loss improves coverage a bit
 * gcn is not much better than linear
 
+comparing all the nnrecommend training with rating loss
+![comparing all the nnrecommend training with rating loss](./eval_rating.png)
+
+comparing all the nnrecommend training with pairwise loss
+![comparing all the nnrecommend training with pairwise loss](./eval_pairwise.png)
+
 comparing fm-linear without context with previous movie context
 ![comparing fm-linear without context with previous movie context](./linear_prev.png)
 
 comparing fm-gcn rating loss with pairwise loss
 ![comparing fm-gcn rating loss with pairwise loss](./gcn_pairwise.png)
+
+![graph legend](./legend.png)
 
 ### Evaluation
 
