@@ -3,9 +3,9 @@
 
 We compared different models using the [movielens dataset](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/). The tensorboard logdir can be downloaded from [here](./tensorboard.zip).
 
-some conclusions:
+some conclusions for this dataset:
 * adding the previous item as a context improves the metrics substantially
-* using pairwise loss improves coverage a bit
+* using pairwise loss improves coverage a bit but is slower
 * gcn is not much better than linear
 
 comparing all the nnrecommend training with rating loss
