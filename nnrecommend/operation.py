@@ -9,10 +9,11 @@ from logging import Logger
 from typing import Any, Callable, Container, Dict
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataset import Dataset
 from torch.utils.tensorboard import SummaryWriter
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, GroupingDataset, vstack_collate_fn
+from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, InteractionPairDataset, GroupingDataset, vstack_collate_fn
 
 
 def human_readable_size(size, decimal_places=2):
@@ -29,7 +30,6 @@ class Setup:
         self.src = src
         self.__logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
-        self.test_groups = None
 
     def __call__(self, hparams: HyperParameters, negative_sampling=True) -> np.ndarray:
         self.__logger.info("loading dataset...")
@@ -47,10 +47,14 @@ class Setup:
             self.__logger.info("adding negative sampling...")
             matrix = self.src.matrix
             self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
-            self.test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+            test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
             trainf = len(self.src.trainset) / trainlen
             testf = len(self.src.testset) / testlen
             self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
+            self.src.testset = self.__apply_grouping(self.src.testset, test_groups)
+
+        if hparams.pairwise_loss:
+            self.src.trainset = self.__apply_pairwise_loss(self.src.trainset)
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()
@@ -59,6 +63,14 @@ class Setup:
             tracemalloc.stop()
 
         return idrange
+
+    def __apply_grouping(self, dataset: Dataset, groups: np.ndarray):
+        return GroupingDataset(dataset, groups)
+
+    def __apply_pairwise_loss(self, dataset: InteractionDataset):
+        negset = dataset.extract_negative_dataset()
+        userids = range(dataset.idrange[0])
+        return InteractionPairDataset(dataset, negset, userids)
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)
@@ -81,15 +93,10 @@ class Setup:
 
     def create_testloader(self, hparams: HyperParameters):
         dataset = self.src.testset
-        if self.test_groups:
-            dataset = GroupingDataset(dataset, self.test_groups)
         return DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=vstack_collate_fn, num_workers=hparams.test_loader_workers)
 
     def create_trainloader(self, hparams: HyperParameters):
         dataset = self.src.trainset
-        if hparams.pairwise_loss:
-            negset = dataset.extract_negative_dataset()
-            dataset = InteractionPairDataset(dataset, negset)
         return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from nnrecommend.dataset import InteractionDataset
+from nnrecommend.dataset import InteractionDataset, InteractionPairDataset
 
 
 def test_dataset():
@@ -213,3 +213,24 @@ def test_add_prev_item():
     assert (dataset[2] == (1, 3, 7, 1)).all()
     assert (dataset[3] == (2, 3, 7, 1)).all()
     assert (dataset[4] == (1, 6, 8, 1)).all()
+
+
+def test_pair_dataset():
+    pos = np.array(((0, 1), (1, 2), (1, 4), (1, 5), (1, 6)))
+    neg = np.array(((0, 2), (1, 1), (0, 3), (0, 4)))
+    dataset = InteractionPairDataset(pos, neg)
+    assert len(dataset) == 7
+    assert (dataset[0][0] == (0, 1)).all()
+    assert (dataset[0][1] == (0, 2)).all()
+    assert (dataset[1][0] == (0, 1)).all()
+    assert (dataset[1][1] == (0, 3)).all()
+    assert (dataset[2][0] == (0, 1)).all()
+    assert (dataset[2][1] == (0, 4)).all()
+    assert (dataset[3][0] == (1, 2)).all()
+    assert (dataset[3][1] == (1, 1)).all()
+    assert (dataset[4][0] == (1, 4)).all()
+    assert (dataset[4][1] == (1, 1)).all()
+    assert (dataset[5][0] == (1, 5)).all()
+    assert (dataset[5][1] == (1, 1)).all()
+    assert (dataset[6][0] == (1, 6)).all()
+    assert (dataset[6][1] == (1, 1)).all()

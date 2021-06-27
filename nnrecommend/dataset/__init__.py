@@ -1,3 +1,4 @@
+import abc
 import itertools
 import torch
 import random
@@ -296,8 +297,6 @@ class InteractionDataset(torch.utils.data.Dataset):
         size = self.idrange[-1]
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
-            if not self.__is_row_positive(row):
-                continue
             for a, b in self.__get_row_pairs(row):
                 matrix[a, b] = 1
                 matrix[b, a] = 1
@@ -388,27 +387,31 @@ class InteractionDataset(torch.utils.data.Dataset):
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
     returns pairs of positive and negative interactions
-    if one of them has more items than the other, the pairs
-    will repeat the other value to have the same length in the end.
-    this is useful for negative sampling when multiple negatives
-    are related to one positive interaction.
+    indexing them by user and trying generating all combinations
     """
 
-    def __init__(self, positive: torch.utils.data.Dataset, negative: torch.utils.data.Dataset):
+    def __init__(self, positive: Container[np.ndarray], negative: Container[np.ndarray], userids: np.ndarray=None):
         self.positive = positive
         self.negative = negative
+        posu = positive[:, 0]
+        negu = negative[:, 0]
+        if userids is None:
+            userids = np.unique(np.concatenate((posu, negu)))
+
+        self.indices = []
+        for i in userids:
+            posi = np.where(posu == i)[0]
+            negi = np.where(negu == i)[0]
+            for p in posi:
+                for n in negi:
+                    self.indices.append((p, n))
 
     def __len__(self) -> int:
-        return max(len(self.positive), len(self.negative))
+        return len(self.indices)
 
     def __getitem__(self, index) -> Tuple:
-        # TODO: safer way of guaranteeing that the pairs are of the same user
-        f = len(self.negative) / len(self.positive)
-        pos = int(index / f)
-        neg = index
-        if f < 1:
-            pos, neg = neg, pos
-        return (self.positive[pos], self.negative[neg])
+        p, n = self.indices[index]
+        return self.positive[p], self.negative[n]
 
 
 class GroupingDataset(torch.utils.data.Dataset):
