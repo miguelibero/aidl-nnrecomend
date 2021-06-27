@@ -25,13 +25,13 @@ def human_readable_size(size, decimal_places=2):
 
 class Setup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=True):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
         self.src = src
         self.__logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
         self.test_groups = None
 
-    def __call__(self, hparams: HyperParameters, negative_sampling=True):
+    def __call__(self, hparams: HyperParameters, negative_sampling=True) -> np.ndarray:
         self.__logger.info("loading dataset...")
 
         if self.__trace_memory:
@@ -150,6 +150,9 @@ class TestResult:
         self.hr = hr
         self.ndcg = ndcg 
         self.coverage = coverage
+
+    def __str__(self):
+        return f"hr={self.hr:.4f} ndcg={self.ndcg:.4f} cov={self.coverage:.4f}"
 
 
 class Tester:

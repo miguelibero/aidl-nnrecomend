@@ -29,7 +29,10 @@ class Context:
             np.random.seed(random_seed)
             torch.manual_seed(random_seed)
             random.seed(random_seed)
-        self.hparams = HyperParameters.load(hparams, hparams_path)
+        self.htrials = HyperParameters.load_trials(hparams, hparams_path)
+        l = len(self.htrials)
+        if l > 1:
+            self.logger.info(f"found {l} hparam trials...")
 
     def create_dataset_source(self, path, dataset_type: str) -> BaseDatasetSource:
         path = os.path.realpath(path)

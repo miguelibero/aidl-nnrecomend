@@ -1,0 +1,43 @@
+{
+    "common": {
+        "negatives_train": 	4,
+        "negatives_test": 	-1,
+        "batch_size": 	1024,
+        "epochs": 	40,
+        "embed_dim": 	64,
+        "learning_rate": 	0.001,
+        "dropout": 	0.5
+    },
+    "trials": [
+        {
+            "pairwise_loss": false,
+            "interaction_context": "",
+            "tensorboard_tag": "{tag}-{model}-none"
+        },
+        {
+            "pairwise_loss": false,
+            "interaction_context": "skip",
+            "tensorboard_tag": "{tag}-{model}-skip"
+        },
+        {
+            "pairwise_loss": false,
+            "interaction_context": "all",
+            "tensorboard_tag": "{tag}-{model}-all"
+        },
+        {
+            "pairwise_loss": true,
+            "interaction_context": "",
+            "tensorboard_tag": "{tag}-{model}-pairwise-none"
+        },
+        {
+            "pairwise_loss": true,
+            "interaction_context": "skip",
+            "tensorboard_tag": "{tag}-{model}-pairwise-skip"
+        },
+        {
+            "pairwise_loss": true,
+            "interaction_context": "skip,previous",
+            "tensorboard_tag": "{tag}-{model}-pairwise-all"
+        }
+    ]
+}

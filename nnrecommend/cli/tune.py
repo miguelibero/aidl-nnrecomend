@@ -38,41 +38,43 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
     if not src:
         raise Exception("could not create dataset")
 
-    def training_function(config):
-        hparams = ctx.obj.hparams.copy(config)
-        setup = Setup(src, logger)
-        setup(hparams)
-        model = create_model(model_type, src, hparams).to(device)
-        criterion, optimizer, scheduler = create_model_training(model, hparams)
-        trainloader = setup.create_trainloader(hparams)
-        testloader = setup.create_testloader(hparams)
-        trainer = Trainer(model, trainloader, optimizer, criterion, device)
-        tester = Tester(model, testloader, topk, device)
+    for i, hparams in enumerate(ctx.obj.htrials):
 
-        for i in range(hparams.epochs):
-            loss = trainer()
-            result = tester()
-            lr = get_optimizer_lr(optimizer)
-            rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
-            if scheduler:
-                scheduler.step(loss)
+        def training_function(config):
+            thparams = hparams.copy(config)
+            setup = Setup(src, logger)
+            setup(thparams)
+            model = create_model(model_type, src, thparams).to(device)
+            criterion, optimizer, scheduler = create_model_training(model, thparams)
+            trainloader = setup.create_trainloader(thparams)
+            testloader = setup.create_testloader(thparams)
+            trainer = Trainer(model, trainloader, optimizer, criterion, device)
+            tester = Tester(model, testloader, topk, device)
 
-    analysis = rtune.run(
-        training_function,
-        config=config.generate(model_type),
-        queue_trials=True,
-        scheduler=rtune.schedulers.ASHAScheduler(metric=tune_metric, mode=tune_metric_mode),
-        num_samples=num_samples,
-        resources_per_trial={
-            "cpu": 1,
-            "gpu": 0.5,
-        })
+            for i in range(thparams.epochs):
+                loss = trainer()
+                result = tester()
+                lr = get_optimizer_lr(optimizer)
+                rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
+                if scheduler:
+                    scheduler.step(loss)
 
-    config = analysis.get_best_config(metric=tune_metric, mode=tune_metric_mode)
-    logger.info(f"best config {config}")
+        analysis = rtune.run(
+            training_function,
+            config=config.generate(model_type),
+            queue_trials=True,
+            scheduler=rtune.schedulers.ASHAScheduler(metric=tune_metric, mode=tune_metric_mode),
+            num_samples=num_samples,
+            resources_per_trial={
+                "cpu": 1,
+                "gpu": 0.5,
+            })
 
-    if output:
-        analysis.results_df.to_csv(output)
+        config = analysis.get_best_config(metric=tune_metric, mode=tune_metric_mode)
+        logger.info(f"best config {config}")
+
+        if output:
+            analysis.results_df.to_csv(output.format(trial=i))
 
 if __name__ == "__main__":
     sys.exit(tune(obj=Context()))

@@ -391,7 +391,7 @@ class InteractionPairDataset(torch.utils.data.Dataset):
     if one of them has more items than the other, the pairs
     will repeat the other value to have the same length in the end.
     this is useful for negative sampling when multiple negatives
-    are related to one positive interacting.
+    are related to one positive interaction.
     """
 
     def __init__(self, positive: torch.utils.data.Dataset, negative: torch.utils.data.Dataset):
@@ -402,6 +402,7 @@ class InteractionPairDataset(torch.utils.data.Dataset):
         return max(len(self.positive), len(self.negative))
 
     def __getitem__(self, index) -> Tuple:
+        # TODO: safer way of guaranteeing that the pairs are of the same user
         f = len(self.negative) / len(self.positive)
         pos = int(index / f)
         neg = index
@@ -443,8 +444,8 @@ class BaseDatasetSource:
     user id, item id and context columns should be normalized,
     meaning that the values are consecutive and don't overlap
 
-    item_info should be a dictionary with item_id keys
-    and values should be a dictionary with the diferent decriptive fields
+    iteminfo should be a dictionary with item_id keys
+    and values should be dictionaries with the diferent decriptive fields
     """
 
     def __init__(self, logger: Logger=None):
@@ -462,7 +463,7 @@ def save_model(path: str, model, src: BaseDatasetSource):
     data = {
         "model": model,
         "idrange": src.trainset.idrange,
-        "item_info": src.item_info
+        "iteminfo": src.iteminfo
     }
     with open(path, "wb") as fh:
         torch.save(data, fh)

@@ -6,24 +6,39 @@ from ray import tune
 
 class HyperParameters:
 
+    TRIALS_KEY = "trials"
+    COMMON_KEY = "common"
+
     @classmethod
-    def load(cls, hparams: None, path=None):
+    def load_trials(cls, cmdargs: None, path=None):
         data = {}
         try:
             with open(path) as fh:
                 data.update(json.load(fh))
         except:
             pass
-        if isinstance(hparams, str):
-            hparams = hparams.split(";")
-        if isinstance(hparams, (tuple, list)):
-            for hparam in hparams:
-                if isinstance(hparam, str):
-                    k, v = hparam.strip().split(":", 2)
-                    data[k] = v
-        if isinstance(hparams, dict):
-            data.update(hparams)
-        return cls(data)
+
+        if isinstance(cmdargs, str):
+            cmdargs = cmdargs.split(";")
+
+        if cls.TRIALS_KEY not in data:
+            if not isinstance(data, (list, tuple)):
+                data = (data,)
+            data = {cls.TRIALS_KEY: data}
+        trials = []
+        common = data[cls.COMMON_KEY] if cls.COMMON_KEY in data else {}
+        for trial in data[cls.TRIALS_KEY]:
+            trial.update(common)
+            if isinstance(cmdargs, (tuple, list)):
+                for hparam in cmdargs:
+                    if isinstance(hparam, str):
+                        k, v = hparam.strip().split(":", 2)
+                        trial[k] = v
+            elif isinstance(cmdargs, dict):
+                trial.update(cmdargs)
+            trials.append(cls(trial))
+        return trials
+
 
     DEFAULT_VALUES = {
         "max_interactions": -1,
@@ -161,6 +176,15 @@ class HyperParameters:
         """
         return self.__get("test_loader_workers")
 
+    def get_tensorboard_tag(self, defval: str, **kwargs) -> str:
+        """
+        get the tensorboard tag
+        """
+        tag = self.__get("tensorboard_tag") or defval
+        return tag.format(
+            tag=defval,
+            **kwargs
+        )
 
     def should_have_interaction_context(self, v: str):
         """

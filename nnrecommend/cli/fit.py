@@ -1,11 +1,17 @@
+from logging import Logger
 import click
 import sys
-from typing import List
-from nnrecommend.dataset import save_model
+import numpy as np
+from typing import Container
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.tensorboard.writer import SummaryWriter
+
+from nnrecommend.dataset import BaseDatasetSource, save_model
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES, DEFAULT_ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, TestResult, Tester, create_tensorboard_writer
 from nnrecommend.logging import get_logger
+from nnrecommend.hparams import HyperParameters
 
 
 @main.command()
@@ -18,7 +24,8 @@ from nnrecommend.logging import get_logger
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--output', type=str, help="save the fitted algorythm to a file")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
-def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int, output: str, tensorboard_dir: str) -> None:
+@click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
+def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk: int, output: str, tensorboard_dir: str, tensorboard_tag: str) -> None:
     """
     fit a given recommender algorithm on a dataset
 
@@ -26,61 +33,63 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: List[str], topk: int
     """
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
-    hparams = ctx.obj.hparams
-
-    logger.info(f"using hparams {hparams}")
-    
     setup = Setup(src, logger)
-    idrange = setup(hparams)
-
     results = []
-    if isinstance(algorithm_types, str):
-        algorithm_types = algorithm_types.split(",")
-    if len(algorithm_types) == 0 or algorithm_types[0] == "all":
-        algorithm_types = ALGORITHM_TYPES
 
-    def log_result(result: TestResult, prefix: str=""):
-        if prefix:
-            prefix = f"{prefix:10s}"
-        logger.info(f'{prefix}hr={result.hr:.4f} ndcg={result.ndcg:.4f} cov={result.coverage:.4f}')
+    for i, hparams in enumerate(ctx.obj.htrials):
 
-    for algorithm_type in algorithm_types:
-        logger.info(f"creating algorithm {algorithm_type}...")
-        algo = create_algorithm(algorithm_type, hparams, idrange)
-
+        logger.info(f"using hparams {hparams}")
+        
+        idrange = setup(hparams)
         testloader = setup.create_testloader(hparams)
-        tensorboard_tag = f"{dataset_type}-{algorithm_type}"
-        tb = create_tensorboard_writer(tensorboard_dir, tensorboard_tag)
-        tester = Tester(algo, testloader, topk)
-        tracker = RunTracker(hparams, tb)
 
-        try:
-            logger.info("fitting algorithm...")
-            algo.fit(src.trainset)
+        if isinstance(algorithm_types, str):
+            algorithm_types = algorithm_types.split(",")
+        if len(algorithm_types) == 0 or algorithm_types[0] == "all":
+            algorithm_types = ALGORITHM_TYPES
 
-            logger.info("evaluating...")
-            result = tester()
-            log_result(result)
-            for i in range(hparams.epochs):
-                tracker.track_test_result(i, result)
-            results.append((algorithm_type, result))
-        except Exception as e:
-            logger.exception(e)
-        finally:
-            if output:
-                logger.info("saving algorithm...")
-                algo_output = output
-                if len(algorithm_types) > 1:
-                    algo_output = algo_output.format(algorithm_type)
-                save_model(algo_output, algo, src)
-            if tb:
-                tb.close()
+        for algorithm_type in algorithm_types:
+            logger.info("====")
+            tb_tag = tensorboard_tag or f"{dataset_type}-{algorithm_type}"
+            tb_tag = hparams.get_tensorboard_tag(tb_tag, trial=i, algorithm=algorithm_type)
+            tb = create_tensorboard_writer(tensorboard_dir, tb_tag)
+            algo_output = output.format(trial=i, algorithm=algorithm_type) if output else None
+            result = __fit(algorithm_type, src, testloader, hparams, idrange, logger, topk, algo_output, tb)
+            results.append((tb_tag, result))
 
-    results.sort(key=lambda i: i[1].hr)
-    logger.info("results")
+    results.sort(key=lambda i: i[1].ndcg)
     logger.info("====")
-    for algorithm_type, result in results:
-        log_result(result, algorithm_type)
+    logger.info("results")
+    logger.info("----")
+    for name, result in results:
+        logger.info(f'{name}: {result}')
+
+
+def __fit(algorithm_type: str, src: BaseDatasetSource, testloader: DataLoader, hparams: HyperParameters, idrange: np.ndarray, logger: Logger, topk: int, output: str, tb: SummaryWriter) -> TestResult:
+    logger.info(f"creating algorithm {algorithm_type}...")
+    algo = create_algorithm(algorithm_type, hparams, idrange)
+
+    tester = Tester(algo, testloader, topk)
+    tracker = RunTracker(hparams, tb)
+
+    try:
+        logger.info("fitting algorithm...")
+        algo.fit(src.trainset)
+
+        logger.info("evaluating...")
+        result = tester()
+        logger.info(f'{result}')
+        for i in range(hparams.epochs):
+            tracker.track_test_result(i, result)
+        return result
+    except Exception as e:
+        logger.exception(e)
+    finally:
+        if output:
+            logger.info("saving algorithm...")
+            save_model(output, algo, src)
+        if tb:
+            tb.close()
 
 
 if __name__ == "__main__":
