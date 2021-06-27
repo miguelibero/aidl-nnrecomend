@@ -47,14 +47,17 @@ class Setup:
             self.__logger.info("adding negative sampling...")
             matrix = self.src.matrix
             self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+
+        if hparams.pairwise_loss:
+            self.__logger.info("generating train pairs...")
+            self.src.trainset = self.__apply_pairs(self.src.trainset)
+
+        if negative_sampling:
             test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
             trainf = len(self.src.trainset) / trainlen
             testf = len(self.src.testset) / testlen
             self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
             self.src.testset = self.__apply_grouping(self.src.testset, test_groups)
-
-        if hparams.pairwise_loss:
-            self.src.trainset = self.__apply_pairwise_loss(self.src.trainset)
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()
@@ -67,7 +70,7 @@ class Setup:
     def __apply_grouping(self, dataset: Dataset, groups: np.ndarray):
         return GroupingDataset(dataset, groups)
 
-    def __apply_pairwise_loss(self, dataset: InteractionDataset):
+    def __apply_pairs(self, dataset: InteractionDataset):
         negset = dataset.extract_negative_dataset()
         userids = range(dataset.idrange[0])
         return InteractionPairDataset(dataset, negset, userids)
@@ -132,7 +135,6 @@ class Trainer:
                 predictions, targets = self.__forward(batch)
                 loss = self.criterion(predictions, targets)
             elif isinstance(batch, (list, tuple)):
-                assert (batch[0][:, 0] == batch[1][:, 0]).all() # should be the same users
                 predpos, _ = self.__forward(batch[0])
                 predneg, _ = self.__forward(batch[1])
                 loss = self.criterion(predpos, predneg)

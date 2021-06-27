@@ -16,8 +16,8 @@
         },
         {
             "pairwise_loss": false,
-            "interaction_context": "all",
-            "tensorboard_tag": "{tag}-{model}-all"
+            "interaction_context": "previous",
+            "tensorboard_tag": "{tag}-{model}-prev"
         },
         {
             "pairwise_loss": true,
@@ -26,8 +26,8 @@
         },
         {
             "pairwise_loss": true,
-            "interaction_context": "all",
-            "tensorboard_tag": "{tag}-{model}-pairwise-all"
+            "interaction_context": "previous",
+            "tensorboard_tag": "{tag}-{model}-pairwise-prev"
         }
     ]
 }
