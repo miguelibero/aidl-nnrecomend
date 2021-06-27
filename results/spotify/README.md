@@ -1,8 +1,9 @@
 # Model Evaluation using the Spotify Dataset
-We compared different models using the [Spotify Skip Predition Challenge](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge-old) as Dataset. We used skip values as context data. If one user skip some song it has a bad ratio and if the song is not skipped it has a better ratio. The tensorboard logdir is 1.5Gb zipped so you cannot donwload. 
+We compared different models using the [Spotify Skip Predition Challenge](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge-old) as Dataset. We used skip values as context data. If one user skip some song it has a bad ratio and if the song is not skipped it has a better ratio. You can download Tensorboard results [here](https://github.com/miguelibero/aidl-nnrecomend/blob/main/results/spotify/tensorboard.zip)
+
 Some conclusions (Very similar to movilens dataset):
 -   adding the previous item as a context improves the metrics substantially
--   using pairwise loss improves coverage a little bit, but it has a lot of memory consumption so we decided not to use pairwise
+-   using pairwise loss improves coverage 
 -   gcn is not much better than linear, sometimes it is worse
 
 Evaluation data
