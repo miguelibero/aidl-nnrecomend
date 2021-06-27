@@ -1,4 +1,7 @@
 import itertools
+from logging import Logger
+from nnrecommend.hparams import HyperParameters
+from nnrecommend.dataset import BaseDatasetSource
 import click
 import torch
 import matplotlib.pyplot as plt
@@ -75,16 +78,15 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
 
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(explore_dataset)
-    hparams = ctx.obj.hparams
-
     setup = Setup(src, logger)
-    idrange = setup(hparams, negative_sampling=False)
 
-    logger.info("calculating statistics...")
+    for hparams in ctx.obj.htrials:
+        logger.info(f"using hparams {hparams}")
+        idrange = setup(hparams, negative_sampling=False)
+        __explore_dataset(src, idrange, logger, hist_bins, full)
 
-    nnz = src.matrix.getnnz()
-    tot = np.prod(src.matrix.shape)
-    logger.info(f"adjacency matrix {src.matrix.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
+
+def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logger, hist_bins: int, full: bool) -> None:
 
     def get_over(count, th, tot):
         return np.count_nonzero(count >= th)*100/tot if tot > 0 else 0
@@ -96,6 +98,12 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
         if i == 0: return "users"
         if i == 1: return "items"
         return f"context{i-2}"
+
+    logger.info("calculating statistics...")
+
+    nnz = src.matrix.getnnz()
+    tot = np.prod(src.matrix.shape)
+    logger.info(f"adjacency matrix {src.matrix.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
 
     if full:
         plt.spy(src.matrix, markersize=1)

@@ -56,7 +56,36 @@ To see the different available actions and parameters run
 nnrecommend --help
 ```
 
+### Hyperparameters
+
 Passing hyperparameters can be done using `--hparam name:value`, you can add the argument multiple times to set multiple hyper parameters, or `--hparams-path hparams.json` to load the parameters from a json dictionary.
+
+The format of the `hparams.json` file can be a simple dictionary:
+
+```json
+{
+    "embed_dim": 32,
+    "batch_size": 1024
+}
+```
+
+or a dictionary with trials if you want to run multiple trainings one after the other
+
+```json
+{
+    "common": {
+        "embed_dim": 32
+    },
+    "trials": [
+        {
+            "batch_size": 1024
+        },
+        {
+            "batch_size": 512
+        }
+    ]
+}
+```
 
 ### Training
 

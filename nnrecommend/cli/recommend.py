@@ -23,7 +23,7 @@ def recommend(ctx, path: str, items: Container[str], fields: Container[str], top
             data = torch.load(fh)
             model = data["model"]
             idrange = data["idrange"]
-            item_info = data["item_info"]
+            iteminfo = data["iteminfo"]
     except:
         logger.error("failed to load model file")
         return False
@@ -34,7 +34,7 @@ def recommend(ctx, path: str, items: Container[str], fields: Container[str], top
 
     logger.info(f"loaded model of type {type(model)}")
 
-    finder = Finder(item_info, fields)
+    finder = Finder(iteminfo, fields)
     itemids = set()
     for item in items:
         r = finder(item)
