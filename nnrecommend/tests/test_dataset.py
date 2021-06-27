@@ -216,21 +216,23 @@ def test_add_prev_item():
 
 
 def test_pair_dataset():
-    pos = np.array(((0, 1), (1, 2), (1, 4), (1, 5), (1, 6)))
-    neg = np.array(((0, 2), (1, 1), (0, 3), (0, 4)))
-    dataset = InteractionPairDataset(pos, neg)
-    assert len(dataset) == 7
-    assert (dataset[0][0] == (0, 1)).all()
-    assert (dataset[0][1] == (0, 2)).all()
-    assert (dataset[1][0] == (0, 1)).all()
-    assert (dataset[1][1] == (0, 3)).all()
-    assert (dataset[2][0] == (0, 1)).all()
-    assert (dataset[2][1] == (0, 4)).all()
-    assert (dataset[3][0] == (1, 2)).all()
-    assert (dataset[3][1] == (1, 1)).all()
-    assert (dataset[4][0] == (1, 4)).all()
-    assert (dataset[4][1] == (1, 1)).all()
-    assert (dataset[5][0] == (1, 5)).all()
-    assert (dataset[5][1] == (1, 1)).all()
-    assert (dataset[6][0] == (1, 6)).all()
-    assert (dataset[6][1] == (1, 1)).all()
+    data = ((2, 2), (3, 1), (4, 3), (4, 2))
+    dataset = InteractionDataset(data)
+    matrix = dataset.create_adjacency_matrix()
+    indices = dataset.add_negative_sampling(-1, matrix)
+    dataset = InteractionPairDataset(dataset, indices)
+    assert len(dataset) == 6
+    assert (dataset[0][0] == (0, 4, 1)).all()
+    assert (dataset[0][1] == (0, 3, 0)).all()
+    assert (dataset[1][0] == (0, 4, 1)).all()
+    assert (dataset[1][1] == (0, 5, 0)).all()
+
+    assert (dataset[2][0] == (1, 3, 1)).all()
+    assert (dataset[2][1] == (1, 4, 0)).all()
+    assert (dataset[3][0] == (1, 3, 1)).all()
+    assert (dataset[3][1] == (1, 5, 0)).all()
+
+    assert (dataset[4][0] == (2, 5, 1)).all()
+    assert (dataset[4][1] == (2, 3, 0)).all()
+    assert (dataset[5][0] == (2, 4, 1)).all()
+    assert (dataset[5][1] == (2, 3, 0)).all()

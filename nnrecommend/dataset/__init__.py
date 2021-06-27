@@ -387,31 +387,27 @@ class InteractionDataset(torch.utils.data.Dataset):
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
     returns pairs of positive and negative interactions
-    indexing them by user and trying generating all combinations
+    used in the trainset when pairwise loss is enabled
     """
 
-    def __init__(self, positive: Container[np.ndarray], negative: Container[np.ndarray], userids: np.ndarray=None):
-        self.positive = positive
-        self.negative = negative
-        posu = positive[:, 0]
-        negu = negative[:, 0]
-        if userids is None:
-            userids = np.unique(np.concatenate((posu, negu)))
-
+    def __init__(self, dataset: Container[np.ndarray], groups: Container[np.ndarray]):
+        self.dataset = dataset
         self.indices = []
-        for i in userids:
-            posi = np.where(posu == i)[0]
-            negi = np.where(negu == i)[0]
-            for p in posi:
-                for n in negi:
-                    self.indices.append((p, n))
+        for group in groups:
+            if len(group) < 2:
+                continue
+            p = group[0]
+            for n in group[1:]:
+                self.indices.append((p, n))
 
     def __len__(self) -> int:
         return len(self.indices)
 
     def __getitem__(self, index) -> Tuple:
         p, n = self.indices[index]
-        return self.positive[p], self.negative[n]
+        pos, neg = self.dataset[p], self.dataset[n]
+        assert pos[0] == neg[0]
+        return pos, neg
 
 
 class GroupingDataset(torch.utils.data.Dataset):
@@ -420,7 +416,7 @@ class GroupingDataset(torch.utils.data.Dataset):
     used for the testset to get batches separated by user
     """
 
-    def __init__(self, dataset: torch.utils.data.Dataset, groups: Container[np.ndarray]):
+    def __init__(self, dataset: Container[np.ndarray], groups: Container[np.ndarray]):
         self.dataset = dataset
         self.groups = groups
 

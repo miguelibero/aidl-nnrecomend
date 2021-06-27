@@ -44,20 +44,21 @@ class Setup:
         self.__log_idrange(idrange)
 
         if negative_sampling:
-            self.__logger.info("adding negative sampling...")
+            self.__logger.info("adding trainset negative sampling...")
             matrix = self.src.matrix
-            self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+            traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
 
         if hparams.pairwise_loss:
-            self.__logger.info("generating train pairs...")
-            self.src.trainset = self.__apply_pairs(self.src.trainset)
+            self.__logger.info("generating trainset pairs...")
+            self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
 
         if negative_sampling:
-            test_groups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+            self.__logger.info("adding testset negative sampling...")
+            testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
             trainf = len(self.src.trainset) / trainlen
             testf = len(self.src.testset) / testlen
             self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
-            self.src.testset = self.__apply_grouping(self.src.testset, test_groups)
+            self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()
@@ -70,10 +71,8 @@ class Setup:
     def __apply_grouping(self, dataset: Dataset, groups: np.ndarray):
         return GroupingDataset(dataset, groups)
 
-    def __apply_pairs(self, dataset: InteractionDataset):
-        negset = dataset.extract_negative_dataset()
-        userids = range(dataset.idrange[0])
-        return InteractionPairDataset(dataset, negset, userids)
+    def __apply_pairs(self, dataset: Dataset, groups: np.ndarray):
+        return InteractionPairDataset(dataset, groups)
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)
