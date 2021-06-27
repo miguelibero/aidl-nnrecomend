@@ -132,6 +132,7 @@ class Trainer:
                 predictions, targets = self.__forward(batch)
                 loss = self.criterion(predictions, targets)
             elif isinstance(batch, (list, tuple)):
+                assert (batch[0][:, 0] == batch[1][:, 0]).all() # should be the same users
                 predpos, _ = self.__forward(batch[0])
                 predneg, _ = self.__forward(batch[1])
                 loss = self.criterion(predpos, predneg)
