@@ -5,7 +5,7 @@ We compared different models using the [movielens dataset](https://www.kaggle.co
 
 some conclusions for this dataset:
 * adding the previous item as a context improves the metrics substantially
-* using pairwise loss improves coverage a bit but is slower
+* using pairwise loss improves results with previous context
 * gcn is not much better than linear
 
 comparing all the nnrecommend training with rating loss
@@ -17,9 +17,6 @@ comparing all the nnrecommend training with pairwise loss
 comparing fm-linear without context with previous movie context
 ![comparing fm-linear without context with previous movie context](./linear_prev.png)
 
-comparing fm-gcn rating loss with pairwise loss
-![comparing fm-gcn rating loss with pairwise loss](./gcn_pairwise.png)
-
 ![graph legend](./legend.png)
 
 ### Evaluation
@@ -30,15 +27,15 @@ comparing fm-gcn rating loss with pairwise loss
 | FM-Fairness | fm-linear | prev | pairwise | 0.1389 | 0.0697 | 0.19 |
 | FM-Fairness | fm-gcn |  | pairwise | 0.1050 | 0.0537 |  0.15 
 | FM-Fairness | fm-gcn | prev | pairwise | 0.1389 | 0.0765 | 0.21 | 
-| nnrecommend | fm-linear |  | rating | 0.1071 | 0.0526 | 0.1902 | 
-| nnrecommend | fm-linear | prev | rating | 0.1527 | 0.0781 | 0.2051
-| nnrecommend | fm-linear |  | pairwise | 0.1071 | 0.0557 | 0.2093
-| nnrecommend | fm-linear | prev | pairwise | 0.1495 | 0.0775 | 0.2289
-| nnrecommend | fm-gcn |  | rating | 0.1039 | 0.0540 | 0.2075
-| nnrecommend | fm-gcn | prev | rating | 0.1463 | 0.0736 | 0.2021
-| nnrecommend | fm-gcn |  | pairwise | 0.1060 | 0.0552 | 0.2105
-| nnrecommend | fm-gcn | prev | pairwise | 0.1495 | 0.0766 | 0.2241
-| nnrecommend | knn |  |  | 0.0891 | 0.0476 | 0.1795
+| nnrecommend | fm-linear |  | rating | 0.1103 | 0.0557 | 0.1986 |
+| nnrecommend | fm-linear | prev | rating | 0.1463 | 0.0735 | 0.2033 |
+| nnrecommend | fm-linear |  | pairwise | 0.1018 | 0.0513 | 0.2021 |
+| nnrecommend | fm-linear | prev | pairwise | 0.1622 | 0.0807 | 0.2206 |
+| nnrecommend | fm-gcn |  | rating | 0.1007 | 0.0537 | 0.2075 |
+| nnrecommend | fm-gcn | prev | rating | 0.1421 | 0.0700 | 0.1944 |
+| nnrecommend | fm-gcn |  | pairwise | 0.1007 | 0.0510 | 0.2045 |
+| nnrecommend | fm-gcn | prev | pairwise | 0.1506 | 0.0741 | 0.2253 |
+| nnrecommend | knn |  |  | 0.0891 | 0.0474 | 0.1795
 
 ### Hyperparameters
 

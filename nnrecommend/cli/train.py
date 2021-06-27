@@ -60,7 +60,7 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
         for model_type in model_types:
             logger.info("====")
             tb_tag = tensorboard_tag or dataset_type
-            tb_tag = hparams.get_tensorboard_tag(tb_tag, trial=i, model=model_type)
+            tb_tag = hparams.get_tensorboard_tag(tb_tag, trial=i, dataset=dataset_type, model=model_type)
             tb = create_tensorboard_writer(tensorboard_dir, tb_tag)
             model_output = output.format(trial=i, model=model_type) if output else None
             result = __train(model_type, src, hparams, idrange, trainloader, testloader, logger, tb, device, model_output, topk, tensorboard_embedding)

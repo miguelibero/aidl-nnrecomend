@@ -51,7 +51,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
         for algorithm_type in algorithm_types:
             logger.info("====")
             tb_tag = tensorboard_tag or dataset_type
-            tb_tag = hparams.get_tensorboard_tag(tb_tag, trial=i, algorithm=algorithm_type)
+            tb_tag = hparams.get_tensorboard_tag(tb_tag, trial=i, dataset=dataset_type, algorithm=algorithm_type)
             tb = create_tensorboard_writer(tensorboard_dir, tb_tag)
             algo_output = output.format(trial=i, algorithm=algorithm_type) if output else None
             result = __fit(algorithm_type, src, testloader, hparams, idrange, logger, topk, algo_output, tb)
