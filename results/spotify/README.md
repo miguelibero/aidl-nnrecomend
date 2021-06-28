@@ -6,13 +6,18 @@ Some conclusions (Very similar to movilens dataset):
 -   using pairwise loss improves coverage 
 -   gcn is a little better than linear
 
-### Graphics
+## Tensorboard Graphics
+
+### FM - Linear (with and without context)
 ![FM-Linears](./linears.png)
+### FM - GCN (with and without context)
 ![FM-GCN](./gcns.png)
+### FM Linear vs FM GCN (with all context)
 ![Comparison FM-Linear vs FM-GCN](./linears_vs_gcn.png)
+### Models legend
 ![Legend](./legend.png)
 
-### Evaluation
+## Evaluation
 | type | model | context | pairwise | loss | hit ratio | ndcg | coverage |
 | --- | -- | --- | --- | --- | --- | --- | --- |
 | nnrecommend | fm-linear | | no | 0.0431 | 0.2015 | 0.1211 | 0.1945 |
@@ -34,7 +39,7 @@ Some conclusions (Very similar to movilens dataset):
 | nnrecommend | knn-user-item | | no | 0.3085 | 0.2444 | 0.1329 | 0.1721 |
 
 
-### Hyperparameters
+## Hyperparameters
 
 | name | value |
 | --- | --- |
