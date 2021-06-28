@@ -29,6 +29,7 @@ class SpotifyDatasetSource(BaseDatasetSource):
         data = np.array(data[cols], dtype=np.int64)
         # add label column with ones
         labels = np.ones(data.shape[0])
+        #labels = (data[:, 2] > 3).astype(np.int64)
         data = np.insert(data, data.shape[1], labels, axis=1)
 
         if not load_skip:
