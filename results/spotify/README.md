@@ -4,7 +4,7 @@ We compared different models using the [Spotify Skip Predition Challenge](https:
 Some conclusions (Very similar to movilens dataset):
 -   adding the previous item as a context improves the metrics substantially
 -   using pairwise loss improves coverage 
--   gcn is not much better than linear, sometimes it is worse
+-   gcn is a little better than linear
 
 Evaluation data
 ![Eval](./eval.png)
@@ -13,17 +13,25 @@ Evaluation data
 
 
 ### Evaluation
-| type | model | context | loss | hit ratio | ndcg | coverage |
-| --- | -- | --- | --- | --- | --- | --- |
-| nnrecommend | fm-linear |  | 0.1053 | 0.1644 | 0.0902 | 0.1792 | 
-| nnrecommend | fm-gcn |  | 0.1022 | 0.3154 | 0.1952 | 0.2630 |
-| nnrecommend | fm-linear | skip | 0.2475 | 0.0515 | 0.0266 | 0.0239 |
-| nnrecommend | fm-gcn | skip | 0.3358 | 0.0519 | 0.0281 | 0.0025 |
-| nnrecommend | fm-linear | previous | 0.1025 | 0.1777 | 0.1192 | 0.1344 |
-| nnrecommend | fm-gcn | previous | 0.1092 | 0.3569 | 0.2226 | 0.2391 |
-| nnrecommend | fm-linear | skip, previous | 0.1614 | 0.1050 | 0.0675 | 0.0557 |
-| nnrecommend | fm-gcn | skip, previous | 0.2555 | 0.1290 | 0.0712 | 0.0304 |
-| nnrecommend | knn |  |  |  |  |  |  
+| type | model | context | pairwise | loss | hit ratio | ndcg | coverage |
+| --- | -- | --- | --- | --- | --- | --- | --- |
+| nnrecommend | fm-linear | | no | 0.0431 | 0.2015 | 0.1211 | 0.1945 |
+| nnrecommend | fm-gcn | | no | 0.0764 | 0.2415 | 0.1442 | 0.2295 |
+| nnrecommend | fm-linear | skip| no |  0.2568 | 0.0531 | 0.0282 | 0.0022 |
+| nnrecommend | fm-gcn | skip | no | 0.3535 | 0.0530 | 0.0283 | 0.0024 |
+| nnrecommend | fm-linear | previous | no | 0.2568 | 0.0531 | 0.0282 | 0.0022 |
+| nnrecommend | fm-gcn | previous | no | 0.3535 | 0.0530 | 0.0283 | 0.0024 |
+| nnrecommend | fm-linear | all | no | 0.1594 | 0.0595 | 0.0318 | 0.0200 |
+| nnrecommend | fm-gcn | all | no | 0.3085 | 0.0555 | 0.0290 | 0.0057 |
+| nnrecommend | fm-linear | | yes | 0.0431 | 0.2015 | 0.1211 | 0.1945 |
+| nnrecommend | fm-gcn | | yes | 0.0764 | 0.2416 | 0.1443 | 0.2296 |
+| nnrecommend | fm-linear | skip | yes | 0.2568 | 0.0531 | 0.0282 | 0.0022 |
+| nnrecommend | fm-gcn | skip | yes | 0.3535 | 0.0530 | 0.0283 | 0.0024 |
+| nnrecommend | fm-linear | previous | yes | 0.2568 | 0.0531 | 0.0282 | 0.0022 |
+| nnrecommend | fm-gcn | previous| yes |  0.3535 | 0.0530 | 0.0283 | 0.0024 |
+| nnrecommend | fm-linear | all | yes | 0.1594 | 0.0595 | 0.0318 | 0.0200 |
+| nnrecommend | fm-gcn | all | yes | 0.3085 | 0.0555 | 0.0290 | 0.0057 |
+| nnrecommend | knn-user-item | | no | 0.3085 | 0.2444 | 0.1329 | 0.1721 |
 
 
 ### Hyperparameters
