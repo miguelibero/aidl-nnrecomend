@@ -410,6 +410,34 @@ class InteractionDataset(torch.utils.data.Dataset):
         r = np.max(self.__interactions[:, -2]) if self.__interactions.shape[0] > 0 else 0
         self.idrange = np.append(self.idrange, r + 1)
 
+    def combine_columns(self, base_col: int, *other_cols: Container[int]) -> None:
+        """
+        combines multiple columns into one, updating idanges too
+        combining means that the values will be multiplied so 
+        we end up with a normalized column
+
+        :param base_col: column number that will be replaced with the combination
+        :param other_cols: column numbers to combine
+        """
+        self.__require_normalized()
+
+        def get_minv(col):
+            assert col >=0 and col < len(self.idrange)
+            return self.idrange[col-1] if col > 0 else 0
+
+        mbrange = get_minv(base_col)
+        brange = self.idrange[base_col] - mbrange
+
+        for col in sorted(other_cols, reverse=True):
+            minv = get_minv(col)
+            vals = self.__interactions[:, col] - minv
+            range = self.idrange[col] - minv
+            self.__interactions[:, base_col] += vals*brange
+            brange *= range
+            self.__interactions = np.delete(self.__interactions, col, 1)
+            self.idrange = np.delete(self.idrange, col)
+        self.idrange[base_col] = mbrange + brange
+
 
 class InteractionPairDataset(torch.utils.data.Dataset):
     """

@@ -236,3 +236,15 @@ def test_pair_dataset():
     assert (dataset[4][1] == (2, 3, 0)).all()
     assert (dataset[5][0] == (2, 4, 1)).all()
     assert (dataset[5][1] == (2, 3, 0)).all()
+
+def test_combine_columns():
+    data = ((2, 2, 1, 1), (3, 1, 5, 1))
+    dataset = InteractionDataset(data)
+    dataset.combine_columns(1, 2)
+    assert len(dataset)
+    assert len(dataset.idrange) == 2
+
+    assert (dataset[0] == (0, 3, 1)).all()
+    assert (dataset[1] == (1, 4, 1)).all()
+    assert dataset.idrange[0] == 2
+    assert dataset.idrange[1] == 6
