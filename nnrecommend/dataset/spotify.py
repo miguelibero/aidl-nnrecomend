@@ -26,7 +26,7 @@ class SpotifyDatasetSource(BaseDatasetSource):
             cols.append("previous_song")
         data = pd.read_csv(self.__path, sep=',', nrows=nrows, usecols=cols)
 
-        data = np.array(data, dtype=np.int64)
+        data = np.array(data[cols], dtype=np.int64)
         # add label column with ones
         labels = np.ones(data.shape[0])
         data = np.insert(data, data.shape[1], labels, axis=1)
@@ -97,7 +97,8 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         fix_ids("session_id")
         fix_ids("track_id_clean")
 
-        data = np.array(data, dtype=np.int64)
+        cols = ["session_id", "track_id_clean", "skip"]
+        data = np.array(data[cols], dtype=np.int64)
         # add ones as labels
         labels = np.ones(data.shape[0])
         # TODO: find a way of setting labels based on skip
