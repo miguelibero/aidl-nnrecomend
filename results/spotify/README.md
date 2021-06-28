@@ -6,11 +6,11 @@ Some conclusions (Very similar to movilens dataset):
 -   using pairwise loss improves coverage 
 -   gcn is a little better than linear
 
-Evaluation data
-![Eval](./eval.png)
-![Train](./train.png)
+### Graphics
+![FM-Linears](./linears.png)
+![FM-GCN](./gcns.png)
+![Comparison FM-Linear vs FM-GCN](./linears_vs_gcn.png)
 ![Legend](./legend.png)
-
 
 ### Evaluation
 | type | model | context | pairwise | loss | hit ratio | ndcg | coverage |
@@ -41,8 +41,8 @@ Evaluation data
 | negatives_train | 4 |
 | negatives_test | -1 |
 | batch_size | 1024 |
-| epochs | 40 |
+| epochs | 20 |
 | embed_dim | 64 |
 | learning_rate | 0.001 |
 | dropout | 0.5 |
-| pairwise_loss | 0 |
+
