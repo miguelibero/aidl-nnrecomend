@@ -100,6 +100,8 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         data = np.array(data, dtype=np.int64)
         # add ones as labels
         labels = np.ones(data.shape[0])
+        # TODO: find a way of setting labels based on skip
+        #labels = (data[:, 2] > 1).astype(np.int64)
         data = np.insert(data, data.shape[1], labels, axis=1)
 
         if not load_skip:

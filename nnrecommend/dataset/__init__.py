@@ -5,8 +5,8 @@ import random
 import scipy.sparse as sp
 import numpy as np
 from logging import Logger
-from typing import Any, Container, Tuple
 from bisect import bisect_left
+from typing import Any, Container, Dict, Tuple
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
 
@@ -202,9 +202,11 @@ class InteractionDataset(torch.utils.data.Dataset):
     def add_negative_sampling(self, num: int=1, container: Container=None, unique: bool=False) -> Container[np.ndarray]:
         """
         add negative samples to the dataset interactions
-        with random ids that don't match existing interactions
+        with random item ids that don't match existing interactions
         the negative samples will be placed at the end of the interactions array
         we're trying to optimize memory consumption peaks by resizing the interactions array
+
+        real negative samples will be added to sampling groups of the same user
 
         :param num: amount of negative samples per interaction (None or negative means add all possible)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
@@ -215,18 +217,43 @@ class InteractionDataset(torch.utils.data.Dataset):
         indices = []
         p = len(self.__interactions)
         c = self.__interactions.shape[1]
+        neg_byuser = {}
+        indices_byuser = {}
+
+        def add_byuser(container: Dict[int, Container[int]], u: int, v: int) -> Container[int]:
+            if u in container:
+                group = container[u]
+            else:
+                group = []
+                container[u] = group
+            group.append(v)
+            return group
+
         for i in range(p):
             row = self.__interactions[i]
+            u = row[0]
+            if not self.__is_row_positive(row):
+                add_byuser(neg_byuser, u, i)
+                continue
             nrows = self.get_random_negative_rows(row, num, container, unique)
             del row
             n = p + len(nrows)
             self.__interactions.resize((n, c), refcheck=False)
             self.__interactions[p:] = nrows
             del nrows
+            add_byuser(indices_byuser, u, len(indices))
             gidx = np.arange(p, n, dtype=np.int64)
             gidx = np.insert(gidx, 0, i)
-            indices.append(gidx )
+            indices.append(gidx)
             p = n
+        # adding real negative interactions to the end of the groups of the same user
+        for u, rows in neg_byuser.items():
+            if u not in indices_byuser:
+                continue
+            group = indices_byuser[u]
+            for i in rows:
+                j = group[i % len(group)]
+                indices[j] = np.append(indices[j], i)
 
         return indices
 
