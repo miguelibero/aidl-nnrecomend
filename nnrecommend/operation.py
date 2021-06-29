@@ -42,6 +42,7 @@ class Setup:
         
         idrange = self.src.trainset.idrange
         self.__log_idrange(idrange)
+        self.__log_matrix(self.src.matrix)
 
         if negative_sampling:
             self.__logger.info("adding trainset negative sampling...")
@@ -73,6 +74,11 @@ class Setup:
 
     def __apply_pairs(self, dataset: Dataset, groups: np.ndarray):
         return InteractionPairDataset(dataset, groups)
+
+    def __log_matrix(self, matrix):
+        nnz = matrix.getnnz()
+        tot = np.prod(matrix.shape)
+        self.__logger.info(f"adjacency matrix {matrix.shape} non-zeros {nnz} ({100*nnz/tot:.4f}%)")
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)

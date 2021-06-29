@@ -101,10 +101,6 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
 
     logger.info("calculating statistics...")
 
-    nnz = src.matrix.getnnz()
-    tot = np.prod(src.matrix.shape)
-    logger.info(f"adjacency matrix {src.matrix.shape} non-zeros {nnz} ({100*nnz/tot:.2f}%)")
-
     if full:
         plt.spy(src.matrix, markersize=1)
         plt.show()
