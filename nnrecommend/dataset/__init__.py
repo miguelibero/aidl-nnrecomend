@@ -316,6 +316,22 @@ class InteractionDataset(torch.utils.data.Dataset):
         testset.idrange = self.idrange
         return testset
 
+    def create_adjacency_submatrix(self, col1: int, col2: int) -> sp.spmatrix:
+        """
+        create the adjacency submatrix for the dataset
+        """
+        self.__require_normalized()
+        min1, max1 = self.__get_col_range(col1)
+        min2, max2 = self.__get_col_range(col2)
+        size = max1 - min1 + max2 - min2
+        matrix = sp.dok_matrix((size, size), dtype=np.int64)
+        for row in self.__interactions:
+            a = row[col1] - min1
+            b = row[col2] - min2 + max1
+            matrix[a, b] = 1
+            matrix[b, a] = 1
+        return matrix
+
     def create_adjacency_matrix(self) -> sp.spmatrix:
         """
         create the adjacency matrix for the dataset
@@ -409,6 +425,30 @@ class InteractionDataset(torch.utils.data.Dataset):
 
         r = np.max(self.__interactions[:, -2]) if self.__interactions.shape[0] > 0 else 0
         self.idrange = np.append(self.idrange, r + 1)
+
+    def combine_columns(self, base_col: int, *other_cols: Container[int]) -> None:
+        """
+        combines multiple columns into one, updating idanges too
+        combining means that the values will be multiplied so 
+        we end up with a normalized column
+
+        :param base_col: column number that will be replaced with the combination
+        :param other_cols: column numbers to combine
+        """
+        self.__require_normalized()
+
+        minb, maxb = self.__get_col_range(base_col)
+        brange = maxb - minb
+
+        for col in sorted(other_cols, reverse=True):
+            minv, maxv = self.__get_col_range(col)
+            vals = self.__interactions[:, col] - minv
+            range = maxv - minv
+            self.__interactions[:, base_col] += vals*brange
+            brange *= range
+            self.__interactions = np.delete(self.__interactions, col, 1)
+            self.idrange = np.delete(self.idrange, col)
+        self.idrange[base_col] = minb + brange
 
 
 class InteractionPairDataset(torch.utils.data.Dataset):
@@ -506,6 +546,9 @@ class IdFinder:
     def __init__(self, data: Container=[], hash: bool=False):
         self.data = data
         self.__hash = hash
+
+    def __len__(self):
+        return len(self.data)
 
     def _fix(self, v):
         if self.__hash:
