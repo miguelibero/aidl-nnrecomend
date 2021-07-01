@@ -1,0 +1,11 @@
+{
+    "embed_dropout": ["grid_search", [0.4, 0.5, 0.6]],
+    "learning_rate": ["grid_search", [0.0001, 0.0005, 0.001]],
+    "batch_size": ["grid_search", [512, 1024, 2048]],
+    "negatives_train": ["grid_search", [8, 10, 12]],
+    "embed_dim": 64,
+    "epochs": 20,
+    "interaction_context": "all",
+    "negatives_test": 99,
+    "pairwise_loss": true
+}

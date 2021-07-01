@@ -1,0 +1,22 @@
+{
+    "common": {
+        "embed_dim": 60,
+        "negatives_train": 10,
+        "negatives_test": 99,
+        "learning_rate": 0.001,
+        "batch_size": 1024,
+        "embed_dropout": 0.4
+    },
+    "trials": [
+        {
+            "pairwise_loss": true,
+            "interaction_context": "",
+            "tensorboard_tag": "{tag}-{model}-none"
+        },
+        {
+            "pairwise_loss": true,
+            "interaction_context": "previous",
+            "tensorboard_tag": "{tag}-{model}-prev"
+        }
+    ]
+}

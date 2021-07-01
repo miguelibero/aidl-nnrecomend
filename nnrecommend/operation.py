@@ -26,12 +26,13 @@ def human_readable_size(size, decimal_places=2):
 
 class Setup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False, allow_pairwise_loss=True):
         self.src = src
         self.__logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
+        self.__allow_pairwise_loss = allow_pairwise_loss
 
-    def __call__(self, hparams: HyperParameters, negative_sampling=True) -> np.ndarray:
+    def __call__(self, hparams: HyperParameters) -> np.ndarray:
         self.__logger.info("loading dataset...")
 
         if self.__trace_memory:
@@ -44,22 +45,26 @@ class Setup:
         self.__log_idrange(idrange)
         self.__log_matrix(self.src.matrix)
 
-        if negative_sampling:
+        trainf = 1.0
+        testf = 1.0
+
+        if hparams.negatives_train > 0:
             self.__logger.info("adding trainset negative sampling...")
             matrix = self.src.matrix
             traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+            trainf = len(self.src.trainset) / trainlen
+            if self.__allow_pairwise_loss and hparams.pairwise_loss:
+                self.__logger.info("generating trainset pairs...")
+                self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
 
-        if hparams.pairwise_loss:
-            self.__logger.info("generating trainset pairs...")
-            self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
-
-        if negative_sampling:
+        if hparams.negatives_test:
             self.__logger.info("adding testset negative sampling...")
             testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
-            trainf = len(self.src.trainset) / trainlen
             testf = len(self.src.testset) / testlen
-            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
             self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
+
+        if trainf > 1 or testf > 1:
+            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()

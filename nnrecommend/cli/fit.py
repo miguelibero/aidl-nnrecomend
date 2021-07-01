@@ -33,7 +33,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
     """
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
-    setup = Setup(src, logger)
+    setup = Setup(src, logger, allow_pairwise_loss=False)
     results = []
 
     for i, hparams in enumerate(ctx.obj.htrials):

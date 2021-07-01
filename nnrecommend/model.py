@@ -120,7 +120,11 @@ class GraphAttentionFactorizationMachine(BaseFactorizationMachine):
         return self.embedding.get_embedding_weight()
 
 
-class PairwiseDistanceLoss:
+class BPRLoss:
+    """
+    Bayesian Personalized Ranking loss
+    https://arxiv.org/pdf/1205.2618.pdf
+    """
     def __call__(self, positive_predictions: torch.Tensor, negative_predictions: torch.Tensor):
         return -(positive_predictions - negative_predictions).sigmoid().log().mean()
 
@@ -155,7 +159,7 @@ def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParamete
 
 def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
     if hparams.pairwise_loss:
-        criterion = PairwiseDistanceLoss()
+        criterion = BPRLoss()
     else:
         criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)

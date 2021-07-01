@@ -1,0 +1,8 @@
+{
+    "embed_dim": 64,
+    "negatives_train": 8,
+    "negatives_test": 99,
+    "learning_rate": 0.0005,
+    "batch_size": 1024,
+    "embed_dropout": 0.5
+}

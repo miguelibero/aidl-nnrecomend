@@ -78,11 +78,11 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
 
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(explore_dataset)
-    setup = Setup(src, logger)
+    setup = Setup(src, logger, allow_pairwise_loss=False)
 
     for hparams in ctx.obj.htrials:
         logger.info(f"using hparams {hparams}")
-        idrange = setup(hparams, negative_sampling=False)
+        idrange = setup(hparams)
         __explore_dataset(src, idrange, logger, hist_bins, full)
 
 

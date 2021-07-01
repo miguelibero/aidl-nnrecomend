@@ -1,4 +1,5 @@
 
+import math
 import sys
 import click
 from ray import tune as rtune
@@ -51,11 +52,13 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
             trainer = Trainer(model, trainloader, optimizer, criterion, device)
             tester = Tester(model, testloader, topk, device)
 
-            for i in range(thparams.epochs):
+            for _ in range(thparams.epochs):
                 loss = trainer()
                 result = tester()
                 lr = get_optimizer_lr(optimizer)
                 rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
+                if math.isnan(loss):
+                    return False
                 if scheduler:
                     scheduler.step(loss)
 

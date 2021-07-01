@@ -3,48 +3,26 @@
 
 We compared different models using the [movielens dataset](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/). The tensorboard logdir can be downloaded from [here](./tensorboard.zip).
 
-some conclusions for this dataset:
-* adding the previous item as a context improves the metrics substantially
-* using pairwise loss improves results with previous context
-* gcn is not much better than linear
+We're running our model using 10 negative samples in the trainset and with [BPR loss](https://arxiv.org/pdf/1205.2618.pdf). We're evaluating with topk==10 and 99 negative samples in the testset to be able to compare
+our results with the ones presented in [this paper](https://arxiv.org/pdf/1909.06627v1.pdf).
 
-comparing all the nnrecommend training with rating loss
-![comparing all the nnrecommend training with rating loss](./eval_rating.png)
+comparing fm-linear, fm-gcn and fm-gcn-att without context
+![comparing fm-linear, fm-gcn and fm-gcn-att with previous item context](./movielens_none.png)
 
-comparing all the nnrecommend training with pairwise loss
-![comparing all the nnrecommend training with pairwise loss](./eval_pairwise.png)
+comparing fm-linear, fm-gcn and fm-gcn-att with previous item context
+![comparing fm-linear, fm-gcn and fm-gcn-att with previous item context](./movielens_prev.png)
 
-comparing fm-linear without context with previous movie context
-![comparing fm-linear without context with previous movie context](./linear_prev.png)
+![legend](./legend.png)
 
-![graph legend](./legend.png)
-
-### Evaluation
-
-| type | model | context | loss | hit ratio | ndcg | coverage |
-| --- | -- | --- | --- | --- | --- | --- |
-| FM-Fairness | fm-linear |  | pairwise | 0.0901 | 0.0479 | 0.10
-| FM-Fairness | fm-linear | prev | pairwise | 0.1389 | 0.0697 | 0.19 |
-| FM-Fairness | fm-gcn |  | pairwise | 0.1050 | 0.0537 |  0.15 
-| FM-Fairness | fm-gcn | prev | pairwise | 0.1389 | 0.0765 | 0.21 | 
-| nnrecommend | fm-linear |  | rating | 0.1103 | 0.0557 | 0.1986 |
-| nnrecommend | fm-linear | prev | rating | 0.1463 | 0.0735 | 0.2033 |
-| nnrecommend | fm-linear |  | pairwise | 0.1018 | 0.0513 | 0.2021 |
-| nnrecommend | fm-linear | prev | pairwise | 0.1622 | 0.0807 | 0.2206 |
-| nnrecommend | fm-gcn |  | rating | 0.1007 | 0.0537 | 0.2075 |
-| nnrecommend | fm-gcn | prev | rating | 0.1421 | 0.0700 | 0.1944 |
-| nnrecommend | fm-gcn |  | pairwise | 0.1007 | 0.0510 | 0.2045 |
-| nnrecommend | fm-gcn | prev | pairwise | 0.1506 | 0.0741 | 0.2253 |
-| nnrecommend | knn |  |  | 0.0891 | 0.0474 | 0.1795
-
-### Hyperparameters
-
-| name | value |
-| --- | --- |
-| negatives_train | 4 |
-| negatives_test | -1 |
-| batch_size | 1024 |
-| epochs | 20 |
-| embed_dim | 64 |
-| learning_rate | 0.001 |
-| dropout | 0.5 |
+| type | model | context | hit ratio | ndcg | coverage |
+| --- | -- | --- | --- | --- | --- |
+| paper | ItemKNN | | 0.5891 | 0.3283 |
+| paper | NeuACF++ | | 0.6915 | 0.4092 | |
+| paper | NeuACF | | 0.6846 | 0.4068 | |
+| nnrecommend | fm-linear | | 0.6458 | 0.3658 | 0.5458
+| nnrecommend | fm-linear | prev | 0.7264 | 0.4453 | 0.6046
+| nnrecommend | fm-gcn | | 0.6543 | 0.3792 | 0.5856 |
+| nnrecommend | fm-gcn | prev | 0.7370 | 0.4611 | 0.6165 |
+| nnrecommend | fm-gcn-att | | 0.6596 | 0.3883 | 0.6225 |
+| nnrecommend | fm-gcn-att | prev | 0.7349 | 0.4581 | 0.7206 |
+| nnrecommend | knn |  | 0.5748 | 0.3155 | 0.4845
