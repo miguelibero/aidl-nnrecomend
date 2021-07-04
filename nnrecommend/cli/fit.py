@@ -33,13 +33,12 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
     """
     src = ctx.obj.create_dataset_source(path, dataset_type)
     logger = ctx.obj.logger or get_logger(fit)
-    setup = Setup(src, logger, allow_pairwise_loss=False)
+    setup = Setup(src, logger)
     results = []
 
     for i, hparams in enumerate(ctx.obj.htrials):
+        hparams.pairwise_loss = False
 
-        logger.info(f"using hparams {hparams}")
-        
         idrange = setup(hparams)
         testloader = setup.create_testloader(hparams)
 
@@ -87,7 +86,7 @@ def __fit(algorithm_type: str, src: BaseDatasetSource, testloader: DataLoader, h
     finally:
         if output:
             logger.info("saving algorithm...")
-            save_model(output, algo, src)
+            save_model(output, algo, src, idrange)
         if tb:
             tb.close()
 

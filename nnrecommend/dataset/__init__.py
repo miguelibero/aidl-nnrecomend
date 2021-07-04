@@ -55,6 +55,10 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.idrange = None
         return mapping
 
+    def __require_normalized(self) -> None:
+        if self.idrange is None:
+            self.normalize_ids()
+
     def normalize_ids(self, assume_consecutive=False) -> Container[np.ndarray]:
         """
         calculate a mapping for all the columns except the last one (label)
@@ -257,10 +261,6 @@ class InteractionDataset(torch.utils.data.Dataset):
 
         return indices
 
-    def __require_normalized(self) -> None:
-        if self.idrange is None:
-            self.normalize_ids()
-
     def __is_row_positive(self, row: np.ndarray) -> bool:
         """
         check if row is considered a positive interaction
@@ -345,7 +345,7 @@ class InteractionDataset(torch.utils.data.Dataset):
                 matrix[b, a] = 1
         return matrix
 
-    def __get_col_range(self, col: int) -> None:
+    def __get_col_range(self, col: int) -> Tuple[int]:
         self.__require_normalized()
         assert col >= 0 and col < len(self.idrange)
         start = self.idrange[col-1] if col > 0 else 0
@@ -450,6 +450,43 @@ class InteractionDataset(torch.utils.data.Dataset):
             self.idrange = np.delete(self.idrange, col)
         self.idrange[base_col] = minb + brange
 
+    def remove_column(self, col: int) -> None:
+        """
+        remove dataset column, adjust ranges
+        """
+        self.__require_normalized()
+        self.__interactions = np.delete(self.__interactions, col, 1)
+        assert col < len(self.idrange)
+        for i in range(col, len(self.idrange)-1):
+            minv, maxv = self.__get_col_range(i)
+            diff = maxv - minv
+            self.__interactions[:, i] -= diff
+            self.idrange[i+1] -= diff
+        self.idrange = np.delete(self.idrange, col)
+
+    def unify_column(self, col):
+        """
+        convert all the values of a column into one, adjust ranges
+        """
+        self.__require_normalized()
+        minv, maxv = self.__get_col_range(col)
+        self.__interactions[:, col] = minv
+        self.idrange[col] = minv + 1
+        for i in range(col + 1, len(self.idrange)):
+            self.idrange[i] -= maxv - 1
+            self.__interactions[:, i] -= maxv - 1
+
+    def prepare_for_recommend(self):
+        """
+        prepare dataset to train for new users
+        * set all users to value 0
+        * move items to labels
+        """
+        self.unify_column(0) # set all users to 0
+        items = self.__interactions[:, 1] - 1
+        self.remove_column(1) # remove items
+        self.__interactions[:, -1] = items # set items as labels
+
 
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
@@ -525,10 +562,10 @@ class BaseDatasetSource:
         raise NotImplementedError()
 
 
-def save_model(path: str, model, src: BaseDatasetSource):
+def save_model(path: str, model, src: BaseDatasetSource, idrange: np.ndarray):
     data = {
         "model": model,
-        "idrange": src.trainset.idrange,
+        "idrange": idrange,
         "iteminfo": src.iteminfo
     }
     with open(path, "wb") as fh:

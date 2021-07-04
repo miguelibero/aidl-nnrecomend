@@ -26,10 +26,11 @@ from nnrecommend.hparams import HyperParameters
 @click.option('--output', type=str, help="save the trained model to a file")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--trace-mem', type=bool, is_flag=True, default=False, help='trace memory consumption')
+@click.option('--recommend', type=bool, is_flag=True, default=False, help='train a model for recommendation')
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
 @click.option('--tensorboard-embedding', 'tensorboard_embedding', type=int, default=0, help="store full embedding in tensorboard every X epoch")
-def train(ctx, path: str, dataset_type: str, model_types: Container[str], output: str, topk: int, trace_mem: bool, tensorboard_dir: str, tensorboard_tag: str, tensorboard_embedding: int) -> None:
+def train(ctx, path: str, dataset_type: str, model_types: Container[str], output: str, topk: int, trace_mem: bool, recommend: bool, tensorboard_dir: str, tensorboard_tag: str, tensorboard_embedding: int) -> None:
     """
     train a pytorch recommender model on a given dataset
 
@@ -41,11 +42,10 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
         raise Exception("could not create dataset")
     logger = ctx.obj.logger or get_logger(train)
     device = ctx.obj.device
-    setup = Setup(src, logger, trace_mem)
+    setup = Setup(src, logger, trace_mem, for_recommend=recommend)
     results = []
 
     for i, hparams in enumerate(ctx.obj.htrials):
-        logger.info(f"using hparams {hparams}")
         idrange = setup(hparams)
 
         logger.info("creating dataloaders...")
@@ -117,7 +117,7 @@ def __train(model_type: str, src: BaseDatasetSource, hparams: HyperParameters, i
             tb.close()
         if output:
             logger.info("saving model...")
-            save_model(output, model, src)
+            save_model(output, model, src, idrange)
         duration = datetime.timedelta(seconds=(timer() - start_time))
         logger.info(f"elapsed time: {duration}")
 

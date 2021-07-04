@@ -26,19 +26,27 @@ def human_readable_size(size, decimal_places=2):
 
 class Setup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False, allow_pairwise_loss=True):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False, for_recommend=False):
         self.src = src
         self.__logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
-        self.__allow_pairwise_loss = allow_pairwise_loss
+        self.__for_recommend = for_recommend
 
     def __call__(self, hparams: HyperParameters) -> np.ndarray:
+
+        self.__logger.info(f"using hparams {hparams}")
         self.__logger.info("loading dataset...")
 
         if self.__trace_memory:
             tracemalloc.start()
 
         self.src.load(hparams)
+
+        if self.__for_recommend:
+            self.__logger.info("preparing for recommend...")
+            self.src.trainset.prepare_for_recommend()
+            self.src.testset.prepare_for_recommend()
+
         trainlen, testlen = self.__log_dataset()
         
         idrange = self.src.trainset.idrange
@@ -53,7 +61,7 @@ class Setup:
             matrix = self.src.matrix
             traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
             trainf = len(self.src.trainset) / trainlen
-            if self.__allow_pairwise_loss and hparams.pairwise_loss:
+            if hparams.pairwise_loss:
                 self.__logger.info("generating trainset pairs...")
                 self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
 

@@ -81,6 +81,9 @@ class HyperParameters:
         if key in self.data:
             return self.data[key]
 
+    def __set(self, key, val):
+        self.data[key] = val
+
     @property
     def max_interactions(self):
         """maximum amount of interactions (dataset will be reduced to this size if bigger)"""
@@ -91,6 +94,10 @@ class HyperParameters:
         """amount of negative samples to generate for the trainset"""
         return self.__get("negatives_train")
 
+    @negatives_train.setter
+    def negatives_train(self, v: bool):
+        return self.__set("negatives_train", bool(v))
+
     @property
     def negatives_test(self):
         """
@@ -98,6 +105,10 @@ class HyperParameters:
         negative or non means it will add all the possible item values
         """
         return self.__get("negatives_test")
+
+    @negatives_test.setter
+    def negatives_test(self, v: bool):
+        return self.__set("negatives_test", bool(v))
 
     @property
     def batch_size(self):
@@ -162,6 +173,10 @@ class HyperParameters:
         """
         return self.__get("pairwise_loss")
 
+    @pairwise_loss.setter
+    def pairwise_loss(self, value: bool):
+        self.__set("pairwise_loss", bool(value))
+
     @property
     def train_loader_workers(self):
         """
@@ -185,6 +200,20 @@ class HyperParameters:
             tag=defval,
             **kwargs
         )
+
+    @property
+    def interaction_context(self):
+        """
+        list of contexts to put in the dataset
+        """
+        return self.__get("interaction_context")
+
+    @interaction_context.setter
+    def interaction_context(self, val: str):
+        """
+        list of contexts to put in the dataset
+        """
+        return self.__set("interaction_context", str(val))
 
     def should_have_interaction_context(self, v: str):
         """

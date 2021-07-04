@@ -1,7 +1,7 @@
 {
     "embed_dim": 64,
     "negatives_train": 12,
-    "negatives_test": 99,
+    "negatives_test": -1,
     "learning_rate": 0.001,
     "batch_size": 1024,
     "embed_dropout": 0.4

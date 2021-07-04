@@ -16,14 +16,14 @@ DATASET_TYPES = ['movielens-lab', 'movielens', 'podcasts', 'spotify', 'spotify-r
 
 class Context:
 
-    def setup(self, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str, random_seed: int=None) -> None:
+    def setup(self, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str, cpu: bool, random_seed: int=None) -> None:
         self.logger = setup_log(verbose, logoutput)
 
-        if torch.cuda.is_available():
+        if not cpu and torch.cuda.is_available():
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
-            self.logger.warn("cuda not available, running on cpu")
+            self.logger.warn("running pytorch on cpu device")
         
         if random_seed is not None:
             np.random.seed(random_seed)
@@ -63,9 +63,10 @@ class Context:
               type=str, help="hyperparam specified with name:value")
 @click.option('--hparams-path', 'hparams_path', 
               type=str, help="path to json dictionary file with hyperparam values")
+@click.option('--cpu', type=bool, is_flag=True, help='force to use cpu device')
 @click.option('--random-seed', type=int, default=42, help='random seed')
-def main(ctx, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str, random_seed: int):
+def main(ctx, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str, cpu: bool, random_seed: int):
     """recommender system using deep learning"""
     ctx.ensure_object(Context)
-    ctx.obj.setup(verbose, logoutput, hparams, hparams_path, random_seed)
+    ctx.obj.setup(verbose, logoutput, hparams, hparams_path, cpu, random_seed)
     
