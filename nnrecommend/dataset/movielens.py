@@ -29,7 +29,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
         self.trainset = InteractionDataset(self.__load_data("train", maxsize))
-        self._setup(hparams)
+        self._setup(hparams.previous_items_cols)
 
 
 class Movielens100kDatasetSource(BaseDatasetSource):
@@ -67,16 +67,9 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self._logger.info(f"loaded info for {len(data)} movies")
         return data
 
-    def load_recommend(self, hparams: HyperParameters):
-        self.__load(hparams)
-        mapping = self._setup(hparams, recommend=True)
-        self.items = self.__load_items(mapping[0])
-
     def load(self, hparams: HyperParameters) -> None:
-        self.__load(hparams)
-        self._setup(hparams)
-
-    def __load(self, hparams: HyperParameters) -> None:
         self._logger.info("loading training dataset...")
         data = self.__load_interactions(hparams.max_interactions)
         self.trainset = InteractionDataset(data)
+        mapping = self._setup(hparams.previous_items_cols)
+        self.items = self.__load_items(mapping[1])

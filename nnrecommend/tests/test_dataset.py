@@ -203,16 +203,16 @@ def test_dataset_context_denormalize(n, s, l):
 
 
 def test_add_prev_item():
-    data = ((2, 2), (2, 3), (3, 1), (4, 1), (3, 4))
+    data = ((2, 2), (2, 3), (3, 4), (4, 1), (3, 4))
     dataset = InteractionDataset(data)
     dataset.add_previous_item_column()
     assert dataset[0].shape[0] == 4
-    assert (dataset.idrange == (3, 7, 10)).all()
+    assert (dataset.idrange == (3, 7, 12)).all()
     assert (dataset[0] == (0, 4, 7, 1)).all()
     assert (dataset[1] == (0, 5, 9, 1)).all()
-    assert (dataset[2] == (1, 3, 7, 1)).all()
+    assert (dataset[2] == (1, 6, 7, 1)).all()
     assert (dataset[3] == (2, 3, 7, 1)).all()
-    assert (dataset[4] == (1, 6, 8, 1)).all()
+    assert (dataset[4] == (1, 6, 11, 1)).all()
 
 
 def test_pair_dataset():

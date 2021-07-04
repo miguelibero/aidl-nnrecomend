@@ -24,81 +24,17 @@ def human_readable_size(size, decimal_places=2):
     return f"{size:.{decimal_places}f}{unit}"
 
 
-class Setup:
+class BaseSetup:
 
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False, for_recommend=False):
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
         self.src = src
-        self.__logger = logger or get_logger(self)
+        self._logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
-        self.__for_recommend = for_recommend
-
-    def __call__(self, hparams: HyperParameters) -> np.ndarray:
-
-        if self.__for_recommend:
-            hparams.pairwise_loss = False
-            hparams.interaction_context = "previous"
-            hparams.negatives_train = -1
-            hparams.negatives_test = -1
-
-
-        self.__logger.info(f"using hparams {hparams}")
-        self.__logger.info("loading dataset...")
-
-        if self.__trace_memory:
-            tracemalloc.start()
-
-        if self.__for_recommend:
-            self.src.load_recommend(hparams)
-        else:
-            self.src.load(hparams)
-
-        trainlen, testlen = self.__log_dataset()
-        
-        idrange = self.src.trainset.idrange
-        self.__log_idrange(idrange)
-        self.__log_matrix(self.src.matrix)
-
-        trainf, testf = 1.0, 1.0
-
-        self.__logger.info("adding trainset negative sampling...")
-        matrix = self.src.matrix
-        traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
-        trainf = len(self.src.trainset) / trainlen
-        if hparams.pairwise_loss:
-            self.__logger.info("generating trainset pairs...")
-            self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
-
-        self.__logger.info("adding testset negative sampling...")
-        testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
-        testf = len(self.src.testset) / testlen
-        self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
-
-        if trainf > 1 or testf > 1:
-            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
-
-        if self.__trace_memory:
-            mem = tracemalloc.get_traced_memory()
-            curr_mem, peak_mem = human_readable_size(mem[0]), human_readable_size(mem[1])
-            self.__logger.info(f"taking up memory: current={curr_mem} peak={peak_mem}")
-            tracemalloc.stop()
-
-        return idrange
-
-    def __apply_grouping(self, dataset: Dataset, groups: np.ndarray):
-        return GroupingDataset(dataset, groups)
-
-    def __apply_pairs(self, dataset: Dataset, groups: np.ndarray):
-        return InteractionPairDataset(dataset, groups)
-
-    def __log_matrix(self, matrix):
-        nnz = matrix.getnnz()
-        tot = np.prod(matrix.shape)
-        self.__logger.info(f"adjacency matrix {matrix.shape} non-zeros {nnz} ({100*nnz/tot:.4f}%)")
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)
         testlen = len(self.src.testset)
-        self.__logger.info(f"loaded {trainlen} train and {testlen} test interactions")
+        self._logger.info(f"loaded {trainlen} train and {testlen} test interactions")
         return trainlen, testlen
 
     def __log_idrange(self, idrange):
@@ -109,18 +45,108 @@ class Setup:
             lens.append(v - lastlen)
             lastlen = v
         if len(lens) == 2:
-            self.__logger.info(f"loaded {lens[0]} users and {lens[1]} items")
+            self._logger.info(f"loaded {lens[0]} users and {lens[1]} items")
         else:
             clens = "/".join([str(v) for v in lens[2:]])
-            self.__logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
+            self._logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
+
+    def __call__(self, hparams: HyperParameters) -> np.ndarray:
+
+        self._logger.info(f"using hparams {hparams}")
+        self._logger.info("loading dataset...")
+
+        if self.__trace_memory:
+            tracemalloc.start()
+
+        idrange = self._load(hparams)
+
+        if self.__trace_memory:
+            mem = tracemalloc.get_traced_memory()
+            curr_mem, peak_mem = human_readable_size(mem[0]), human_readable_size(mem[1])
+            self._logger.info(f"taking up memory: current={curr_mem} peak={peak_mem}")
+            tracemalloc.stop()
+
+        return idrange
+
+    def _load(self, hparams: HyperParameters) -> np.ndarray:
+        self.src.load(hparams)
+        self.__log_dataset()
+        idrange = self.src.trainset.idrange
+        self.__log_idrange(idrange)
+        return idrange
+
+    def get_items(self):
+        return self.src.items
 
     def create_testloader(self, hparams: HyperParameters):
         dataset = self.src.testset
-        return DataLoader(dataset, batch_size=1, shuffle=True, collate_fn=vstack_collate_fn, num_workers=hparams.test_loader_workers)
+        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.test_loader_workers)
 
     def create_trainloader(self, hparams: HyperParameters):
         dataset = self.src.trainset
         return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
+
+
+
+
+class Setup(BaseSetup):
+
+    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
+        super().__init__(src, logger, trace_memory)
+        self.__pairstrainset = None
+        self.__groupstestset = None
+        self.__matrix = None
+
+    def _load(self, hparams: HyperParameters) -> np.ndarray:
+        idrange = super()._load(hparams)
+
+        trainf, testf = 1.0, 1.0
+
+        self._logger.info("adding trainset negative sampling...")
+        trainlen = len(self.src.trainset)
+        traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, self.src.useritems)
+        trainf = len(self.src.trainset) / trainlen
+        if hparams.pairwise_loss:
+            self._logger.info("generating trainset pairs...")
+            self.__pairstrainset = InteractionPairDataset(self.src.trainset, traingroups)
+
+        self._logger.info("adding testset negative sampling...")
+        testlen = len(self.src.testset)
+        testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, self.src.useritems, unique=True)
+        testf = len(self.src.testset) / testlen
+        self.__groupstestset = GroupingDataset(self.src.testset, testgroups)
+
+        if trainf > 1 or testf > 1:
+            self._logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
+
+        return idrange
+
+    def create_testloader(self, hparams: HyperParameters):
+        if self.__groupstestset:
+            dataset = self.__groupstestset
+            batch_size = 1
+            collate = vstack_collate_fn
+        else:
+            dataset = self.src.testset
+            batch_size = hparams.batch_size
+            collate = None
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate, num_workers=hparams.test_loader_workers)
+
+    def create_trainloader(self, hparams: HyperParameters):
+        dataset = self.__pairstrainset if self.__pairstrainset else self.src.trainset
+        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
+
+    def create_adjacency_matrix(self, hparams: HyperParameters):
+        if self.__matrix is None:
+            self._logger.info("creating adjacency matrix...")
+            self.__matrix = self.src.trainset.create_adjacency_matrix()
+            self.__log_matrix(self.__matrix)
+        return self.__matrix
+
+    def __log_matrix(self, matrix):
+        nnz = matrix.getnnz()
+        tot = np.prod(matrix.shape)
+        self._logger.info(f"adjacency matrix {matrix.shape} non-zeros {nnz} ({100*nnz/tot:.4f}%)")
 
 
 class Trainer:
@@ -181,6 +207,16 @@ class TestResult:
         self.ndcg = ndcg 
         self.coverage = coverage
 
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "HR": self.hr,
+            "NDCG": self.ndcg,
+            "COV": self.coverage
+        }
+
+    def __gt__(self, result: 'TestResult') -> bool:
+        return self.ndcg > result.ndcg
+
     def __str__(self):
         return f"hr={self.hr:.4f} ndcg={self.ndcg:.4f} cov={self.coverage:.4f}"
 
@@ -221,7 +257,7 @@ class Tester:
             total_items.update(batch[:, 1].tolist())
             if self.device:
                 batch = batch.to(self.device)
-            interactions = batch[:,:-1].long()
+            interactions = batch[:, :-1].long()
             real_item = interactions[0][1]
             predictions = self.model(interactions)
             _, indices = torch.topk(predictions, self.topk)
@@ -286,14 +322,13 @@ class RunTracker:
         self.__tb.flush()
 
     def track_test_result(self, epoch: int, result: TestResult):
-        self.__metrics[f"{self.HPARAM_PREFIX}HR"] = result.hr 
-        self.__metrics[f"{self.HPARAM_PREFIX}NDCG"] = result.ndcg 
-        self.__metrics[f"{self.HPARAM_PREFIX}COV"] = result.coverage
+        rdict = result.to_dict()
+        for k, v in rdict.items():
+            self.__metrics[f"{self.HPARAM_PREFIX}{k}"] = v 
         if self.__tb is None:
             return
-        self.__tb.add_scalar(f'eval/HR@{result.topk}', result.hr, epoch)
-        self.__tb.add_scalar(f'eval/NDCG@{result.topk}', result.ndcg, epoch)
-        self.__tb.add_scalar(f'eval/COV@{result.topk}', result.coverage, epoch)
+        for k, v in rdict.items():
+            self.__tb.add_scalar(f'eval/{k}@{result.topk}', v, epoch)
         self.__tb.flush()
 
     def track_end(self, run_name=None):

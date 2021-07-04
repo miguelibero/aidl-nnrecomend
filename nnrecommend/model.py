@@ -1,9 +1,9 @@
+from typing import Callable
 import scipy.sparse as sp
 import numpy as np
 import torch
 from torch_geometric.nn import GCNConv, GATConv
 from torch_geometric.utils import from_scipy_sparse_matrix, to_scipy_sparse_matrix
-from nnrecommend.dataset import BaseDatasetSource
 from nnrecommend.hparams import HyperParameters
 
 class LinearFeatures(torch.nn.Module):
@@ -147,13 +147,15 @@ def sparse_tensor_to_scipy_matrix(tensor: torch.Tensor) -> sp.spmatrix:
 MODEL_TYPES = ['fm-linear', 'fm-gcn', 'fm-gcn-att']
 
 
-def create_model(model_type: str, src: BaseDatasetSource, hparams: HyperParameters) -> torch.nn.Module:
+def create_model(model_type: str, hparams: HyperParameters, idrange: np.ndarray, matrix_source: Callable[[HyperParameters], sp.spmatrix]) -> torch.nn.Module:
     if model_type == "fm-gcn-att":
-        return GraphAttentionFactorizationMachine(hparams.embed_dim, src.matrix, hparams.graph_attention_heads, hparams.embed_dropout)
+        matrix = matrix_source(hparams)
+        return GraphAttentionFactorizationMachine(hparams.embed_dim, matrix, hparams.graph_attention_heads, hparams.embed_dropout)
     if model_type == "fm-gcn":
-        return GraphFactorizationMachine(hparams.embed_dim, src.matrix, dropout=hparams.embed_dropout)
+        matrix = matrix_source(hparams)
+        return GraphFactorizationMachine(hparams.embed_dim, matrix, dropout=hparams.embed_dropout)
     elif model_type == "fm-linear" or not model_type:
-        return FactorizationMachine(src.matrix.shape[0], hparams.embed_dim, dropout=hparams.embed_dropout)
+        return FactorizationMachine(idrange[-1], hparams.embed_dim, dropout=hparams.embed_dropout)
     raise Exception("could not create model")
 
 

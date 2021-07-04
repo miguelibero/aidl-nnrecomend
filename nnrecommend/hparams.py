@@ -42,7 +42,7 @@ class HyperParameters:
 
     DEFAULT_VALUES = {
         "max_interactions": -1,
-        "negatives_train": 4,
+        "negatives_train": 10,
         "negatives_test": 99,
         "batch_size": 1024,
         "epochs": 40,
@@ -57,6 +57,7 @@ class HyperParameters:
         "pairwise_loss": True,
         "train_loader_workers": 0,
         "test_loader_workers": 0,
+        "previous_items_cols": 1
     }
 
     def __init__(self, data: Dict = {}):
@@ -210,10 +211,20 @@ class HyperParameters:
 
     @interaction_context.setter
     def interaction_context(self, val: str):
-        """
-        list of contexts to put in the dataset
-        """
         return self.__set("interaction_context", str(val))
+
+    @property
+    def previous_items_cols(self):
+        """
+        the amount of previous items columns to add
+        """
+        if not self.should_have_interaction_context("previous"):
+            return 0
+        return self.__get("previous_items_cols")
+
+    @previous_items_cols.setter
+    def previous_items_cols(self, val: int):
+        return self.__set("previous_items_cols", int(val))
 
     def should_have_interaction_context(self, v: str):
         """

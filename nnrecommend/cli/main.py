@@ -68,5 +68,6 @@ class Context:
 def main(ctx, verbose: bool, logoutput: str, hparams: Container[str], hparams_path: str, cpu: bool, random_seed: int):
     """recommender system using deep learning"""
     ctx.ensure_object(Context)
-    ctx.obj.setup(verbose, logoutput, hparams, hparams_path, cpu, random_seed)
+    ctx: Context = ctx.obj
+    ctx.setup(verbose, logoutput, hparams, hparams_path, cpu, random_seed)
     

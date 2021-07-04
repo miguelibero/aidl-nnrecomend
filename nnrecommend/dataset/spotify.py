@@ -40,7 +40,8 @@ class SpotifyDatasetSource(BaseDatasetSource):
         load_skip = hparams.should_have_interaction_context("skip")
         load_prev = hparams.should_have_interaction_context("previous")
         self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip, load_prev))
-        self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
+        previous_items_cols = hparams.previous_items_cols
+        self._setup(0, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
 
 
 class SpotifyRawDatasetSource(BaseDatasetSource):
@@ -108,4 +109,4 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         self._logger.info("loading spotify data...")
         load_skip = hparams.should_have_interaction_context("skip")
         self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip))
-        self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
+        self._setup(hparams.previous_items_cols, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)

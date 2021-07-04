@@ -10,7 +10,7 @@ from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 from nnrecommend.operation import Setup
-from nnrecommend.cli.main import main, DATASET_TYPES
+from nnrecommend.cli.main import Context, main, DATASET_TYPES
 from nnrecommend.model import sparse_tensor_to_scipy_matrix
 from nnrecommend.logging import get_logger
 
@@ -22,7 +22,8 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
     """
     show information about a model
     """
-    logger = ctx.obj.logger or get_logger(explore_dataset)
+    ctx: Context = ctx.obj
+    logger = ctx.logger or get_logger(explore_dataset)
 
     logger.info("reading model file...")
     try:
@@ -75,12 +76,12 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
     """
     show information about a dataset
     """
-
-    src = ctx.obj.create_dataset_source(path, dataset_type)
-    logger = ctx.obj.logger or get_logger(explore_dataset)
+    ctx: Context = ctx.obj
+    src = ctx.create_dataset_source(path, dataset_type)
+    logger = ctx.logger or get_logger(explore_dataset)
     setup = Setup(src, logger)
 
-    for hparams in ctx.obj.htrials:
+    for hparams in ctx.htrials:
         hparams.pairwise_loss = False
         idrange = setup(hparams)
         __explore_dataset(src, idrange, logger, hist_bins, full)

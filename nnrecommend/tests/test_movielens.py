@@ -18,12 +18,12 @@ SOURCES = (
 def test_dataset(src: BaseDatasetSource):
     hparams = HyperParameters({'interaction_context': None})
     src.load(hparams)
-    src.trainset.add_negative_sampling(hparams.negatives_train, src.matrix)
-    src.testset.add_negative_sampling(hparams.negatives_test, src.matrix)
+    src.trainset.add_negative_sampling(hparams.negatives_train, src.useritems)
+    src.testset.add_negative_sampling(hparams.negatives_test, src.useritems)
 
     assert len(src.trainset) == 5*99057
     assert (src.trainset.idrange == (943, 2625)).all()
-    assert src.matrix.shape == (2625, 2625)
+    assert src.useritems.shape == (2625, 2625)
     assert len(src.testset) == 943*100
     assert (src.testset.idrange == (943, 2625)).all()
 

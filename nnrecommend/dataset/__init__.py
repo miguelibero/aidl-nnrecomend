@@ -1,4 +1,5 @@
 import itertools
+from pandas.core.frame import DataFrame
 import torch
 import random
 import scipy.sparse as sp
@@ -279,7 +280,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         old = self.__interactions
         self.__interactions = self.__interactions[~cond]
         del old
-        negset.idrange = self.idrange
+        negset.idrange = self.idrange.copy()
         return negset
 
     def extract_test_dataset(self, num_user_interactions: int=1, min_keep_user_interactions: int=1, take_bottom:bool=True) -> 'InteractionDataset':
@@ -316,10 +317,10 @@ class InteractionDataset(torch.utils.data.Dataset):
 
         testset = InteractionDataset(self.__interactions[rows])
         self.__interactions = np.delete(self.__interactions, rows, axis=0)
-        testset.idrange = self.idrange
+        testset.idrange = self.idrange.copy()
         return testset
 
-    def create_adjacency_submatrix(self, col1: int, col2: int) -> sp.spmatrix:
+    def create_adjacency_submatrix(self, col1: int = 0, col2: int = 1) -> sp.spmatrix:
         """
         create the adjacency submatrix for the dataset
         """
@@ -399,7 +400,7 @@ class InteractionDataset(torch.utils.data.Dataset):
             count += self.remove_low(matrix, lim, col1, col2)
         return count
     
-    def add_previous_item_column(self, items_col: int=1) -> None:
+    def add_previous_item_column(self, items_col: int=1):
         """
         adds a new context column with the values of the previous item
         by the same user. The values are consecutive to the last column
@@ -408,12 +409,15 @@ class InteractionDataset(torch.utils.data.Dataset):
         the interaction rows need to be sorted from older to newer.
 
         :param items_col: the column index where the items are
+        :param insert_col: the column index where to insert
         """
         self.__require_normalized()
 
         # fill the new column with zeros
         col = np.zeros(self.__interactions.shape[0])
         self.__interactions = np.insert(self.__interactions, -1, col, axis=1)
+        minv, maxv = self.__get_col_range(items_col)
+        endv = self.idrange[-1]
 
         for i in range(self.idrange[0]):
             # find all the interactions of a user
@@ -421,16 +425,15 @@ class InteractionDataset(torch.utils.data.Dataset):
             # get the items
             items = self.__interactions[cond, items_col]
             # shift them so they start with 0
-            items -= self.idrange[0]
+            items -= minv
             # add a -1 in the beginning and remove the last one
             items = np.insert(items, 0, -1)[:-1]
             # shift them to the end of the last range
-            items += self.idrange[-1] + 1
+            items += endv + 1
             # assign them to the new column
             self.__interactions[cond, -2] = items
 
-        r = np.max(self.__interactions[:, -2]) if self.__interactions.shape[0] > 0 else 0
-        self.idrange = np.append(self.idrange, r + 1)
+        self.idrange = np.append(self.idrange, endv + maxv - minv + 1)
 
     def combine_columns(self, base_col: int, *other_cols: Container[int]) -> None:
         """
@@ -461,13 +464,12 @@ class InteractionDataset(torch.utils.data.Dataset):
         remove dataset column, adjust ranges
         """
         self.__require_normalized()
-        self.__interactions = np.delete(self.__interactions, col, 1)
-        assert col < len(self.idrange)
-        for i in range(col, len(self.idrange)-1):
-            minv, maxv = self.__get_col_range(i)
-            diff = maxv - minv
+        minv, maxv = self.__get_col_range(col)
+        diff = maxv - minv
+        for i in range(col + 1, len(self.idrange)):
+            self.idrange[i] -= diff
             self.__interactions[:, i] -= diff
-            self.idrange[i+1] -= diff
+        self.__interactions = np.delete(self.__interactions, col, 1)
         self.idrange = np.delete(self.idrange, col)
 
     def unify_column(self, col):
@@ -476,11 +478,12 @@ class InteractionDataset(torch.utils.data.Dataset):
         """
         self.__require_normalized()
         minv, maxv = self.__get_col_range(col)
+        diff = maxv - minv - 1
+        for i in range(col + 1, len(self.idrange)):
+            self.idrange[i] -= diff
+            self.__interactions[:, i] -= diff
         self.__interactions[:, col] = minv
         self.idrange[col] = minv + 1
-        for i in range(col + 1, len(self.idrange)):
-            self.idrange[i] -= maxv - 1
-            self.__interactions[:, i] -= maxv - 1
 
     def get_counts(self):
         """
@@ -566,67 +569,49 @@ class BaseDatasetSource:
 
     def __init__(self, logger: Logger=None):
         self._logger = logger or get_logger(self)
-        self.trainset = None
-        self.testset = None
-        self.matrix = None
-        self.items = None
-
-    def load_recommend(self, hparams: HyperParameters):
-        raise NotImplementedError()
+        self.trainset: InteractionDataset = None
+        self.testset: InteractionDataset = None
+        self.useritems: sp.spmatrix = None
+        self.items: DataFrame = None
 
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
 
-    def _setup_recommend(self, dataset: InteractionDataset):
-        """
-        prepare dataset to train for new users
-        * set all users to value 0
-        * move items to labels
-        """
-        dataset.unify_column(0) # set all users to 0
-        items = dataset[:, 1] - 1
-        dataset.remove_column(1) # remove items
-        dataset[:, -1] = items # set items as labels
-
-    def _setup(self, hparams: HyperParameters, min_item_interactions: int=0, min_user_interactions: int=0, recommend: bool=False) -> Container[np.ndarray]:
+    def _setup(self, previous_items_cols: int=0, min_item_interactions: int=0, min_user_interactions: int=0) -> Container[np.ndarray]:
         remove = min_item_interactions > 0 or min_user_interactions > 0
 
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
+        self._logger.info("calculating user-item matrix...")
+        self.useritems = self.trainset.create_adjacency_submatrix()
 
         if remove:
-            self._logger.info("calculating user-item matrix...")
-            # optimization since we're only removing by user-item
-            submatrix = self.trainset.create_adjacency_submatrix(0, 1)
             self._logger.info("removing low interactions...")
-            ci = self.trainset.remove_low_items(submatrix, min_item_interactions)
-            cu = self.trainset.remove_low_users(submatrix, min_user_interactions)
+            ci = self.trainset.remove_low_items(self.useritems, min_item_interactions)
+            cu = self.trainset.remove_low_users(self.useritems, min_user_interactions)
             if cu > 0 or ci > 0:
                 self._logger.info(f"removed {cu} users and {ci} items")
                 self._logger.info("normalizing ids again...")
                 self.trainset.denormalize_ids(mapping)
                 mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context("previous"):
+                self._logger.info("calculating user-item matrix again...")
+            self.useritems = self.trainset.create_adjacency_submatrix()
+        items_col = 1
+        for _ in range(previous_items_cols):
             self._logger.info("adding previous item column...")
-            self.trainset.add_previous_item_column()
+            self.trainset.add_previous_item_column(items_col)
+            items_col = len(self.trainset.idrange) - 1
 
-        if recommend:
-            self._setup_recommend(self.trainset)
-
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("extracting test dataset..")
+        self._logger.info("extracting test dataset...")
         self.testset = self.trainset.extract_test_dataset()
-
         return mapping
 
 
-
-def save_model(path: str, model, src: BaseDatasetSource, idrange: np.ndarray):
+def save_model(path: str, model, idrange: np.ndarray, items: DataFrame = None):
     data = {
         "model": model,
         "idrange": idrange,
-        "items": src.items
+        "items": items
     }
     with open(path, "wb") as fh:
         torch.save(data, fh)

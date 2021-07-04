@@ -3,9 +3,8 @@ import math
 import sys
 import click
 from ray import tune as rtune
-from nnrecommend.model import create_model, create_model_training
+from nnrecommend.model import create_model, create_model_training, get_optimizer_lr, MODEL_TYPES
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
-from nnrecommend.model import create_model, get_optimizer_lr, MODEL_TYPES
 from nnrecommend.operation import Setup, Trainer, Tester
 from nnrecommend.logging import get_logger
 from nnrecommend.hparams import RayTuneConfigFile
@@ -29,9 +28,10 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
 
     PATH: path to the dataset files
     """
-    src = ctx.obj.create_dataset_source(path, dataset_type)
-    logger = ctx.obj.logger or get_logger(tune)
-    device = ctx.obj.device
+    ctx: Context = ctx.obj
+    src = ctx.create_dataset_source(path, dataset_type)
+    logger = ctx.logger or get_logger(tune)
+    device = ctx.device
     config = RayTuneConfigFile.load(config_path)
     tune_metric = "ndcg"
     tune_metric_mode = "max"
@@ -39,16 +39,17 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
     if not src:
         raise Exception("could not create dataset")
 
-    for i, hparams in enumerate(ctx.obj.htrials):
+    for i, hparams in enumerate(ctx.htrials):
 
         def training_function(config):
             thparams = hparams.copy(config)
             setup = Setup(src, logger)
-            setup(thparams)
-            model = create_model(model_type, src, thparams).to(device)
-            criterion, optimizer, scheduler = create_model_training(model, thparams)
+            idrange = setup(thparams)
             trainloader = setup.create_trainloader(thparams)
             testloader = setup.create_testloader(thparams)
+            matrix_src = setup.create_adjacency_matrix
+            model = create_model(model_type, thparams, idrange, matrix_src).to(device)
+            criterion, optimizer, scheduler = create_model_training(model, thparams)
             trainer = Trainer(model, trainloader, optimizer, criterion, device)
             tester = Tester(model, testloader, topk, device)
 
