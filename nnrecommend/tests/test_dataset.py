@@ -49,9 +49,9 @@ def test_dataset_pass_mapping():
 def test_dataset_bad_mapping():
     data = ((2, 2), (3, 1))
     dataset = InteractionDataset(data)
-    dataset.map_ids(((1, 2),(1, 2)), remove_missing=False)
+    dataset.map_ids(((1, 2),(1, 2)))
+    assert len(dataset) == 1
     assert (dataset[0] == (1, 3, 1)).all()
-    assert (dataset[1] == (-1, 2, 1)).all()
 
 
 def test_adjacency_matrix():

@@ -34,24 +34,27 @@ class InteractionDataset(torch.utils.data.Dataset):
         assert len(mapping) < self.__interactions.shape[1]
         return mapping
 
-    def denormalize_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
+    def denormalize_ids(self, mapping: Container[np.ndarray]) -> Container[np.ndarray]:
         """
         convert from normalized ids back to the original ones
 
         :param mapping: a container with each element a numpy array of raw ids in order
-        :param remove_missing: remove rows if some of the ids are not in the mapping
         """
         mapping = self.__validate_mapping(mapping)
         i = 0
         diff = 0
+        missing = set()
         for colmapping in mapping:
             colgen = IdFinder(colmapping)
-            for row in self.__interactions:
-                row[i] = colgen.reverse(row[i] - diff)
+            for j, row in enumerate(self.__interactions):
+                v = colgen.reverse(row[i] - diff)
+                if v is None:
+                    missing.add(j)
+                else:
+                    row[i] = v
             diff += len(colmapping)
             i += 1
-        if remove_missing:
-            self.__remove_negative_ids()
+        self.__interactions = np.delete(self.__interactions, list(missing), 0)
         self.idrange = None
         return mapping
 
@@ -75,39 +78,37 @@ class InteractionDataset(torch.utils.data.Dataset):
             else:
                 colmapping = np.sort(np.unique(ids))
             mapping.append(colmapping)
-        self.__normalize_ids(mapping, False)
+        self.__normalize_ids(mapping)
         return mapping
 
-    def map_ids(self, mapping: Container[np.ndarray], remove_missing=True) -> Container[np.ndarray]:
+    def map_ids(self, mapping: Container[np.ndarray]) -> Container[np.ndarray]:
         """
         apply an existing mapping to the ids
 
         :param mapping: a container with each element a numpy array of raw ids in order
-        :param remove_missing: remove rows if some of the ids are not in the mapping
         """
         assert self.idrange is None
         mapping = self.__validate_mapping(mapping)
-        self.__normalize_ids(mapping, remove_missing)
+        self.__normalize_ids(mapping)
         return mapping
 
-    def __normalize_ids(self, mapping: Container[np.ndarray], remove_missing: bool) -> None:
+    def __normalize_ids(self, mapping: Container[np.ndarray]) -> None:
         i = 0
         diff = 0
         self.idrange = np.zeros(len(mapping), dtype=np.int64)
+        missing = set()
         for colmapping in mapping:
             colgen = IdFinder(colmapping)
-            for row in self.__interactions:
-                row[i] = colgen.find(row[i]) + diff
+            for j, row in enumerate(self.__interactions):
+                v = colgen.find(row[i])
+                if v is None:
+                    missing.add(j)
+                else:
+                    row[i] = v + diff
             diff += len(colmapping)
             self.idrange[i] = diff
             i += 1
-        
-        if remove_missing:
-            self.__remove_negative_ids()
-
-    def __remove_negative_ids(self) -> None:
-        cond = (self.__interactions[:, :2] >= 0).all(axis=1)
-        self.__interactions = self.__interactions[cond]
+        self.__interactions = np.delete(self.__interactions, list(missing), 0)
 
     def __len__(self) -> int:
         return len(self.__interactions)
@@ -621,7 +622,7 @@ class IdFinder:
         v = self._fix(v)
         id = bisect_left(self.data, v)
         if not self._check(id, v):
-            return -1
+            return None
         return id
 
     def _check(self, id, v):
@@ -630,7 +631,7 @@ class IdFinder:
     def reverse(self, v: int) -> Any:
         v = int(v)
         if v < 0 or v >= len(self.data):
-            return -1
+            return None
         return self.data[v]
 
 
