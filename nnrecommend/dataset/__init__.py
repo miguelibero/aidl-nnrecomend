@@ -1,4 +1,3 @@
-import abc
 import itertools
 import torch
 import random
@@ -367,7 +366,10 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param lim: remove rows with less interactions than this value
         :param col1: number of the first column (used as group)
         :param col2: number of the second column (that will be counted)
+        :returns: amount of removed rows
         """
+        if lim <= 0:
+            return 0
         self.__require_normalized()
         submatrix = self.__get_submatrix(matrix, col1, col2)
         counts = np.asarray(submatrix.sum(1)).flatten()
@@ -559,8 +561,7 @@ class BaseDatasetSource:
     user id, item id and context columns should be normalized,
     meaning that the values are consecutive and don't overlap
 
-    iteminfo should be a dictionary with item_id keys
-    and values should be dictionaries with the diferent decriptive fields
+    items should be a pandas Dataset indexed by item_id
     """
 
     def __init__(self, logger: Logger=None):
@@ -568,7 +569,7 @@ class BaseDatasetSource:
         self.trainset = None
         self.testset = None
         self.matrix = None
-        self.iteminfo = None
+        self.items = None
 
     def load_recommend(self, hparams: HyperParameters):
         raise NotImplementedError()
@@ -576,7 +577,7 @@ class BaseDatasetSource:
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
 
-    def _prepare_for_recommend(self, dataset: InteractionDataset):
+    def _setup_recommend(self, dataset: InteractionDataset):
         """
         prepare dataset to train for new users
         * set all users to value 0
@@ -587,12 +588,45 @@ class BaseDatasetSource:
         dataset.remove_column(1) # remove items
         dataset[:, -1] = items # set items as labels
 
+    def _setup(self, hparams: HyperParameters, min_item_interactions: int=0, min_user_interactions: int=0, recommend: bool=False) -> Container[np.ndarray]:
+        remove = min_item_interactions > 0 or min_user_interactions > 0
+
+        self._logger.info("normalizing ids...")
+        mapping = self.trainset.normalize_ids()
+
+        if remove:
+            self._logger.info("calculating user-item matrix...")
+            # optimization since we're only removing by user-item
+            submatrix = self.trainset.create_adjacency_submatrix(0, 1)
+            self._logger.info("removing low interactions...")
+            ci = self.trainset.remove_low_items(submatrix, min_item_interactions)
+            cu = self.trainset.remove_low_users(submatrix, min_user_interactions)
+            if cu > 0 or ci > 0:
+                self._logger.info(f"removed {cu} users and {ci} items")
+                self._logger.info("normalizing ids again...")
+                self.trainset.denormalize_ids(mapping)
+                mapping = self.trainset.normalize_ids()
+        if hparams.should_have_interaction_context("previous"):
+            self._logger.info("adding previous item column...")
+            self.trainset.add_previous_item_column()
+
+        if recommend:
+            self._setup_recommend(self.trainset)
+
+        self._logger.info("calculating adjacency matrix...")
+        self.matrix = self.trainset.create_adjacency_matrix()
+        self._logger.info("extracting test dataset..")
+        self.testset = self.trainset.extract_test_dataset()
+
+        return mapping
+
+
 
 def save_model(path: str, model, src: BaseDatasetSource, idrange: np.ndarray):
     data = {
         "model": model,
         "idrange": idrange,
-        "iteminfo": src.iteminfo
+        "items": src.items
     }
     with open(path, "wb") as fh:
         torch.save(data, fh)
@@ -616,6 +650,8 @@ class IdFinder:
     def _fix(self, v):
         if self.__hash:
             v = hash(v)
+        elif not isinstance(v, int):
+            v = int(v)
         return v
 
     def find(self, v) -> int:

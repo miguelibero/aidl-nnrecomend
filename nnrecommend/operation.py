@@ -13,7 +13,7 @@ from torch.utils.data.dataset import Dataset
 from torch.utils.tensorboard import SummaryWriter
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
-from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, InteractionPairDataset, GroupingDataset, vstack_collate_fn
+from nnrecommend.dataset import BaseDatasetSource, InteractionPairDataset, GroupingDataset, vstack_collate_fn
 
 
 def human_readable_size(size, decimal_places=2):
@@ -34,6 +34,13 @@ class Setup:
 
     def __call__(self, hparams: HyperParameters) -> np.ndarray:
 
+        if self.__for_recommend:
+            hparams.pairwise_loss = False
+            hparams.interaction_context = "previous"
+            hparams.negatives_train = -1
+            hparams.negatives_test = -1
+
+
         self.__logger.info(f"using hparams {hparams}")
         self.__logger.info("loading dataset...")
 
@@ -51,27 +58,23 @@ class Setup:
         self.__log_idrange(idrange)
         self.__log_matrix(self.src.matrix)
 
-        trainf = 1.0
-        testf = 1.0
+        trainf, testf = 1.0, 1.0
 
-        if not self.__for_recommend:
-            if hparams.negatives_train > 0:
-                self.__logger.info("adding trainset negative sampling...")
-                matrix = self.src.matrix
-                traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
-                trainf = len(self.src.trainset) / trainlen
-                if hparams.pairwise_loss:
-                    self.__logger.info("generating trainset pairs...")
-                    self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
+        self.__logger.info("adding trainset negative sampling...")
+        matrix = self.src.matrix
+        traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+        trainf = len(self.src.trainset) / trainlen
+        if hparams.pairwise_loss:
+            self.__logger.info("generating trainset pairs...")
+            self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
 
-            if hparams.negatives_test:
-                self.__logger.info("adding testset negative sampling...")
-                testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
-                testf = len(self.src.testset) / testlen
-                self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
+        self.__logger.info("adding testset negative sampling...")
+        testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+        testf = len(self.src.testset) / testlen
+        self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
 
-            if trainf > 1 or testf > 1:
-                self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
+        if trainf > 1 or testf > 1:
+            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()

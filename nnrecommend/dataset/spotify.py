@@ -2,9 +2,8 @@ from logging import Logger
 import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
-from nnrecommend.dataset.movielens import LOAD_COLUMNS
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import BaseDatasetSource, InteractionDataset, IdGenerator
+from nnrecommend.dataset import BaseDatasetSource, InteractionDataset
 
 
 MIN_ITEM_INTERACTIONS = 1
@@ -41,23 +40,7 @@ class SpotifyDatasetSource(BaseDatasetSource):
         load_skip = hparams.should_have_interaction_context("skip")
         load_prev = hparams.should_have_interaction_context("previous")
         self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip, load_prev))
-        self._logger.info("normalizing ids...")
-        mapping = self.trainset.normalize_ids()
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("removing low interactions...")
-        ci = self.trainset.remove_low_items(self.matrix, MIN_ITEM_INTERACTIONS)
-        cu = self.trainset.remove_low_users(self.matrix, MIN_USER_INTERACTIONS)
-        recalc = cu > 0 or ci > 0
-        if recalc:
-            self._logger.info(f"removed {cu} users and {ci} items")
-            self._logger.info("normalizing ids again...")
-            self.trainset.denormalize_ids(mapping)
-            mapping = self.trainset.normalize_ids()
-            self._logger.info("calculating adjacency matrix again...")
-            self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
+        self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
 
 
 class SpotifyRawDatasetSource(BaseDatasetSource):
@@ -125,24 +108,4 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         self._logger.info("loading spotify data...")
         load_skip = hparams.should_have_interaction_context("skip")
         self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip))
-        self._logger.info("normalizing ids...")
-        mapping = self.trainset.normalize_ids()
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("removing low interactions...")
-        ci = self.trainset.remove_low_items(self.matrix, MIN_ITEM_INTERACTIONS)
-        cu = self.trainset.remove_low_users(self.matrix, MIN_USER_INTERACTIONS)
-        recalc = cu > 0 or ci > 0
-        if recalc:
-            self._logger.info(f"removed {cu} users and {ci} items")
-            self._logger.info("normalizing ids again...")
-            self.trainset.denormalize_ids(mapping)
-            mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context("previous"):
-            self._logger.info("adding previous item column...")
-            self.trainset.add_previous_item_column()
-        if recalc:
-            self._logger.info("calculating adjacency matrix again...")
-            self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
+        self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)

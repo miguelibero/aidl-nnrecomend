@@ -1,7 +1,7 @@
 
 from typing import Any, Dict
-import json
 from ray import tune
+import json
 
 
 class HyperParameters:
@@ -95,8 +95,8 @@ class HyperParameters:
         return self.__get("negatives_train")
 
     @negatives_train.setter
-    def negatives_train(self, v: bool):
-        return self.__set("negatives_train", bool(v))
+    def negatives_train(self, v):
+        return self.__set("negatives_train", v)
 
     @property
     def negatives_test(self):
@@ -107,8 +107,8 @@ class HyperParameters:
         return self.__get("negatives_test")
 
     @negatives_test.setter
-    def negatives_test(self, v: bool):
-        return self.__set("negatives_test", bool(v))
+    def negatives_test(self, v):
+        return self.__set("negatives_test", v)
 
     @property
     def batch_size(self):

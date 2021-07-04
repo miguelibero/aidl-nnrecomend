@@ -1,16 +1,15 @@
 from logging import Logger
-from typing import Dict
 import pandas as pd
 import numpy as np
 import os
+from pandas.core.frame import DataFrame
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.dataset import IdFinder, InteractionDataset, BaseDatasetSource
 
 
 COLUMN_NAMES = ('user_id', 'item_id', 'label', 'timestamp')
 LOAD_COLUMNS = ('user_id', 'item_id', 'label')
-ITEMINFO_COLUMN_NAMES = ("item_id", "title", "release_date", "unknown", "link")
-ITEMINFO_LOAD_COLUMNS = ("title", "release_date", "link")
+
 
 class MovielensLabDatasetSource(BaseDatasetSource):
     """
@@ -30,13 +29,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
         self.trainset = InteractionDataset(self.__load_data("train", maxsize))
-        self._logger.info("normalizing dataset ids..")
-        mapping = self.trainset.normalize_ids(assume_consecutive=True)
-        self._logger.info("loading test dataset...")
-        self.testset = InteractionDataset(self.__load_data("test", maxsize))
-        self.testset.map_ids(mapping)
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
+        self._setup(hparams)
 
 
 class Movielens100kDatasetSource(BaseDatasetSource):
@@ -47,6 +40,10 @@ class Movielens100kDatasetSource(BaseDatasetSource):
     INTERACTIONS_FILE = "u.data"
     ITEMINFO_FILE = "u.item"
 
+    SORT_COLUMNS = ('user_id', 'timestamp')
+    ITEM_COLUMN_NAMES = ("item_id", "title", "release_date", None, "link")
+    ITEM_INDEX_COL = "item_id"
+
     def __init__(self, path: str, logger: Logger=None):
         super().__init__(logger)
         self.__path = path
@@ -55,53 +52,31 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         nrows = maxsize if maxsize > 0 else None
         path = os.path.join(self.__path, self.INTERACTIONS_FILE)
         data = pd.read_csv(path, sep='\t', header=None, nrows=nrows, names=COLUMN_NAMES)
-        data.sort_values(by=['user_id', 'timestamp'], inplace=True, ascending=True)
+        data.sort_values(by=list(self.SORT_COLUMNS), inplace=True, ascending=True)
         data = np.array(data[[*LOAD_COLUMNS]], dtype=np.int64)
         data[:, 2] = 1
         return data
 
-    def __load_iteminfo(self, mapping: np.ndarray) -> Dict[int, Dict[str, str]]:
+    def __load_items(self, mapping: np.ndarray) -> DataFrame:
         path = os.path.join(self.__path, self.ITEMINFO_FILE)
-        data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None, names=ITEMINFO_COLUMN_NAMES)
-        data = data[[*ITEMINFO_LOAD_COLUMNS]]
-        info = {}
-        mapping = None if mapping is None else IdFinder(mapping)
-        for i, row in data.iterrows():
-            if mapping:
-                i = mapping.find(i)
-            if i >= 0:
-                info[i] = row.to_dict()
-
-        self._logger.info(f"loaded info for {len(info)} movies")
-        return info
+        data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None,
+            names=self.ITEM_COLUMN_NAMES)
+        mapping = IdFinder(mapping)
+        data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(mapping.find)
+        data.set_index(self.ITEM_INDEX_COL)
+        self._logger.info(f"loaded info for {len(data)} movies")
+        return data
 
     def load_recommend(self, hparams: HyperParameters):
-        maxsize = hparams.max_interactions
-        self._logger.info("loading training dataset...")
-        self.trainset = InteractionDataset(self.__load_interactions(maxsize))
-        self._logger.info("normalizing dataset ids..")
-        mapping = self.trainset.normalize_ids()
-        self._logger.info("adding previous item column...")
-        self.trainset.add_previous_item_column()
-        self._logger.info("preparing for recommend...")
-        self._prepare_for_recommend(self.trainset)
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("loading movie info...")
-        self.iteminfo = self.__load_iteminfo(mapping[0])
+        self.__load(hparams)
+        mapping = self._setup(hparams, recommend=True)
+        self.items = self.__load_items(mapping[0])
 
     def load(self, hparams: HyperParameters) -> None:
-        maxsize = hparams.max_interactions
+        self.__load(hparams)
+        self._setup(hparams)
+
+    def __load(self, hparams: HyperParameters) -> None:
         self._logger.info("loading training dataset...")
-        self.trainset = InteractionDataset(self.__load_interactions(maxsize))
-        self._logger.info("normalizing dataset ids..")
-        mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context("previous"):
-            self._logger.info("adding previous item column...")
-            self.trainset.add_previous_item_column()
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
-        self._logger.info("calculating adjacency matrix...")
-        self.matrix = self.trainset.create_adjacency_matrix()
+        data = self.__load_interactions(hparams.max_interactions)
+        self.trainset = InteractionDataset(data)

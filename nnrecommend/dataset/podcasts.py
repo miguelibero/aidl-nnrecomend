@@ -1,10 +1,12 @@
 import sqlite3
 import numpy as np
+import pandas as pd
 from logging import Logger
-from sqlite3.dbapi2 import Cursor
+from sqlite3.dbapi2 import Connection
 from typing import Container, Dict
+from pandas.core.frame import DataFrame
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import BaseDatasetSource, IdFinder, InteractionDataset, IdGenerator
+from nnrecommend.dataset import BaseDatasetSource, IdFinder, InteractionDataset
 
 
 class ItunesPodcastsDatasetSource(BaseDatasetSource):
@@ -15,29 +17,24 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    COND = "WHERE rating == 5"
+    REVIEWS_QUERY = 'SELECT podcast_id, author_id FROM reviews WHERE rating == 5 ORDER BY created_at ASC LIMIT :limit'
 
-    def __load_reviews(self, cur: Cursor, maxsize: int) -> None:
-        cur.execute(f'SELECT COUNT(*) FROM reviews {self.COND}')
-        size = cur.fetchone()[0]
-        if maxsize > 0 and maxsize < size:
-            size = maxsize
-        self._logger.info(f"loading {size} reviews...")
-        r = cur.execute(f'SELECT author_id, podcast_id FROM reviews {self.COND} ORDER BY created_at ASC LIMIT ?', (size,))
-        return r, size
+    def __load_reviews(self, conn: Connection, maxsize: int) -> None:
+        data = pd.read_sql(self.REVIEWS_QUERY, conn, params={'limit': maxsize})
+        for colname in data.select_dtypes(exclude=int):
+            data[colname] = data[colname].apply(hash)
+        return data
 
-    def __load_iteminfo(self, cur: Cursor, items: Container[str]) -> Dict[str, Dict[str, str]]:
-        info = {}
-        r = cur.execute(f'SELECT podcast_id, itunes_url, title FROM podcasts')
-        for row in r:
-            info[row[0]] = {
-                'url': row[1],
-                'title': row[2]
-            }
-        self._logger.info(f"loaded info for {len(info)} podcasts")
-        return info
+    PODCASTS_QUERY = 'SELECT podcast_id, itunes_url, title FROM podcasts'
+    PODCASTS_INDEX = 'podcast_id'
 
-    def __fix_iteminfo(self, info: Dict[str, Dict[str, str]], items: Container[str], mapping: np.ndarray) -> Dict[int, Dict[str, str]] :
+    def __load_iteminfo(self, conn: Connection) -> DataFrame:
+        data = pd.read_sql(self.PODCASTS_QUERY, conn, index_col=self.PODCASTS_INDEX)
+        data[self.PODCASTS_INDEX] = data[self.PODCASTS_INDEX].apply(hash)
+        self._logger.info(f"loaded info for {len(data)} podcasts")
+        return data
+
+    def __fix_iteminfo(self, data: DataFrame, items: Container[str], mapping: np.ndarray) -> Dict[int, Dict[str, str]] :
         items = IdFinder(items)
         mapping = None if mapping is None else IdFinder(mapping)
 
@@ -53,60 +50,21 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             finfo[i] = elm
         return finfo
 
-    def __generate_interactions(self, rows, size):
-        users = IdGenerator()
-        items = IdGenerator()
-
-        self._logger.info("generating user and item ids...")
-        data = []
-        for row in rows:
-            users.add(row[0])
-            items.add(row[1])
-            data.append((row[0], row[1]))
-
-        self._logger.info("finding user and item ids...")
-        interactions = np.zeros((size, 2), dtype=int)
-        for i, row in enumerate(data):
-            interactions[i][:2] = (
-                users.find(row[0]),
-                items.find(row[1])
-            )
-        return interactions, items.data
-
     def load(self, hparams: HyperParameters) -> None:
-        maxsize = hparams.max_interactions
+        with sqlite3.connect(self.__path) as conn:
+            interactions = self.__load_reviews(conn, hparams.max_interactions)
+            self.trainset = InteractionDataset(interactions)
 
-        with sqlite3.connect(self.__path) as con:
-            cur = con.cursor()
-            self._logger.info("loading reviews...")
-            reviews, size = self.__load_reviews(cur, maxsize)
-            self._logger.info("generating interactions...")
-            interactions, items = self.__generate_interactions(reviews, size)
+        self._setup(hparams, 1, 1)
+
+
+    def load_recommend(self, hparams: HyperParameters):
+        with sqlite3.connect(self.__path) as conn:
+            interactions = self.__load_reviews(conn, hparams.max_interactions)
+            self.trainset = InteractionDataset(interactions)
             self._logger.info("loading item info...")
-            iteminfo = self.__load_iteminfo(cur, items)
+            iteminfo = self.__load_iteminfo(conn)
 
-        self._logger.info("setting up datasets..")
-        self.trainset = InteractionDataset(interactions)
-        self._logger.info("normalizing dataset ids..")
-        mapping = self.trainset.normalize_ids()
-        self._logger.info("calculating adjacency matrix..")
-        self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("removing low interactions...")
-        ci = self.trainset.remove_low_items(self.matrix, 1)
-        cu = self.trainset.remove_low_users(self.matrix, 1)
-        recalc = cu > 0 or ci > 0
-        if recalc:
-            self._logger.info(f"removed {cu} users and {ci} items")
-            self._logger.info("normalizing ids again...")
-            self.trainset.denormalize_ids(mapping)
-            mapping = self.trainset.normalize_ids()
-        if hparams.should_have_interaction_context("previous"):
-            self._logger.info("adding previous item column...")
-            self.trainset.add_previous_item_column()
-        if recalc:
-            self._logger.info("calculating adjacency matrix again...")
-            self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("extracting test dataset..")
-        self.testset = self.trainset.extract_test_dataset()
+        mapping = self._setup(hparams, 1, 1)
         self._logger.info("fixing item info..")
-        self.iteminfo = self.__fix_iteminfo(iteminfo, items, mapping[1])
+        self.iteminfo = self.__fix_iteminfo(iteminfo, mapping[1])
