@@ -276,7 +276,11 @@ def test_prepare_for_recommend():
     data = ((2, 2), (2, 1), (1, 3), (1, 2))
     dataset = InteractionDataset(data)
     dataset.add_previous_item_column()
-    dataset.prepare_for_recommend()
+    dataset.unify_column(0)
+    items = dataset[:, 1] - 1
+    dataset.remove_column(1)
+    dataset[:, -1] = items
+
     assert len(dataset) == 4
     assert len(dataset.idrange) == 2
     assert (dataset.idrange == (1, 5)).all()
@@ -284,3 +288,10 @@ def test_prepare_for_recommend():
     assert (dataset[1] == (0, 3, 0)).all()
     assert (dataset[2] == (0, 1, 2)).all()
     assert (dataset[3] == (0, 4, 1)).all()
+
+
+def test_counts():
+    data = ((2, 2), (2, 1), (2, 2), (1, 2), (2, 1), (2, 1))
+    dataset = InteractionDataset(data)
+    counts = dataset.get_counts()
+    assert (counts == (2, 3, 2, 1, 3, 3)).all()

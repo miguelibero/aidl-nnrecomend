@@ -28,7 +28,7 @@ Some conclusions (Very similar to movilens dataset):
 | nnrecommend | fm-linear | previous | no | 0.1790 | 0.1152 | 0.1372 |
 | nnrecommend | fm-gcn | previous | no | 0.3571 | 0.2212 | 0.2395 |
 | nnrecommend | fm-linear | all | no | 0.1130 | 0.0735 | 0.0496 |
-| nnrecommend | fm-gcn | all | no | 0.1390 | 0.0792 | 0.0370 |
+| nnrecommend | fm-gcn | all | no | 01.1390 | 0.0792 | 0.0370 |
 | nnrecommend | fm-linear | | yes | 0.2306 | 0.1403 | 0.2774 |
 | nnrecommend | fm-gcn | | yes | 0.3484 | 0.2177 | 0.3378 |
 | nnrecommend | fm-linear | skip | yes | 0.0657 | 0.0361 | 0.0804 |

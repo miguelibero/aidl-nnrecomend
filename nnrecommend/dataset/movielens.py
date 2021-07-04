@@ -75,6 +75,23 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self._logger.info(f"loaded info for {len(info)} movies")
         return info
 
+    def load_recommend(self, hparams: HyperParameters):
+        maxsize = hparams.max_interactions
+        self._logger.info("loading training dataset...")
+        self.trainset = InteractionDataset(self.__load_interactions(maxsize))
+        self._logger.info("normalizing dataset ids..")
+        mapping = self.trainset.normalize_ids()
+        self._logger.info("adding previous item column...")
+        self.trainset.add_previous_item_column()
+        self._logger.info("preparing for recommend...")
+        self._prepare_for_recommend(self.trainset)
+        self._logger.info("extracting test dataset..")
+        self.testset = self.trainset.extract_test_dataset()
+        self._logger.info("calculating adjacency matrix...")
+        self.matrix = self.trainset.create_adjacency_matrix()
+        self._logger.info("loading movie info...")
+        self.iteminfo = self.__load_iteminfo(mapping[0])
+
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
@@ -88,5 +105,3 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         self.testset = self.trainset.extract_test_dataset()
         self._logger.info("calculating adjacency matrix...")
         self.matrix = self.trainset.create_adjacency_matrix()
-        self._logger.info("loading movie info...")
-        self.iteminfo = self.__load_iteminfo(mapping[0])

@@ -40,12 +40,10 @@ class Setup:
         if self.__trace_memory:
             tracemalloc.start()
 
-        self.src.load(hparams)
-
         if self.__for_recommend:
-            self.__logger.info("preparing for recommend...")
-            self.src.trainset.prepare_for_recommend()
-            self.src.testset.prepare_for_recommend()
+            self.src.load_recommend(hparams)
+        else:
+            self.src.load(hparams)
 
         trainlen, testlen = self.__log_dataset()
         
@@ -56,23 +54,24 @@ class Setup:
         trainf = 1.0
         testf = 1.0
 
-        if hparams.negatives_train > 0:
-            self.__logger.info("adding trainset negative sampling...")
-            matrix = self.src.matrix
-            traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
-            trainf = len(self.src.trainset) / trainlen
-            if hparams.pairwise_loss:
-                self.__logger.info("generating trainset pairs...")
-                self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
+        if not self.__for_recommend:
+            if hparams.negatives_train > 0:
+                self.__logger.info("adding trainset negative sampling...")
+                matrix = self.src.matrix
+                traingroups = self.src.trainset.add_negative_sampling(hparams.negatives_train, matrix)
+                trainf = len(self.src.trainset) / trainlen
+                if hparams.pairwise_loss:
+                    self.__logger.info("generating trainset pairs...")
+                    self.src.trainset = self.__apply_pairs(self.src.trainset, traingroups)
 
-        if hparams.negatives_test:
-            self.__logger.info("adding testset negative sampling...")
-            testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
-            testf = len(self.src.testset) / testlen
-            self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
+            if hparams.negatives_test:
+                self.__logger.info("adding testset negative sampling...")
+                testgroups = self.src.testset.add_negative_sampling(hparams.negatives_test, matrix, unique=True)
+                testf = len(self.src.testset) / testlen
+                self.src.testset = self.__apply_grouping(self.src.testset, testgroups)
 
-        if trainf > 1 or testf > 1:
-            self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
+            if trainf > 1 or testf > 1:
+                self.__logger.info(f"dataset size changed by a factor of {trainf:.2f} train and {testf:.2f} test")
 
         if self.__trace_memory:
             mem = tracemalloc.get_traced_memory()

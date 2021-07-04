@@ -115,6 +115,9 @@ class InteractionDataset(torch.utils.data.Dataset):
     def __getitem__(self, index) -> np.ndarray:
         return self.__interactions[index]
 
+    def __setitem__(self, index, val: np.ndarray) -> None:
+        self.__interactions[index] = val
+
     def __get_row_pairs(self, row: np.ndarray) -> Container[np.ndarray]:
         max = -1 if self.idrange is None else len(self.idrange)
         return itertools.combinations(row[:max], 2)
@@ -476,16 +479,24 @@ class InteractionDataset(torch.utils.data.Dataset):
             self.idrange[i] -= maxv - 1
             self.__interactions[:, i] -= maxv - 1
 
-    def prepare_for_recommend(self):
+    def get_counts(self):
         """
-        prepare dataset to train for new users
-        * set all users to value 0
-        * move items to labels
+        return an array of interactions size with the amount of same user, item interactions for every pair
         """
-        self.unify_column(0) # set all users to 0
-        items = self.__interactions[:, 1] - 1
-        self.remove_column(1) # remove items
-        self.__interactions[:, -1] = items # set items as labels
+        counts = {}
+        col = np.zeros(self.__interactions.shape[0])
+        for i, row in enumerate(self.__interactions):
+            key = row[0:2]
+            k = tuple(key)
+            if k in counts:
+                v = counts[k]
+            else:
+                v = np.count_nonzero((self.__interactions[:, 0:2] == key).all(axis=1))
+                counts[k] = v
+            col[i] = v
+        return col
+
+
 
 
 class InteractionPairDataset(torch.utils.data.Dataset):
@@ -558,8 +569,22 @@ class BaseDatasetSource:
         self.matrix = None
         self.iteminfo = None
 
+    def load_recommend(self, hparams: HyperParameters):
+        raise NotImplementedError()
+
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
+
+    def _prepare_for_recommend(self, dataset: InteractionDataset):
+        """
+        prepare dataset to train for new users
+        * set all users to value 0
+        * move items to labels
+        """
+        dataset.unify_column(0) # set all users to 0
+        items = dataset[:, 1] - 1
+        dataset.remove_column(1) # remove items
+        dataset[:, -1] = items # set items as labels
 
 
 def save_model(path: str, model, src: BaseDatasetSource, idrange: np.ndarray):
