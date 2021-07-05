@@ -63,7 +63,7 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
                 logger.info(f'{result}')
                 for i in range(hparams.epochs):
                     tracker.track_test_result(i, result)
-                return result
+                results.append((tb_tag, result))
             except Exception as e:
                 logger.exception(e)
             finally:
@@ -73,7 +73,6 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
                     save_model(algo_output, algo, src, idrange)
                 if tb:
                     tb.close()
-            results.append((tb_tag, result))
 
     results.sort(key=lambda i: i[1].ndcg)
     logger.info("====")
@@ -81,7 +80,6 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
     logger.info("----")
     for name, result in results:
         logger.info(f'{name}: {result}')
-
 
 
 if __name__ == "__main__":

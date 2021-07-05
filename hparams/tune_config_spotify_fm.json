@@ -1,7 +1,0 @@
-{
-    "embed_dropout": ["choice", [0.3, 0.4, 0.5, 0.6]],
-    "learning_rate": ["loguniform", 1e-5, 1e-3],
-    "batch_size": ["randint", 1024, 2048],
-    "embed_dim": 64,
-    "epochs": 40
-}

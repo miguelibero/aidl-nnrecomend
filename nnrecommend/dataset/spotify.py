@@ -40,7 +40,7 @@ class SpotifyDatasetSource(BaseDatasetSource):
         load_skip = hparams.should_have_interaction_context("skip")
         load_prev = hparams.should_have_interaction_context("previous")
         self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip, load_prev))
-        previous_items_cols = hparams.previous_items_cols
+        assert hparams.previous_items_cols <= 1
         self._setup(0, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
 
 
@@ -65,10 +65,10 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
 
         cols = self.COLUMNS + self.SKIP_COLUMNS if load_skip else self.COLUMNS
         data = pd.read_csv(self.__path, sep=',', nrows=nrows, usecols=cols)
-        data.sort_values(by=self.SORT_COLUMN, inplace=True, ascending=True)
+        data.sort_values(by=[self.USER_COLUMN, self.SORT_COLUMN], inplace=True, ascending=True)
         del data[self.SORT_COLUMN]
 
-        for colname in (self.USER_COLUMN, self.ITEM_COLUMN):
+        for colname in data.select_dtypes(exclude=int):
             data[colname] = data[colname].apply(hash)
         if load_skip:
             data = self.__fix_skip(data)

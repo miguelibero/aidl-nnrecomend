@@ -9,7 +9,6 @@ from logging import Logger
 from typing import Any, Callable, Container, Dict
 from torch.functional import Tensor
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import Dataset
 from torch.utils.tensorboard import SummaryWriter
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.logging import get_logger
@@ -24,12 +23,14 @@ def human_readable_size(size, decimal_places=2):
     return f"{size:.{decimal_places}f}{unit}"
 
 
-class BaseSetup:
-
+class Setup:
     def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
         self.src = src
         self._logger = logger or get_logger(self)
         self.__trace_memory = trace_memory
+        self.__pairstrainset = None
+        self.__groupstestset = None
+        self.__matrix = None
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)
@@ -68,37 +69,19 @@ class BaseSetup:
 
         return idrange
 
+    def get_items(self):
+        return self.src.items
+
     def _load(self, hparams: HyperParameters) -> np.ndarray:
         self.src.load(hparams)
         self.__log_dataset()
         idrange = self.src.trainset.idrange
         self.__log_idrange(idrange)
-        return idrange
 
-    def get_items(self):
-        return self.src.items
-
-    def create_testloader(self, hparams: HyperParameters):
-        dataset = self.src.testset
-        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.test_loader_workers)
-
-    def create_trainloader(self, hparams: HyperParameters):
-        dataset = self.src.trainset
-        return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
-
-
-
-
-class Setup(BaseSetup):
-
-    def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
-        super().__init__(src, logger, trace_memory)
-        self.__pairstrainset = None
-        self.__groupstestset = None
-        self.__matrix = None
-
-    def _load(self, hparams: HyperParameters) -> np.ndarray:
-        idrange = super()._load(hparams)
+        if hparams.recommend:
+            self._logger.info("removing users column...")
+            self.src.trainset.remove_column(0)
+            self.src.testset.remove_column(0)
 
         trainf, testf = 1.0, 1.0
 

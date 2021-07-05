@@ -92,6 +92,8 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
                         scheduler.step(loss)
                     if result > best_result:
                         best_result = result
+
+                results.append((tb_tag, best_result))
             except Exception as e:
                 logger.exception(e)
             finally:
@@ -104,9 +106,6 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
                     save_model(model_output, model, idrange, items)
                 duration = datetime.timedelta(seconds=(timer() - start_time))
                 logger.info(f"elapsed time: {duration}")
-            
-            
-            results.append((tb_tag, best_result))
 
     results.sort(key=lambda i: i[1].ndcg)
     logger.info("====")

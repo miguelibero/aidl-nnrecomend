@@ -3,9 +3,9 @@
         "embed_dim": 64,
         "negatives_train": 10,
         "negatives_test": 99,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0005,
         "batch_size": 1024,
-        "embed_dropout": 0.4,
+        "embed_dropout": 0.5,
         "pairwise_loss": true
     },
     "trials": [
@@ -16,6 +16,14 @@
         {
             "interaction_context": "previous",
             "tensorboard_tag": "{tag}-{model}-prev"
+        },
+        {
+            "interaction_context": "skip",
+            "tensorboard_tag": "{tag}-{model}-skip"
+        },
+        {
+            "interaction_context": "all",
+            "tensorboard_tag": "{tag}-{model}-all"
         }
     ]
 }

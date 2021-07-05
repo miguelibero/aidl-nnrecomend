@@ -110,6 +110,16 @@ class InteractionDataset(torch.utils.data.Dataset):
             i += 1
         self.__interactions = np.delete(self.__interactions, list(missing), 0)
 
+    def get_grounded_interactions(self) -> np.ndarray:
+        """
+        :returns: the interactions with id columns starting with zero
+        """
+        self.__require_normalized()
+        interactions = self.__interactions.copy()
+        for i, maxv in enumerate(self.idrange[:-1]):
+            interactions[:, i+1] -= maxv
+        return interactions
+
     def __len__(self) -> int:
         return len(self.__interactions)
 
@@ -577,6 +587,8 @@ class BaseDatasetSource:
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
 
+    RECALC_AFTER_REMOVE = True # not sure if this affects
+
     def _setup(self, previous_items_cols: int=0, min_item_interactions: int=0, min_user_interactions: int=0) -> Container[np.ndarray]:
         remove = min_item_interactions > 0 or min_user_interactions > 0
 
@@ -588,14 +600,18 @@ class BaseDatasetSource:
         if remove:
             self._logger.info("removing low interactions...")
             ci = self.trainset.remove_low_items(self.useritems, min_item_interactions)
+            if ci > 0:
+                self._logger.info(f"removed {ci} interactions of items with less than {min_item_interactions} users")
             cu = self.trainset.remove_low_users(self.useritems, min_user_interactions)
-            if cu > 0 or ci > 0:
-                self._logger.info(f"removed {cu} users and {ci} items")
+            if cu > 0:
+                self._logger.info(f"removed {cu} interactions of users with less than {min_user_interactions} items")
+            if self.RECALC_AFTER_REMOVE and (cu > 0 or ci > 0):
                 self._logger.info("normalizing ids again...")
                 self.trainset.denormalize_ids(mapping)
                 mapping = self.trainset.normalize_ids()
                 self._logger.info("calculating user-item matrix again...")
-            self.useritems = self.trainset.create_adjacency_submatrix()
+                self.useritems = self.trainset.create_adjacency_submatrix()
+
         items_col = 1
         for _ in range(previous_items_cols):
             self._logger.info("adding previous item column...")

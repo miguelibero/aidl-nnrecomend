@@ -1,5 +1,0 @@
-{
-    "embed_dim": 82,
-    "embed_dropout": 0.5,
-    "graph_attention_heads": 4
-}

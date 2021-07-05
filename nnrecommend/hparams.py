@@ -57,7 +57,8 @@ class HyperParameters:
         "pairwise_loss": True,
         "train_loader_workers": 0,
         "test_loader_workers": 0,
-        "previous_items_cols": 1
+        "previous_items_cols": 1,
+        "recommend": False,
     }
 
     def __init__(self, data: Dict = {}):
@@ -240,6 +241,13 @@ class HyperParameters:
             parm = str(parm).split(",")
         return v in parm
 
+    @property
+    def recommend(self):
+        """
+        if the model should be trained for recommending new items
+        i.e. if the user column should be removed
+        """
+        return self.__get("recommend")
 
 
 class RayTuneConfigFile:

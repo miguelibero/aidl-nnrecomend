@@ -5,16 +5,15 @@
         "negatives_test": 99,
         "learning_rate": 0.0005,
         "batch_size": 1024,
-        "embed_dropout": 0.5
+        "embed_dropout": 0.5,
+        "pairwise_loss": true
     },
     "trials": [
         {
-            "pairwise_loss": true,
             "interaction_context": "",
             "tensorboard_tag": "{tag}-{model}-none"
         },
         {
-            "pairwise_loss": true,
             "interaction_context": "previous",
             "tensorboard_tag": "{tag}-{model}-prev"
         }

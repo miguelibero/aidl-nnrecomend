@@ -1,0 +1,11 @@
+{
+    "learning_rate": ["grid_search", [0.001, 0.005, 0.01, 0.05]],
+    "embed_dropout": 0.4,
+    "batch_size": 512,
+    "negatives_train": 10,
+    "embed_dim": 64,
+    "epochs": 20,
+    "interaction_context": "previous",
+    "negatives_test": 99,
+    "pairwise_loss": true
+}
