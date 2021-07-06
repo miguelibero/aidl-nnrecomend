@@ -351,7 +351,8 @@ class Finder:
             if best is None or best[1] < r[1]:
                 best = r + (colname,)
         # id, field, value, score
-        return FinderResult(best[2], best[3], best[0], best[1])
+        if best:
+            return FinderResult(best[2], best[3], best[0], best[1])
 
 
 class Recommender:

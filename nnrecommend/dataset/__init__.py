@@ -571,15 +571,18 @@ class InteractionDataset(torch.utils.data.Dataset):
             return self.__swap_columns(col2, col1)
         return self.__swap_columns(col1, col2)
 
-    def __shift_column_values(self, col: int):
+    def __shift_column_values(self, col: int) -> int:
         minv = 0 if col == 0 else self.idrange[col - 1]
         cond = self.__interactions[:, col] != minv
+        c = len(self.__interactions)
         self.__interactions =  self.__interactions[cond]
+        c -= len(self.__interactions)
         for i in range(col, len(self.idrange)):
             self.idrange[i] -= 1
             self.__interactions[:, i] -= 1
+        return c
 
-    def prepare_for_recommend(self, prev_item_col: int=None) -> None:
+    def prepare_for_recommend(self, prev_item_col: int=None) -> int:
         """
         prepare dataset for recommendation task:
         instead of given a user get the rating for an item
@@ -597,7 +600,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         prev_item_col -= 1
         self.__swap_columns(item_col, prev_item_col)
         # remove previous items 0 (no previous item)
-        self.__shift_column_values(item_col)
+        return self.__shift_column_values(item_col)
 
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
@@ -703,7 +706,9 @@ class BaseDatasetSource:
 
         if hparams.recommend:
             self._logger.info("preparing for recommend...")
-            self.trainset.prepare_for_recommend(previous_item_col)
+            cr = self.trainset.prepare_for_recommend(previous_item_col)
+            if cr > 0:
+                self._logger.info(f"removed {cr} interactions without previous item")
 
         self._logger.info("extracting test dataset...")
         self.testset = self.trainset.extract_test_dataset()

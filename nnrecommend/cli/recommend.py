@@ -40,9 +40,12 @@ def recommend(ctx, path: str, item_names: Container[str], fields: Container[str]
     logger.info(f"loaded model of type {type(model)}")
     model = model.eval().to(device)
 
-    items = items.dropna(axis=1, how='all')
-
     pd.options.display.max_colwidth = 200
+    if items is None:
+        ids = list(range(idrange[0]))
+        items = DataFrame({'id': ids}, index=ids)
+
+    logger.info(f"loaded {len(items)} items")
 
     with torch.no_grad():
         finder = Finder(items, fields)
@@ -50,6 +53,9 @@ def recommend(ctx, path: str, item_names: Container[str], fields: Container[str]
 
         for item_name in item_names:
             r = finder(item_name)
+            if r is None:
+                logger.info(f"did not find any item for '{item_name}'")
+                continue
             logger.info(f"found {r}")
             logger.info("looking for recommendations...")
             for item, rating in recommender(r.id, topk):

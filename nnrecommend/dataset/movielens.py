@@ -61,10 +61,10 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         path = os.path.join(self.__path, self.ITEMINFO_FILE)
         data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None,
             names=self.ITEM_COLUMN_NAMES)
-        data = data.dropna(axis=1, how='all')
         mapping = IdFinder(mapping)
         data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(mapping.find)
-        data.set_index(self.ITEM_INDEX_COL)
+        data.dropna(subset=[self.ITEM_INDEX_COL], inplace=True)
+        data.set_index(self.ITEM_INDEX_COL, inplace=True)
         self._logger.info(f"loaded info for {len(data)} movies")
         return data
 
@@ -73,4 +73,6 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         data = self.__load_interactions(hparams.max_interactions)
         self.trainset = InteractionDataset(data)
         mapping = self._setup(hparams)
-        self.items = self.__load_items(mapping[1])
+        if hparams.recommend:
+            self._logger.info("loading movies...")
+            self.items = self.__load_items(mapping[1])
