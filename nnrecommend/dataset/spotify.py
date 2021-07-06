@@ -113,6 +113,9 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
 
     def __load_items(self, mapping: np.ndarray) -> DataFrame:
         path = os.path.join(self.__path, self.ITEMS_FILENAME)
+        if not os.path.isfile(path):
+            self._logger.warning("could not find track features file")
+            return
         data = pd.read_csv(path, index_col=False)
         mapping = IdFinder(mapping)
         data["original_item_id"] = data[self.ITEM_INDEX_COL].copy()
