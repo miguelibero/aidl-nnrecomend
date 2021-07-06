@@ -1,9 +1,10 @@
 from logging import Logger
+import os
 import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
 from nnrecommend.hparams import HyperParameters
-from nnrecommend.dataset import BaseDatasetSource, InteractionDataset
+from nnrecommend.dataset import BaseDatasetSource, IdFinder, InteractionDataset
 
 
 MIN_ITEM_INTERACTIONS = 1
@@ -55,16 +56,22 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
     SORT_COLUMN = 'session_position'
     MIN_REPEAT = 2
     MIN_SKIP = 3
+    ITEM_INDEX_COL = "track_id"
+
+    FILENAME = "spotify_log_mini.csv"
+    ITEMS_FILENAME = "tf_mini.csv"
 
     def __init__(self, path: str, logger: Logger=None):
         super().__init__(logger)
         self.__path = path
 
-    def __load_data(self, maxsize: int, load_skip: False) -> np.ndarray:
+    def __load_interactions(self, maxsize: int, load_skip: False) -> np.ndarray:
         nrows = maxsize if maxsize > 0 else None
-
+        path = self.__path
+        if os.path.isdir(path):
+            path = os.path.join(path, self.FILENAME)
         cols = self.COLUMNS + self.SKIP_COLUMNS if load_skip else self.COLUMNS
-        data = pd.read_csv(self.__path, sep=',', nrows=nrows, usecols=cols)
+        data = pd.read_csv(path, sep=',', nrows=nrows, usecols=cols)
         data.sort_values(by=[self.USER_COLUMN, self.SORT_COLUMN], inplace=True, ascending=True)
         del data[self.SORT_COLUMN]
 
@@ -104,9 +111,23 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         data["skip"] = (good * 2 - 1) * data[self.ITEM_COLUMN]
         return data
 
+    def __load_items(self, mapping: np.ndarray) -> DataFrame:
+        path = os.path.join(self.__path, self.ITEMS_FILENAME)
+        data = pd.read_csv(path, index_col=False)
+        mapping = IdFinder(mapping)
+        data["original_item_id"] = data[self.ITEM_INDEX_COL].copy()
+        data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(hash).apply(mapping.find)
+        data.dropna(subset=[self.ITEM_INDEX_COL], inplace=True)
+        data.set_index(self.ITEM_INDEX_COL, inplace=True)
+        self._logger.info(f"loaded info for {len(data)} tracks")
+        return data
+
     def load(self, hparams: HyperParameters) -> None:
         maxsize = hparams.max_interactions
         self._logger.info("loading spotify data...")
         load_skip = hparams.should_have_interaction_context("skip")
-        self.trainset = InteractionDataset(self.__load_data(maxsize, load_skip))
-        self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
+        self.trainset = InteractionDataset(self.__load_interactions(maxsize, load_skip))
+        mapping = self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
+        if hparams.recommend:
+            self._logger.info("loading track features...")
+            self.items = self.__load_items(mapping[1])

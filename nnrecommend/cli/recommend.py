@@ -29,8 +29,8 @@ def recommend(ctx, path: str, labels: Container[str], fields: Container[str], to
         model: torch.nn.Module = r[0]
         idrange: np.ndarray = r[1]
         items: DataFrame = r[2]
-    except:
-        logger.error("failed to load model file")
+    except Exception as e:
+        logger.exception(e, "failed to load model file")
         return False
 
     if model is None:
