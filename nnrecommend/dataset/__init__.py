@@ -73,13 +73,15 @@ class InteractionDataset(torch.utils.data.Dataset):
         mapping = []
         for i in range(self.__interactions.shape[1] - 1):
             ids = self.__interactions[:, i]
-            if assume_consecutive:
-                colmapping = np.arange(np.min(ids), np.max(ids)+1)
-            else:
-                colmapping = np.sort(np.unique(ids))
+            colmapping = self.__get_col_mapping(ids, assume_consecutive)
             mapping.append(colmapping)
         self.__normalize_ids(mapping)
         return mapping
+
+    def __get_col_mapping(self, values: np.ndarray, assume_consecutive=False) -> np.ndarray:
+        if assume_consecutive:
+            return np.arange(np.min(values), np.max(values)+1)
+        return np.sort(np.unique(values))
 
     def map_ids(self, mapping: Container[np.ndarray]) -> Container[np.ndarray]:
         """
@@ -93,24 +95,33 @@ class InteractionDataset(torch.utils.data.Dataset):
         return mapping
 
     def __normalize_ids(self, mapping: Container[np.ndarray]) -> None:
-        i = 0
         diff = 0
         self.idrange = np.zeros(len(mapping), dtype=np.int64)
         missing = set()
-        for colmapping in mapping:
-            colgen = IdFinder(colmapping)
-            for j, row in enumerate(self.__interactions):
-                v = colgen.find(row[i])
-                if v is None:
-                    missing.add(j)
-                else:
-                    row[i] = v + diff
+        for i, colmapping in enumerate(mapping):
+            ids = self.__interactions[:, i]
+            ids, colmissing = self.__normalize_col(ids, colmapping, diff)
+            self.__interactions[:, i] = ids
+            missing.update(colmissing)
             diff += len(colmapping)
             self.idrange[i] = diff
-            i += 1
         self.__interactions = np.delete(self.__interactions, list(missing), 0)
 
-    def get_grounded_interactions(self) -> np.ndarray:
+    def __normalize_col(self, values: np.ndarray, colmapping: np.ndarray, minv: int) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        :returns: normalized items, rows with missing items
+        """
+        missing = []
+        colgen = IdFinder(colmapping)
+        for i, v in enumerate(values):
+            v = colgen.find(v)
+            if v is None:
+                missing.append(i)
+            else:
+                values[i] = v + minv
+        return values, missing
+
+    def get_grounded(self) -> np.ndarray:
         """
         :returns: the interactions with id columns starting with zero
         """
@@ -359,8 +370,12 @@ class InteractionDataset(torch.utils.data.Dataset):
                 matrix[b, a] = 1
         return matrix
 
+    def __normalize_col_num(self, col: int):
+        return col % self.__interactions.shape[1]
+
     def __get_col_range(self, col: int) -> Tuple[int]:
         self.__require_normalized()
+        col = self.__normalize_col_num(col)
         assert col >= 0 and col < len(self.idrange)
         start = self.idrange[col-1] if col > 0 else 0
         end = self.idrange[col]
@@ -410,25 +425,22 @@ class InteractionDataset(torch.utils.data.Dataset):
             count += self.remove_low(matrix, lim, col1, col2)
         return count
     
-    def add_previous_item_column(self, items_col: int=1):
+    def add_previous_item_column(self, items_col: int=1, insert_col: int=-1) -> None:
         """
         adds a new context column with the values of the previous item
         by the same user. The values are consecutive to the last column
         range and the first value represents no previous item.
 
-        the interaction rows need to be sorted from older to newer.
+        the interaction rows need to be already sorted from older to newer.
 
         :param items_col: the column index where the items are
         :param insert_col: the column index where to insert
         """
         self.__require_normalized()
 
-        # fill the new column with zeros
-        col = np.zeros(self.__interactions.shape[0])
-        self.__interactions = np.insert(self.__interactions, -1, col, axis=1)
         minv, maxv = self.__get_col_range(items_col)
-        endv = self.idrange[-1]
 
+        values = np.zeros(self.__interactions.shape[0])
         for i in range(self.idrange[0]):
             # find all the interactions of a user
             cond = self.__interactions[:, 0] == i
@@ -438,12 +450,31 @@ class InteractionDataset(torch.utils.data.Dataset):
             items -= minv
             # add a -1 in the beginning and remove the last one
             items = np.insert(items, 0, -1)[:-1]
-            # shift them to the end of the last range
-            items += endv + 1
-            # assign them to the new column
-            self.__interactions[cond, -2] = items
+            # add user items to the values
+            values[cond] = items
 
-        self.idrange = np.append(self.idrange, endv + maxv - minv + 1)
+        colmapping = np.arange(-1, maxv - minv)
+        self.insert_column(insert_col, values, colmapping)
+
+    def insert_column(self, col: int, values: np.ndarray, colmapping: np.ndarray=None) -> np.ndarray:
+        """
+        inserts a column into the dataset, adjusting ranges
+        :returns: mapping for the new column
+        """
+        self.__require_normalized()
+        col = self.__normalize_col_num(col)
+        minv = 0 if col == 0 else self.idrange[col-1]
+        if colmapping is None:
+            colmapping = self.__get_col_mapping(values)
+        values, missing = self.__normalize_col(values, colmapping, minv)
+        self.__interactions = np.delete(self.__interactions, list(missing), 0)
+        diff = len(colmapping)
+        for i in range(col+1, len(self.idrange)):
+            self.__interactions[:, i] += diff
+            self.idrange[i] += diff
+        self.__interactions = np.insert(self.__interactions, col, values, axis=1)
+        self.idrange = np.insert(self.idrange, col, minv + diff)
+        return colmapping
 
     def combine_columns(self, base_col: int, *other_cols: Container[int]) -> None:
         """
@@ -455,11 +486,12 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param other_cols: column numbers to combine
         """
         self.__require_normalized()
-
+        base_col = self.__normalize_col_num(base_col)
         minb, maxb = self.__get_col_range(base_col)
         brange = maxb - minb
 
         for col in sorted(other_cols, reverse=True):
+            col = self.__normalize_col_num(col)
             minv, maxv = self.__get_col_range(col)
             vals = self.__interactions[:, col] - minv
             range = maxv - minv
@@ -474,6 +506,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         remove dataset column, adjust ranges
         """
         self.__require_normalized()
+        col = self.__normalize_col_num(col)
         minv, maxv = self.__get_col_range(col)
         diff = maxv - minv
         for i in range(col + 1, len(self.idrange)):
@@ -482,11 +515,12 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.__interactions = np.delete(self.__interactions, col, 1)
         self.idrange = np.delete(self.idrange, col)
 
-    def unify_column(self, col):
+    def unify_column(self, col: int) -> None:
         """
         convert all the values of a column into one, adjust ranges
         """
         self.__require_normalized()
+        col = self.__normalize_col_num(col)
         minv, maxv = self.__get_col_range(col)
         diff = maxv - minv - 1
         for i in range(col + 1, len(self.idrange)):
@@ -512,8 +546,58 @@ class InteractionDataset(torch.utils.data.Dataset):
             col[i] = v
         return col
 
+    def __swap_columns(self, col1: int, col2: int) -> None:
+        assert col1 < col2
+        min1, max1 = self.__get_col_range(col1)
+        min2, max2 = self.__get_col_range(col2)
+        values1 = self.__interactions[:, col1]
+        values2 = self.__interactions[:, col2].copy()
+        colmapping1 = np.arange(min1, max1)
+        colmapping2 = np.arange(min2, max2)
+        self.remove_column(col1)
+        self.insert_column(col1, values2, colmapping2)
+        self.insert_column(col2, values1, colmapping1)
+        self.remove_column(col2 + 1)
 
+    def swap_columns(self, col1: int, col2: int) -> None:
+        """
+        swap two dataset columns maintaining the ranges
+        """
+        col1 = self.__normalize_col_num(col1)
+        col2 = self.__normalize_col_num(col2)
+        if col1 == col2:
+            return
+        if col1 > col2:
+            return self.__swap_columns(col2, col1)
+        return self.__swap_columns(col1, col2)
 
+    def __shift_column_values(self, col: int):
+        minv = 0 if col == 0 else self.idrange[col - 1]
+        cond = self.__interactions[:, col] != minv
+        self.__interactions =  self.__interactions[cond]
+        for i in range(col, len(self.idrange)):
+            self.idrange[i] -= 1
+            self.__interactions[:, i] -= 1
+
+    def prepare_for_recommend(self, prev_item_col: int=None) -> None:
+        """
+        prepare dataset for recommendation task:
+        instead of given a user get the rating for an item
+        given a previous item get the rating for an item
+        """
+        self.__require_normalized()
+        if prev_item_col is None:
+            self.add_previous_item_column()
+            prev_item_col = -2
+        prev_item_col = self.__normalize_col_num(prev_item_col)
+        assert prev_item_col > 1 and prev_item_col < len(self.idrange)
+        self.remove_column(0) # remove users
+        # swap items and previous items
+        item_col = 0
+        prev_item_col -= 1
+        self.__swap_columns(item_col, prev_item_col)
+        # remove previous items 0 (no previous item)
+        self.__shift_column_values(item_col)
 
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
@@ -589,7 +673,7 @@ class BaseDatasetSource:
 
     RECALC_AFTER_REMOVE = True # not sure if this affects
 
-    def _setup(self, previous_items_cols: int=0, min_item_interactions: int=0, min_user_interactions: int=0) -> Container[np.ndarray]:
+    def _setup(self, hparams: HyperParameters, min_item_interactions: int=0, min_user_interactions: int=0, previous_item_col: int=None) -> Container[np.ndarray]:
         remove = min_item_interactions > 0 or min_user_interactions > 0
 
         self._logger.info("normalizing ids...")
@@ -612,11 +696,14 @@ class BaseDatasetSource:
                 self._logger.info("calculating user-item matrix again...")
                 self.useritems = self.trainset.create_adjacency_submatrix()
 
-        items_col = 1
-        for _ in range(previous_items_cols):
+        if previous_item_col is None and hparams.should_have_interaction_context("previous"):
             self._logger.info("adding previous item column...")
-            self.trainset.add_previous_item_column(items_col)
-            items_col = len(self.trainset.idrange) - 1
+            self.trainset.add_previous_item_column()
+            previous_item_col = -2
+
+        if hparams.recommend:
+            self._logger.info("preparing for recommend...")
+            self.trainset.prepare_for_recommend(previous_item_col)
 
         self._logger.info("extracting test dataset...")
         self.testset = self.trainset.extract_test_dataset()

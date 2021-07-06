@@ -45,7 +45,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             self.trainset = InteractionDataset(interactions)
             self._logger.info("loading items...")
             items = self.__load_items(conn)
-        mapping = self._setup(hparams.previous_items_cols, 1, 1)
+        mapping = self._setup(hparams, 1, 1)
         self._logger.info("fixing items..")
         self.items = self.__fix_items(items, mapping[1])
 

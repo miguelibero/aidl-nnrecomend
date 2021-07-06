@@ -295,3 +295,24 @@ def test_counts():
     dataset = InteractionDataset(data)
     counts = dataset.get_counts()
     assert (counts == (2, 3, 2, 1, 3, 3)).all()
+
+def test_swap_columns():
+    data = ((2, 2), (3, 1))
+    dataset = InteractionDataset(data)
+    dataset.swap_columns(0, 1)
+    assert len(dataset) == 2
+    assert (dataset[0] == (1, 2, 1)).all()
+    assert (dataset[1] == (0, 3, 1)).all()
+    assert (dataset.idrange == (2, 4)).all()
+
+def test_prepare_for_recommend():
+    data = ((2, 2), (2, 3), (3, 4), (4, 1), (3, 4))
+    dataset = InteractionDataset(data)
+    dataset.normalize_ids()
+    assert (dataset.idrange == (3, 7)).all()
+    dataset.prepare_for_recommend()
+    assert dataset[0].shape[0] == 3
+    assert len(dataset) == 2
+    assert (dataset.idrange == (4, 8)).all()
+    assert (dataset[0] == (1, 6, 1)).all()
+    assert (dataset[1] == (3, 7, 1)).all()

@@ -39,18 +39,23 @@ class Setup:
         self._logger.info(f"loaded {trainlen} train and {testlen} test interactions")
         return trainlen, testlen
 
-    def __log_idrange(self, idrange):
+    def __log_idrange(self, idrange, hparams: HyperParameters):
         assert len(idrange) >= 2
         lens = []
         lastlen = 0
+        if hparams.recommend:
+            colnames = ('previous items', 'items')
+        else:
+            colnames = ('users', 'items')
+
         for v in idrange:
             lens.append(v - lastlen)
             lastlen = v
         if len(lens) == 2:
-            self._logger.info(f"loaded {lens[0]} users and {lens[1]} items")
+            self._logger.info(f"loaded {lens[0]} {colnames[0]} and {lens[1]} {colnames[1]}")
         else:
             clens = "/".join([str(v) for v in lens[2:]])
-            self._logger.info(f"loaded {lens[0]} users, {lens[1]} items and {clens} contexts")
+            self._logger.info(f"loaded {lens[0]} {colnames[0]}, {lens[1]} {colnames[1]} and {clens} contexts")
 
     def __call__(self, hparams: HyperParameters) -> np.ndarray:
 
@@ -77,12 +82,7 @@ class Setup:
         self.src.load(hparams)
         self.__log_dataset()
         idrange = self.src.trainset.idrange
-        self.__log_idrange(idrange)
-
-        if hparams.recommend:
-            self._logger.info("removing users column...")
-            self.src.trainset.remove_column(0)
-            self.src.testset.remove_column(0)
+        self.__log_idrange(idrange, hparams)
 
         trainf, testf = 1.0, 1.0
 
