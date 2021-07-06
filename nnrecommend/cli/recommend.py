@@ -12,10 +12,10 @@ from nnrecommend.operation import Finder, Recommender
 @main.command()
 @click.pass_context
 @click.argument('path', type=click.Path(file_okay=True, dir_okay=False))
-@click.option('--item', 'item_names', default=[], multiple=True, type=str, help="items that you like")
+@click.option('--item', 'labels', default=[], multiple=True, type=str, help="items that you like")
 @click.option('--field', 'fields', default=[], multiple=True, type=str, help="fields in item info to check")
 @click.option('--topk', type=int, default=3, help="amount of recommended items to show")
-def recommend(ctx, path: str, item_names: Container[str], fields: Container[str], topk: int) -> None:
+def recommend(ctx, path: str, labels: Container[str], fields: Container[str], topk: int) -> None:
     """
     load a model and get recommendations
     """
@@ -42,6 +42,7 @@ def recommend(ctx, path: str, item_names: Container[str], fields: Container[str]
 
     pd.options.display.max_colwidth = 200
     if items is None:
+        logger.info("generating ids dataframe...")
         ids = list(range(idrange[0]))
         items = DataFrame({'id': ids}, index=ids)
 
@@ -51,12 +52,15 @@ def recommend(ctx, path: str, item_names: Container[str], fields: Container[str]
         finder = Finder(items, fields)
         recommender = Recommender(idrange, items, model, device)
 
-        for item_name in item_names:
-            r = finder(item_name)
+        for label in labels:
+            r = finder(label)
             if r is None:
-                logger.info(f"did not find any item for '{item_name}'")
+                logger.info(f"did not find any item for '{label}'")
                 continue
-            logger.info(f"found {r}")
+            item = items.loc[r.id]
+            logger.info(f"found item:")
+            logger.info(f"\n{item.to_string()}")
+            logger.info(">>>")
             logger.info("looking for recommendations...")
             for item, rating in recommender(r.id, topk):
                 logger.info(f"rating:{rating:.4f}\n{item.to_string()}")

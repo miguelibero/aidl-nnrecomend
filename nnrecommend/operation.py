@@ -327,26 +327,32 @@ class RunTracker:
 
 class FinderResult:
     def __init__(self, id: int, field: str, value: str, score: int):
-        self.id = id
-        self.field = field
-        self.value = value
-        self.score = score
+        self.id = int(id)
+        self.field = str(field)
+        self.value = str(value)
+        self.score = int(score)
 
     def __str__(self):
         return f"FinderResult(id={self.id}, field={self.field}, value={self.value}, score={self.score})"
 
 
 class Finder:
-    def __init__(self, data: DataFrame, fields: Container[str]=None):
-        assert isinstance(data, DataFrame)
-        self.__data = data
-        self.__fields = fields
+    def __init__(self, items: DataFrame, fields: Container[str]=None):
+        assert isinstance(items, DataFrame)
+        self.items = items
+        self.fields = fields
 
     def __call__(self, v: str) -> FinderResult:
+        try:
+            v = int(v)
+            item = self.items.loc[v]
+            return FinderResult(v, "id", v, -1)
+        except ValueError:
+            pass
         best = None
-        columns = self.__fields or self.__data.select_dtypes(include=object)
+        columns = self.fields or self.items.select_dtypes(include=object)
         for colname in columns:
-            f = self.__data[colname]
+            f = self.items[colname]
             r = process.extractOne(v, f)
             if best is None or best[1] < r[1]:
                 best = r + (colname,)
@@ -365,11 +371,11 @@ class Recommender:
 
     def __create_input(self, id: int):
         # should be extended for context
-        itemids = np.arange(self.idrange[0], self.idrange[1])
-        itemids = itemids[itemids != id + self.idrange[0]]
+        itemids = np.array(self.items.index)
+        itemids = itemids[itemids != id]
         data = np.zeros((len(itemids), 2), dtype=np.int64)
         data[:, 0] = id
-        data[:, 1] = itemids
+        data[:, 1] = itemids + self.idrange[0]
         data = torch.from_numpy(data)
         if self.device:
             data = data.to(self.device)

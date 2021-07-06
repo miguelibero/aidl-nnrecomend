@@ -34,6 +34,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
 
     def __load_items(self, conn: Connection) -> DataFrame:
         data = pd.read_sql(self.ITEMS_QUERY, conn)
+        data["original_podcast_id"] = data[self.ITEM_INDEX_COL].copy()
         data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(hash)
         self._logger.info(f"loaded info for {len(data)} podcasts")
         return data
