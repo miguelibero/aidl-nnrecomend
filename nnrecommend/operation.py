@@ -1,5 +1,6 @@
 import statistics
 import math
+from pandas.core.frame import DataFrame
 import torch
 import numpy as np
 import os
@@ -336,44 +337,20 @@ class FinderResult:
 
 
 class Finder:
-    """
-    given an info dictionary finds the element that matches a string best
-    info dictionary should be in the form of:
-
-    {
-        id1: {
-            "field_name": "field value",
-            "other_field_name": "other field value",
-        },
-        id2: {
-            "field_name": "field value",
-            "other_field_name": "other field value",
-        },
-        ...
-    }
-    """
-
-    def __init__(self, info: Dict[int, Dict[str, Any]], fields: Container[str]=None):
-        self.__fields = {}
-        assert isinstance(info, dict)
-        for id, elm in info.items():
-            assert isinstance(elm, dict)
-            for k, v in elm.items():
-                if fields is not None and k not in fields:
-                    continue
-                if k not in self.__fields:
-                    f = {}
-                    self.__fields[k] = f
-                else:
-                    f = self.__fields[k]
-                f[id] = v
+    def __init__(self, data: DataFrame, fields: Container[str]=None):
+        assert isinstance(data, DataFrame)
+        self.__data = data
+        self.__fields = fields
 
     def __call__(self, v: str) -> FinderResult:
         best = None
-        for name, f in self.__fields.items():
+        columns = self.__fields or self.__data.select_dtypes(include=object)
+        for colname in columns:
+            f = self.__data[colname]
             r = process.extractOne(v, f)
             if best is None or best[1] < r[1]:
-                best = r + (name,)
+                best = r + (colname,)
+        # id, field, value, score
         return FinderResult(best[2], best[3], best[0], best[1])
 
 

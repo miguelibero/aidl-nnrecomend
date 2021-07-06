@@ -61,6 +61,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         path = os.path.join(self.__path, self.ITEMINFO_FILE)
         data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None,
             names=self.ITEM_COLUMN_NAMES)
+        data = data.dropna(axis=1, how='all')
         mapping = IdFinder(mapping)
         data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(mapping.find)
         data.set_index(self.ITEM_INDEX_COL)

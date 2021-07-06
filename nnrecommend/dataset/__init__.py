@@ -633,6 +633,12 @@ def save_model(path: str, model, idrange: np.ndarray, items: DataFrame = None):
         torch.save(data, fh)
 
 
+def load_model(path: str):
+    with open(path, "rb") as fh:
+        data = torch.load(fh)
+        return data["model"], data["idrange"], data["items"]
+
+
 class IdFinder:
     """
     given a container with ordered ids,
