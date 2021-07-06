@@ -7,7 +7,7 @@ import torch
 from typing import Container
 from nnrecommend.cli.main import Context, main
 from nnrecommend.logging import get_logger
-from nnrecommend.operation import Finder
+from nnrecommend.operation import Finder, Recommender
 
 @main.command()
 @click.pass_context
@@ -41,27 +41,16 @@ def recommend(ctx, path: str, item_names: Container[str], fields: Container[str]
     model = model.eval().to(device)
 
     items = items.dropna(axis=1, how='all')
-    items = items.assign(rating=0)
 
     pd.options.display.max_colwidth = 200
 
     with torch.no_grad():
-        pids = np.arange(idrange[0], idrange[1])
-        interactions = np.zeros((len(pids), 2), dtype=np.int64)
-        interactions[:, 1] = pids
-        interactions = torch.from_numpy(interactions).to(device)
-
         finder = Finder(items, fields)
-        
+        recommender = Recommender(idrange, items, model, device)
+
         for item_name in item_names:
             r = finder(item_name)
             logger.info(f"found {r}")
             logger.info("looking for recommendations...")
-            interactions[:, 0] = r.id
-            predictions = model(interactions)
-            ratings, indices = torch.topk(predictions, topk)
-            ritems = interactions[indices][:, 1]
-            for id, r in zip(ritems.cpu().tolist(), ratings.cpu().tolist()):
-                items.loc[id, "rating"] = r
-                row = items.loc[id]
-                logger.info(f"----\n{row.to_string()}")
+            for item, rating in recommender(r.id, topk):
+                logger.info(f"rating:{rating:.4f}\n{item.to_string()}")

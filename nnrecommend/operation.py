@@ -354,6 +354,40 @@ class Finder:
         return FinderResult(best[2], best[3], best[0], best[1])
 
 
+class Recommender:
+
+    def __init__(self, idrange: np.ndarray, items: DataFrame, model: Callable, device: str=None):
+        self.items = items
+        self.model = model
+        self.device = device
+        self.idrange = idrange
+
+    def __create_input(self, id: int):
+        # should be extended for context
+        itemids = np.arange(self.idrange[0], self.idrange[1])
+        itemids = itemids[itemids != id + self.idrange[0]]
+        data = np.zeros((len(itemids), 2), dtype=np.int64)
+        data[:, 0] = id
+        data[:, 1] = itemids
+        data = torch.from_numpy(data)
+        if self.device:
+            data = data.to(self.device)
+        return data
+
+    def __call__(self, id: int, topk: int=3):
+        assert id >= 0 and id < self.idrange[0]
+        input = self.__create_input(id)
+        predictions = self.model(input)
+        ratings, indices = torch.topk(predictions, topk)
+        itemids = input[indices][:, 1] - self.idrange[0]
+        del input
+        ratings = ratings.cpu().tolist()
+        itemids = itemids.cpu().tolist()
+        for rid, rating in zip(itemids, ratings):
+            row = self.items.loc[rid]
+            yield row, rating
+
+
 def create_tensorboard_writer(tb_dir: str, tb_tag: str=None) -> SummaryWriter:
     if not tb_dir:
         return
