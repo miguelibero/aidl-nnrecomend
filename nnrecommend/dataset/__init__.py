@@ -431,9 +431,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param insert_col: the column where to insert
         """
         colmapping = np.arange(0, amount)
-        values = np.zeros((self.__interactions.shape[0]), dtype=np.int64)
-        for i in range(len(values)):
-            values[i] = np.random.randint(0, amount)
+        h = self.__interactions.shape[0]
+        values = np.random.randint(0, amount, (h, ), dtype=np.int64)
         self.insert_column(insert_col, values, colmapping)
     
     def add_previous_item_column(self, items_col: int=1, insert_col: int=-1) -> None:
