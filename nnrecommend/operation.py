@@ -380,7 +380,7 @@ class Recommender:
             raise ValueError("invalid amount of ids")
 
         itemids = np.array(self.items.index)
-        itemids = itemids[itemids != id]
+        itemids = np.delete(itemids, ids)
         data = np.zeros((len(itemids), len(self.idrange)), dtype=np.int64)
         data[:, 0] = ids[-1]
         data[:, 1] = itemids + self.idrange[0]
