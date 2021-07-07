@@ -424,6 +424,17 @@ class InteractionDataset(torch.utils.data.Dataset):
         for (col1, col2) in itertools.combinations(range(0, cols), 2):
             count += self.remove_low(matrix, lim, col1, col2)
         return count
+
+    def add_random_column(self, amount: int, insert_col: int=-1):
+        """
+        :param amount: the amount of items to add
+        :param insert_col: the column where to insert
+        """
+        colmapping = np.arange(0, amount)
+        values = np.zeros((self.__interactions.shape[0]), dtype=np.int64)
+        for i in range(len(values)):
+            values[i] = np.random.randint(0, amount)
+        self.insert_column(insert_col, values, colmapping)
     
     def add_previous_item_column(self, items_col: int=1, insert_col: int=-1) -> None:
         """
@@ -602,6 +613,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         # remove previous items 0 (no previous item)
         return self.__shift_column_values(item_col)
 
+
 class InteractionPairDataset(torch.utils.data.Dataset):
     """
     returns pairs of positive and negative interactions
@@ -703,6 +715,11 @@ class BaseDatasetSource:
             self._logger.info("adding previous item column...")
             self.trainset.add_previous_item_column()
             previous_item_col = -2
+
+        if hparams.interaction_context == "random":
+            self._logger.info("adding random item column...")
+            isize = self.trainset.idrange[1] - self.trainset.idrange[0]
+            self.trainset.add_random_column(isize)
 
         if hparams.recommend:
             self._logger.info("preparing for recommend...")
