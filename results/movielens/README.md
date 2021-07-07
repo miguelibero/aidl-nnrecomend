@@ -3,7 +3,7 @@
 
 We compared different models using the [movielens dataset](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/). The tensorboard logdir can be downloaded from [here](./tensorboard.zip).
 
-We're running our model using 10 negative samples in the trainset and with [BPR loss](https://arxiv.org/pdf/1205.2618.pdf). We're evaluating with topk10 and 99 negative samples in the testset to be able to compare
+We're running our model using 10 negative samples in the trainset and with [BPR loss](https://arxiv.org/pdf/1205.2618.pdf). We're evaluating with topk=10, 4 negative samples per trainset interaction and 99 negative samples per testset interaction to be able to compare
 our results with the ones presented in [this paper](https://arxiv.org/pdf/1909.06627v1.pdf).
 
 comparing fm-linear, fm-gcn and fm-gcn-att without context
