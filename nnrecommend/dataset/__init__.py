@@ -15,16 +15,16 @@ class InteractionDataset(torch.utils.data.Dataset):
     """
     basic interaction dataset class
     """
-    def __init__(self, interactions: np.ndarray):
+    def __init__(self, interactions: np.ndarray, add_labels_col: bool=False):
         """
         :param interactions: 2d array with columns (user id, item id, context, label...)
         """
         interactions = np.array(interactions)
         assert len(interactions.shape) == 2 # should be two dimensions
-        if interactions.shape[1] == 2:
+        assert interactions.shape[1] > 1 # should have at least 2 columns
+        if add_labels_col or interactions.shape[1] == 2:
             # if the interactions don't come with label column, create it with ones
             interactions = np.c_[interactions, np.ones(interactions.shape[0], interactions.dtype)]
-        assert interactions.shape[1] > 2 # should have at least 3 columns
         self.__interactions = interactions
         self.idrange = None
 

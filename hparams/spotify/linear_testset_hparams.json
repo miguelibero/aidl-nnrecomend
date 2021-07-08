@@ -2,28 +2,20 @@
     "common": {
         "embed_dim": 64,
         "negatives_train": 10,
-        "negatives_test": 99,
-        "learning_rate": 0.0005,
-        "batch_size": 1024,
-        "embed_dropout": 0.5,
-        "pairwise_loss": true
+        "negatives_test": 1000,
+        "learning_rate": 0.001,
+        "batch_size": 512,
+        "embed_dropout": 0.4,
+        "epochs": 20
     },
     "trials": [
         {
             "interaction_context": "",
-            "tensorboard_tag": "{tag}-{model}-none"
+            "tensorboard_tag": "{tag}-{model}-none-all"
         },
         {
             "interaction_context": "previous",
-            "tensorboard_tag": "{tag}-{model}-prev"
-        },
-        {
-            "interaction_context": "skip",
-            "tensorboard_tag": "{tag}-{model}-skip"
-        },
-        {
-            "interaction_context": "all",
-            "tensorboard_tag": "{tag}-{model}-all"
+            "tensorboard_tag": "{tag}-{model}-prev-all"
         }
     ]
 }

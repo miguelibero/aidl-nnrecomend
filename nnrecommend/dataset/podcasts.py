@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from logging import Logger
 from sqlite3.dbapi2 import Connection
-from typing import Dict
 from pandas.core.frame import DataFrame
 from nnrecommend.hparams import HyperParameters
 from nnrecommend.dataset import BaseDatasetSource, IdFinder, InteractionDataset
@@ -22,6 +21,9 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         self.__path = path
 
     INTERACTIONS_QUERY = 'SELECT author_id, podcast_id FROM reviews WHERE rating == 5 ORDER BY created_at ASC LIMIT :limit'
+    ITEMS_QUERY = 'SELECT podcast_id, itunes_url, title FROM podcasts'
+    ITEM_ID_COLUMN = 'podcast_id'
+    ORIGINAL_ITEM_ID_COLUMN = "original_podcast_id"
 
     def __load_interactions(self, conn: Connection, maxsize: int) -> None:
         data = pd.read_sql(self.INTERACTIONS_QUERY, conn, params={'limit': maxsize})
@@ -29,28 +31,25 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
             data[colname] = data[colname].apply(hash)
         return data
 
-    ITEMS_QUERY = 'SELECT podcast_id, itunes_url, title FROM podcasts'
-    ITEM_INDEX_COL = 'podcast_id'
-
     def __load_items(self, conn: Connection) -> DataFrame:
         data = pd.read_sql(self.ITEMS_QUERY, conn)
-        data["original_podcast_id"] = data[self.ITEM_INDEX_COL].copy()
-        data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(hash)
+        data[self.ORIGINAL_ITEM_ID_COLUMN] = data[self.ITEM_ID_COLUMN].copy()
+        data[self.ITEM_ID_COLUMN] = data[self.ITEM_ID_COLUMN].apply(hash)
         self._logger.info(f"loaded info for {len(data)} podcasts")
         return data
 
-    def __fix_items(self, data: DataFrame, mapping: np.ndarray) -> Dict[int, Dict[str, str]] :
+    def __fix_items(self, data: DataFrame, mapping: np.ndarray) -> DataFrame:
         mapping = IdFinder(mapping)
-        data[self.ITEM_INDEX_COL] = data[self.ITEM_INDEX_COL].apply(mapping.find)
-        data.dropna(subset=[self.ITEM_INDEX_COL], inplace=True)
-        data.set_index(self.ITEM_INDEX_COL, inplace=True)
+        data[self.ITEM_ID_COLUMN] = data[self.ITEM_ID_COLUMN].apply(mapping.find)
+        data.dropna(subset=[self.ITEM_ID_COLUMN], inplace=True)
+        data.set_index(self.ITEM_ID_COLUMN, inplace=True)
         self._logger.info(f"valid info for {len(data)} podcasts")
         return data
 
     def load(self, hparams: HyperParameters) -> None:
         with sqlite3.connect(self.__path) as conn:
             interactions = self.__load_interactions(conn, hparams.max_interactions)
-            self.trainset = InteractionDataset(interactions)
+            self.trainset = InteractionDataset(interactions, add_labels_col=True)
             if hparams.recommend:
                 self._logger.info("loading items...")
                 items = self.__load_items(conn)
