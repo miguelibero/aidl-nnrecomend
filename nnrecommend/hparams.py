@@ -249,8 +249,8 @@ class RayTuneConfigFile:
     def generate(self, model_type=None):
         config = {}
         for k, v in self.data.items():
-            try:
+            if isinstance(v, (tuple, list)) and hasattr(tune, v[0]):
                 config[k] = getattr(tune, v[0])(*v[1:])
-            except:
+            else:
                 config[k] = v
         return config
