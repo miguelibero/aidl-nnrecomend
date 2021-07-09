@@ -31,7 +31,6 @@ class Setup:
         self.__trace_memory = trace_memory
         self.__pairstrainset = None
         self.__groupstestset = None
-        self.__matrix = None
 
     def __log_dataset(self):
         trainlen = len(self.src.trainset)
@@ -121,11 +120,10 @@ class Setup:
         return DataLoader(dataset, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.train_loader_workers)
 
     def create_adjacency_matrix(self, hparams: HyperParameters):
-        if self.__matrix is None:
-            self._logger.info("creating adjacency matrix...")
-            self.__matrix = self.src.trainset.create_adjacency_matrix()
-            self.__log_matrix(self.__matrix)
-        return self.__matrix
+        self._logger.info("creating adjacency matrix...")
+        matrix = self.src.trainset.create_adjacency_matrix()
+        self.__log_matrix(matrix)
+        return matrix
 
     def __log_matrix(self, matrix):
         nnz = matrix.getnnz()
