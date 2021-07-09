@@ -405,7 +405,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param col2: number of the second column (that will be counted)
         :returns: amount of removed rows
         """
-        if lim <= 0:
+        assert lim >= 0
+        if lim == 0:
             return 0
         self.__require_normalized()
         submatrix = self.__get_submatrix(matrix, col1, col2)
@@ -427,6 +428,35 @@ class InteractionDataset(torch.utils.data.Dataset):
         remove rows that items with low amount of users
         """
         return self.remove_low(matrix, lim, 1, 0)
+
+    def keep_top(self, matrix: sp.spmatrix, amount: int, col1: int, col2: int) -> int:
+        """
+        keep only the interactions with highest amount of counts of col2 in col1
+        """
+        assert amount >= 0
+        self.__require_normalized()
+        submatrix = self.__get_submatrix(matrix, col1, col2)
+        if amount >= submatrix.shape[0]:
+            return 0
+        counts = np.asarray(submatrix.sum(1)).flatten()
+        topids = counts.argsort()[-amount:]
+        minv = 0 if col1 == 0 else self.idrange[col1 - 1]
+        ids = self.__interactions[:, col1] - minv
+        cond = np.isin(ids, topids)
+        self.__interactions =  self.__interactions[cond]
+        return np.count_nonzero(cond == False)
+
+    def keep_top_users(self, matrix: sp.spmatrix, amount: int) -> int:
+        """
+        remove rows that users with low amount of items
+        """
+        return self.keep_top(matrix, amount, 0, 1)
+
+    def keep_top_items(self, matrix: sp.spmatrix, amount: int) -> int:
+        """
+        remove rows that items with low amount of users
+        """
+        return self.keep_top(matrix, amount, 1, 0)
 
     def remove_low_all(self, matrix: sp.spmatrix, lim: int) -> int:
         self.__require_normalized()
