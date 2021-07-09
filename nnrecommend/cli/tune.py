@@ -19,10 +19,12 @@ from nnrecommend.hparams import RayTuneConfigFile
               type=click.Choice(MODEL_TYPES, case_sensitive=False), help="type of model to train")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
 @click.option('--num-samples', type=int, default=1, help="amount of samples to tune")
+@click.option('--trial-cpu', type=float, default=1, help="amount of cpus per trial")
+@click.option('--trial-gpu', type=float, default=0.5, help="amount of gpus per trial")
 @click.option('--config', 'config_path', required=True,
               type=str, help="path to json dictionary file with ray tune config values")
 @click.option('--output', type=str, help="save the trained model to a file")
-def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samples: int, config_path: str, output: str) -> None:
+def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samples: int, trial_cpu: float, trial_gpu: float, config_path: str, output: str) -> None:
     """
     hyperparameter tuning of a pytorch recommender model on a given dataset
 
@@ -70,8 +72,8 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
             scheduler=rtune.schedulers.ASHAScheduler(metric=tune_metric, mode=tune_metric_mode),
             num_samples=num_samples,
             resources_per_trial={
-                "cpu": 1,
-                "gpu": 0.5,
+                "cpu": trial_cpu,
+                "gpu": trial_gpu,
             })
 
         config = analysis.get_best_config(metric=tune_metric, mode=tune_metric_mode)
