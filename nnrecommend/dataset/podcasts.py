@@ -20,13 +20,13 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    INTERACTIONS_QUERY = 'SELECT author_id, podcast_id FROM reviews WHERE rating == 5 ORDER BY created_at ASC LIMIT :limit'
+    INTERACTIONS_QUERY = 'SELECT author_id, podcast_id FROM reviews WHERE rating == 5 ORDER BY created_at ASC'
     ITEMS_QUERY = 'SELECT podcast_id, itunes_url, title FROM podcasts'
     ITEM_ID_COLUMN = 'podcast_id'
     ORIGINAL_ITEM_ID_COLUMN = "original_podcast_id"
 
-    def __load_interactions(self, conn: Connection, maxsize: int) -> None:
-        data = pd.read_sql(self.INTERACTIONS_QUERY, conn, params={'limit': maxsize})
+    def __load_interactions(self, conn: Connection) -> None:
+        data = pd.read_sql(self.INTERACTIONS_QUERY, conn)
         for colname in data.select_dtypes(exclude=int):
             data[colname] = data[colname].apply(hash)
         return data
@@ -48,7 +48,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
 
     def load(self, hparams: HyperParameters) -> None:
         with sqlite3.connect(self.__path) as conn:
-            interactions = self.__load_interactions(conn, hparams.max_interactions)
+            interactions = self.__load_interactions(conn)
             self.trainset = InteractionDataset(interactions, add_labels_col=True)
             if hparams.recommend:
                 self._logger.info("loading items...")

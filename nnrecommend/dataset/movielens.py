@@ -17,16 +17,14 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    def __load_data(self, type:str, maxsize: int):
-        nrows = maxsize if maxsize > 0 else None
+    def __load_data(self, type:str):
         path = f"{self.__path}.{type}.rating"
-        data = pd.read_csv(path, sep='\t', header=None, nrows=nrows, names=self.COLUMN_NAMES)
+        data = pd.read_csv(path, sep='\t', header=None, names=self.COLUMN_NAMES)
         return data
 
     def load(self, hparams: HyperParameters) -> None:
-        maxsize = hparams.max_interactions
         self._logger.info("loading training dataset...")
-        interactions = self.__load_data("train", maxsize)
+        interactions = self.__load_data("train")
         self.trainset = InteractionDataset(interactions)
         self._setup(hparams)
 
@@ -54,10 +52,9 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    def __load_interactions(self, maxsize: int):
-        nrows = maxsize if maxsize > 0 else None
+    def __load_interactions(self):
         path = os.path.join(self.__path, self.INTERACTIONS_FILE)
-        data = pd.read_csv(path, sep='\t', header=None, nrows=nrows, names=self.COLUMNS)
+        data = pd.read_csv(path, sep='\t', header=None, names=self.COLUMNS)
         data.sort_values(by=list(self.SORT_COLUMNS), inplace=True, ascending=True)
         del data[self.SORT_COLUMN]
         del data[self.LABEL_COLUMN]
@@ -77,7 +74,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
 
     def load(self, hparams: HyperParameters) -> None:
         self._logger.info("loading training dataset...")
-        interactions = self.__load_interactions(hparams.max_interactions)
+        interactions = self.__load_interactions()
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         mapping = self._setup(hparams)
         if hparams.recommend:

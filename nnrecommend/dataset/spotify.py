@@ -20,22 +20,20 @@ class SpotifyDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    def __load_data(self, maxsize: int, load_skip: bool=True, load_prev: bool=True):
-        nrows = maxsize if maxsize > 0 else None
+    def __load_data(self, load_skip: bool=True, load_prev: bool=True):
         cols = ["user_id", "song_id"]
         if load_skip:
             cols.append("skipped")
         if load_prev:
             cols.append("previous_song")
-        data = pd.read_csv(self.__path, sep=',', nrows=nrows, usecols=cols)
+        data = pd.read_csv(self.__path, sep=',', usecols=cols)
         return data
 
     def load(self, hparams: HyperParameters) -> None:
-        maxsize = hparams.max_interactions
         self._logger.info("loading data...")
         load_skip = hparams.should_have_interaction_context("skip")
         load_prev = hparams.should_have_interaction_context("previous")
-        interactions = self.__load_data(maxsize, load_skip, load_prev)
+        interactions = self.__load_data(load_skip, load_prev)
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         prev_item_col = -2 # loaded from the dataset
         self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS, prev_item_col)
@@ -62,13 +60,12 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         super().__init__(logger)
         self.__path = path
 
-    def __load_interactions(self, maxsize: int, load_skip: bool=False) -> np.ndarray:
-        nrows = maxsize if maxsize > 0 else None
+    def __load_interactions(self, load_skip: bool=False) -> np.ndarray:
         path = self.__path
         if os.path.isdir(path):
             path = os.path.join(path, self.FILENAME)
         cols = self.COLUMNS + self.SKIP_COLUMNS if load_skip else self.COLUMNS
-        data = pd.read_csv(path, sep=',', nrows=nrows, usecols=cols)
+        data = pd.read_csv(path, sep=',', usecols=cols)
         data.sort_values(by=list(self.SORT_COLUMNS), inplace=True, ascending=True)
         del data[self.SORT_COLUMN]
         for colname in data.select_dtypes(exclude=int):
@@ -108,10 +105,9 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         return data
 
     def load(self, hparams: HyperParameters) -> None:
-        maxsize = hparams.max_interactions
         self._logger.info("loading spotify data...")
         load_skip = hparams.should_have_interaction_context("skip")
-        interactions = self.__load_interactions(maxsize, load_skip)
+        interactions = self.__load_interactions(load_skip)
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         mapping = self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
         if hparams.recommend:

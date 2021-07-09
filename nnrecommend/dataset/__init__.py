@@ -1,4 +1,5 @@
 import itertools
+from os import replace
 from pandas.core.frame import DataFrame
 import torch
 import random
@@ -386,6 +387,16 @@ class InteractionDataset(torch.utils.data.Dataset):
         cs, ce = self.__get_col_range(col2)
         return matrix[rs:re, cs:ce]
 
+    def remove_random(self, size: int):
+        """
+        remove random rows until the dataset has size
+        """
+        v = len(self.__interactions)
+        if size > v:
+            return
+        rows = np.random.choice(np.arange(0, v), size)
+        self.__interactions = self.__interactions[rows]
+
     def remove_low(self, matrix: sp.spmatrix, lim: int, col1: int, col2: int) -> int:
         """
         remove rows that have under a given amount of duplicated pairs
@@ -725,6 +736,12 @@ class BaseDatasetSource:
             cr = self.trainset.prepare_for_recommend(previous_item_col)
             if cr > 0:
                 self._logger.info(f"removed {cr} interactions without previous item")
+
+        if hparams.max_interactions > 0:
+            trainlen = len(self.trainset)
+            if hparams.max_interactions < trainlen:
+                self._logger.info(f"reducing from {trainlen} to {hparams.max_interactions} interactions...")
+                self.trainset.remove_random(hparams.max_interactions)
 
         self._logger.info("extracting test dataset...")
         self.testset = self.trainset.extract_test_dataset()
