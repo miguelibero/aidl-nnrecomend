@@ -167,6 +167,7 @@ def test_remove_low():
     assert len(dataset) == 4
     dataset.remove_low_items(matrix, 1)
     assert len(dataset) == 1
+    assert (dataset[0] == (1, 3, 1)).all()
 
 
 def test_dataset_context():

@@ -1,10 +1,9 @@
-import itertools
-from os import replace
-from pandas.core.frame import DataFrame
 import torch
 import random
 import scipy.sparse as sp
 import numpy as np
+import itertools
+from pandas.core.frame import DataFrame
 from logging import Logger
 from bisect import bisect_left
 from typing import Any, Container, Dict, Tuple
@@ -391,6 +390,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         """
         remove random rows until the dataset has size
         """
+        assert size >= 0
         v = len(self.__interactions)
         if size > v:
             return
@@ -410,8 +410,8 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.__require_normalized()
         submatrix = self.__get_submatrix(matrix, col1, col2)
         counts = np.asarray(submatrix.sum(1)).flatten()
-        ids = self.__interactions[:, col1].astype(np.int64)
-        ids -= self.idrange[col1]
+        minv = 0 if col1 == 0 else self.idrange[col1 - 1]
+        ids = self.__interactions[:, col1] - minv
         cond = counts[ids] > lim
         self.__interactions =  self.__interactions[cond]
         return np.count_nonzero(cond == False)
@@ -696,16 +696,14 @@ class BaseDatasetSource:
     def load(self, hparams: HyperParameters):
         raise NotImplementedError()
 
-    RECALC_AFTER_REMOVE = True # not sure if this affects
-
     def _setup(self, hparams: HyperParameters, min_item_interactions: int=0, min_user_interactions: int=0, previous_item_col: int=None) -> Container[np.ndarray]:
-        remove = min_item_interactions > 0 or min_user_interactions > 0
 
         self._logger.info("normalizing ids...")
         mapping = self.trainset.normalize_ids()
         self._logger.info("calculating user-item matrix...")
         self.useritems = self.trainset.create_adjacency_submatrix()
 
+        remove = min_item_interactions > 0 or min_user_interactions > 0
         if remove:
             self._logger.info("removing low interactions...")
             ci = self.trainset.remove_low_items(self.useritems, min_item_interactions)
@@ -714,7 +712,7 @@ class BaseDatasetSource:
             cu = self.trainset.remove_low_users(self.useritems, min_user_interactions)
             if cu > 0:
                 self._logger.info(f"removed {cu} interactions of users with less than {min_user_interactions} items")
-            if self.RECALC_AFTER_REMOVE and (cu > 0 or ci > 0):
+            if (cu > 0 or ci > 0):
                 self._logger.info("normalizing ids again...")
                 self.trainset.denormalize_ids(mapping)
                 mapping = self.trainset.normalize_ids()
