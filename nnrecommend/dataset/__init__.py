@@ -780,9 +780,8 @@ class BaseDatasetSource:
                 self._logger.info(f"reducing from {trainlen} to {hparams.max_interactions} interactions...")
                 self.trainset.remove_random(hparams.max_interactions)
 
-        if self.testset is None:
-            self._logger.info("extracting test dataset...")
-            self.testset = self.trainset.extract_test_dataset()
+        self._logger.info("extracting test dataset...")
+        self.testset = self.trainset.extract_test_dataset()
         return mapping
 
 
