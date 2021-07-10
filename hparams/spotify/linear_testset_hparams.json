@@ -2,20 +2,19 @@
     "common": {
         "embed_dim": 64,
         "negatives_train": 10,
-        "negatives_test": 1000,
+        "negatives_test": -1, 
         "learning_rate": 0.001,
         "batch_size": 512,
-        "embed_dropout": 0.4,
-        "epochs": 20
+        "embed_dropout": 0.4
     },
     "trials": [
         {
             "interaction_context": "",
-            "tensorboard_tag": "{tag}-{model}-none-all"
+            "tensorboard_tag": "{tag}-{model}-none"
         },
         {
             "interaction_context": "previous",
-            "tensorboard_tag": "{tag}-{model}-prev-all"
+            "tensorboard_tag": "{tag}-{model}-prev"
         }
     ]
 }
