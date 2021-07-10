@@ -367,7 +367,7 @@ class Recommender:
         self.device = device
         self.idrange = idrange
 
-    def __create_input(self, ids: Container[int]) -> np.ndarray:
+    def __create_input(self, ids: Container[int], remove_itemids: Container[int]=None) -> np.ndarray:
         """
         create an array with the following columns
         * the last id in the container
@@ -378,7 +378,8 @@ class Recommender:
             raise ValueError("invalid amount of ids")
 
         itemids = np.array(self.items.index)
-        itemids = np.delete(itemids, ids)
+        if remove_itemids is not None:
+            itemids = np.delete(itemids, remove_itemids)
         data = np.zeros((len(itemids), len(self.idrange)), dtype=np.int64)
         data[:, 0] = ids[-1]
         data[:, 1] = itemids + self.idrange[0]
@@ -398,8 +399,8 @@ class Recommender:
             data = data.to(self.device)
         return data
 
-    def __call__(self, ids: Container[int], topk: int=3):
-        input = self.__create_input(ids)
+    def __call__(self, ids: Container[int], topk: int=3, remove_ids: Container[int]=None):
+        input = self.__create_input(ids, remove_ids)
         predictions = self.model(input)
         ratings, indices = torch.topk(predictions, topk)
         itemids = input[indices][:, 1] - self.idrange[0]

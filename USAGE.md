@@ -170,6 +170,20 @@ nnrecommend explore-dataset data/ml-100k --type movielens
 
 ### Recommend
 
+This command shows recommendations for a given label.
+
+If you store the trained model it can show recommendations for existing users.
+
+```bash
+nnrecommend --hparam interaction_context: train data/movielens-100k --dataset movielens --output movielens.pth
+nnrecommend recommend movielens.pth --label 300 --user-items 3
+```
+
+This will print information about the user `300` and then will find items to recommend them.
+
+
+#### Next Item 
+
 If you train with the `recommend` hyperparameter enabled, the dataset will be modified so that the model trains to recommend items to new users by:
 * removing the user column
 * creating the previous item context
@@ -179,5 +193,5 @@ If you store the trained module by passing the `--output` parameter, you can use
 
 ```bash
 nnrecommend --hparam recommend:1 --hparam interaction_context: train data/movielens-100k --dataset movielens --output movielens_recommend.pth
-nnrecommend recommend movielens_recommend.pth --item "star wars"
+nnrecommend recommend movielens_recommend.pth --label "star wars"
 ```

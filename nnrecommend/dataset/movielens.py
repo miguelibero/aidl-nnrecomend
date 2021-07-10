@@ -71,6 +71,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         path = os.path.join(self.__path, self.ITEMINFO_FILE)
         data = pd.read_csv(path, index_col=False, sep='|', dtype=str, header=None,
             names=self.ITEM_COLUMNS)
+        data = data.drop([None], axis=1)
         mapping = IdFinder(mapping)
         data[self.ORIGINAL_ITEM_ID_COLUMN] = data[self.ITEM_ID_COLUMN].copy()
         data[self.ITEM_ID_COLUMN] = data[self.ITEM_ID_COLUMN].apply(mapping.find)
