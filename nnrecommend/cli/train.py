@@ -103,7 +103,7 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
                 if output:
                     logger.info("saving model...")
                     model_output = output.format(trial=i, model=model_type)
-                    save_model(model_output, model, idrange, items)
+                    save_model(model_output, model, idrange, src.useritems, items)
                 duration = datetime.timedelta(seconds=(timer() - start_time))
                 logger.info(f"elapsed time: {duration}")
 

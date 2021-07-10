@@ -110,6 +110,5 @@ class SpotifyRawDatasetSource(BaseDatasetSource):
         interactions = self.__load_interactions(load_skip)
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         mapping = self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
-        if hparams.recommend:
-            self._logger.info("loading track features...")
-            self.items = self.__load_items(mapping[1])
+        self._logger.info("loading track features...")
+        self.items = self.__load_items(mapping[1])

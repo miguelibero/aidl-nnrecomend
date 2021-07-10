@@ -341,7 +341,7 @@ class InteractionDataset(torch.utils.data.Dataset):
         testset.idrange = self.idrange.copy()
         return testset
 
-    def create_adjacency_submatrix(self, col1: int = 0, col2: int = 1) -> sp.spmatrix:
+    def create_adjacency_submatrix(self, col1: int = 0, col2: int = 1, half = False) -> sp.spmatrix:
         """
         create the adjacency submatrix for the dataset
         """
@@ -349,13 +349,21 @@ class InteractionDataset(torch.utils.data.Dataset):
         min1, max1 = self.__get_col_range(col1)
         min2, max2 = self.__get_col_range(col2)
         diff1 = max1 - min1
-        size = diff1 + max2 - min2
-        matrix = sp.dok_matrix((size, size), dtype=np.int64)
+        diff2 = max2 - min2
+        if half:
+            size = (diff1, diff2)
+        else:
+            size = (diff1 + diff2, diff1 + diff2)
+        matrix = sp.dok_matrix(size, dtype=np.int64)
         for row in self.__interactions:
             a = row[col1] - min1
-            b = row[col2] - min2 + diff1
-            matrix[a, b] = 1
-            matrix[b, a] = 1
+            b = row[col2] - min2
+            if half:
+                matrix[a, b] = 1
+            else:
+                b += diff1
+                matrix[a, b] = 1
+                matrix[b, a] = 1
         return matrix
 
     def create_adjacency_matrix(self) -> sp.spmatrix:
@@ -772,15 +780,17 @@ class BaseDatasetSource:
                 self._logger.info(f"reducing from {trainlen} to {hparams.max_interactions} interactions...")
                 self.trainset.remove_random(hparams.max_interactions)
 
-        self._logger.info("extracting test dataset...")
-        self.testset = self.trainset.extract_test_dataset()
+        if self.testset is None:
+            self._logger.info("extracting test dataset...")
+            self.testset = self.trainset.extract_test_dataset()
         return mapping
 
 
-def save_model(path: str, model, idrange: np.ndarray, items: DataFrame = None):
+def save_model(path: str, model: torch.nn.Module, idrange: np.ndarray, matrix: sp.spmatrix, items: DataFrame = None):
     data = {
         "model": model,
         "idrange": idrange,
+        "matrix": matrix,
         "items": items
     }
     with open(path, "wb") as fh:
@@ -790,7 +800,7 @@ def save_model(path: str, model, idrange: np.ndarray, items: DataFrame = None):
 def load_model(path: str):
     with open(path, "rb") as fh:
         data = torch.load(fh)
-        return data["model"], data["idrange"], data["items"]
+        return data["model"], data["idrange"], data["matrix"], data["items"]
 
 
 class IdFinder:

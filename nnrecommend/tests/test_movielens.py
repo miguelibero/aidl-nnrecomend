@@ -8,7 +8,7 @@ from nnrecommend.hparams import HyperParameters
 
 BASE_PATH = os.path.join(os.path.dirname(__file__), "../../data")
 LAB_DATASET_PATH = os.path.join(BASE_PATH, "ml-dataset-splitted/movielens")
-HUNDREDK_DATASET_PATH = os.path.join(BASE_PATH, "ml-100ku.data")
+HUNDREDK_DATASET_PATH = os.path.join(BASE_PATH, "ml-100k")
 SOURCES = (
     MovielensLabDatasetSource(LAB_DATASET_PATH),
     Movielens100kDatasetSource(HUNDREDK_DATASET_PATH),
@@ -16,7 +16,11 @@ SOURCES = (
 
 @pytest.mark.parametrize("src", SOURCES)
 def test_dataset(src: BaseDatasetSource):
-    hparams = HyperParameters({'interaction_context': None})
+    hparams = HyperParameters({
+        'interaction_context': None,
+        'negatives_train': 4,
+        'negatives_test': 99
+    })
     src.load(hparams)
     src.trainset.add_negative_sampling(hparams.negatives_train, src.useritems)
     src.testset.add_negative_sampling(hparams.negatives_test, src.useritems)

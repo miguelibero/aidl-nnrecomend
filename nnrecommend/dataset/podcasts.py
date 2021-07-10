@@ -50,11 +50,8 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
         with sqlite3.connect(self.__path) as conn:
             interactions = self.__load_interactions(conn)
             self.trainset = InteractionDataset(interactions, add_labels_col=True)
-            if hparams.recommend:
-                self._logger.info("loading items...")
-                items = self.__load_items(conn)
+            self._logger.info("loading items...")
+            items = self.__load_items(conn)
         mapping = self._setup(hparams, MIN_ITEM_INTERACTIONS, MIN_USER_INTERACTIONS)
-        if hparams.recommend:
-            self._logger.info("fixing items...")
-            self.items = self.__fix_items(items, mapping[1])
-
+        self._logger.info("fixing items...")
+        self.items = self.__fix_items(items, mapping[1])

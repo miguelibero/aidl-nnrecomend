@@ -1,8 +1,6 @@
 import click
 import sys
 from typing import Container
-
-from nnrecommend.dataset import save_model
 from nnrecommend.cli.main import main, Context, DATASET_TYPES
 from nnrecommend.algo import create_algorithm, ALGORITHM_TYPES, DEFAULT_ALGORITHM_TYPES
 from nnrecommend.operation import RunTracker, Setup, Tester, create_tensorboard_writer
@@ -17,10 +15,9 @@ from nnrecommend.logging import get_logger
 @click.option('--algorithm', 'algorithm_types', default=DEFAULT_ALGORITHM_TYPES, multiple=True, 
               type=click.Choice(ALGORITHM_TYPES, case_sensitive=False), help="the algorithm to use to fit the data")
 @click.option('--topk', type=int, default=10, help="amount of elements for the test metrics")
-@click.option('--output', type=str, help="save the fitted algorythm to a file")
 @click.option('--tensorboard', 'tensorboard_dir', type=click.Path(file_okay=False, dir_okay=True), help="save tensorboard data to this path")
 @click.option('--tensorboard-tag', 'tensorboard_tag', type=str, help="custom tensorboard tag")
-def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk: int, output: str, tensorboard_dir: str, tensorboard_tag: str) -> None:
+def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk: int, tensorboard_dir: str, tensorboard_tag: str) -> None:
     """
     fit a given recommender algorithm on a dataset
 
@@ -67,10 +64,6 @@ def fit(ctx, path: str, dataset_type: str, algorithm_types: Container[str], topk
             except Exception as e:
                 logger.exception(e)
             finally:
-                if output:
-                    logger.info("saving algorithm...")
-                    algo_output = output.format(trial=i, algorithm=algorithm_type) if output else None
-                    save_model(algo_output, algo, src, idrange)
                 if tb:
                     tb.close()
 

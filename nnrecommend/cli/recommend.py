@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
-from pandas.core.frame import DataFrame
-from nnrecommend.dataset import load_model
+import scipy.sparse as sp
 import click
 import torch
 from typing import Container
+from pandas.core.frame import DataFrame
+from nnrecommend.dataset import load_model
 from nnrecommend.cli.main import Context, main
 from nnrecommend.logging import get_logger
 from nnrecommend.operation import Finder, Recommender
@@ -28,7 +29,8 @@ def recommend(ctx, path: str, labels: Container[str], fields: Container[str], to
         r = load_model(path)
         model: torch.nn.Module = r[0]
         idrange: np.ndarray = r[1]
-        items: DataFrame = r[2]
+        matrix: sp.spmatrix = r[2]
+        items: DataFrame = r[3]
     except Exception as e:
         logger.exception(e, "failed to load model file")
         return False

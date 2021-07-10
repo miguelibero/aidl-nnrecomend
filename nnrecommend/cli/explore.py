@@ -115,7 +115,7 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
     i = 0
     for (x, y) in pairs:
         xname, yname = get_rangename(x), get_rangename(y)
-        submatrix = src.trainset.create_adjacency_submatrix(x, y)
+        submatrix = src.trainset.create_adjacency_submatrix(x, y, half=True)
         count = np.asarray(submatrix.sum(1)).flatten()
         count = count[np.nonzero(count)]
 
@@ -143,5 +143,4 @@ def __hist(ax: Axis, count: np.array, bins: int):
     n, bins, patches = ax.hist(count, bins=bins, log=True)
     maxn = logs(max(n))
     for i in range(len(patches)):
-        print(n[i], np.log(1+n[i]))
         patches[i].set_facecolor(plt.cm.viridis(logs(n[i])/maxn))

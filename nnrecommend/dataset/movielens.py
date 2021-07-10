@@ -11,7 +11,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
     """
     the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
     """
-    COLUMN_NAMES = ('user_id', 'item_id', 'label')
+    COLUMN_NAMES = ('user_id', 'item_id', 'label', None)
 
     def __init__(self, path: str, logger: Logger=None):
         super().__init__(logger)
@@ -20,13 +20,20 @@ class MovielensLabDatasetSource(BaseDatasetSource):
     def __load_data(self, type:str):
         path = f"{self.__path}.{type}.rating"
         data = pd.read_csv(path, sep='\t', header=None, names=self.COLUMN_NAMES)
+        data = data.drop([None], axis=1)
         return data
 
     def load(self, hparams: HyperParameters) -> None:
         self._logger.info("loading training dataset...")
         interactions = self.__load_data("train")
         self.trainset = InteractionDataset(interactions)
-        self._setup(hparams)
+        interactions = self.__load_data("test")
+        self.testset = InteractionDataset(interactions)
+        self._logger.info("normalizing ids...")
+        mapping = self.trainset.normalize_ids(assume_consecutive=True)
+        self._logger.info("calculating user-item matrix...")
+        self.useritems = self.trainset.create_adjacency_submatrix()
+        self.testset.map_ids(mapping)
 
 
 class Movielens100kDatasetSource(BaseDatasetSource):
@@ -77,6 +84,5 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         interactions = self.__load_interactions()
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         mapping = self._setup(hparams)
-        if hparams.recommend:
-            self._logger.info("loading movies...")
-            self.items = self.__load_items(mapping[1])
+        self._logger.info("loading movies...")
+        self.items = self.__load_items(mapping[1])
