@@ -1,0 +1,7 @@
+{
+    "embed_dim": 64,
+    "negatives_train": 10,
+    "negatives_test": 99,
+    "pairwise_loss": false,
+    "interaction_context": ""
+}

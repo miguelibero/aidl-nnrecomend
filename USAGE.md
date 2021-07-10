@@ -50,6 +50,7 @@ Once installed make sure you have the python environment scripts directory in yo
 * `recommend` enable recommend mode
 
 Supported context values are `previous` & `skip`, and they depend on each dataset.
+Additionally you can set `interaction_context:random` to test with a random context, this is used to confirm that the factorization machine is correctly implemented and does not improve when adding random context.
 
 ## Command Line Interface
 
@@ -129,6 +130,7 @@ nnrecommend fit --dataset spotify data/spotify.csv --algoritm knn --algorithm ba
 ```
 
 This command also supports the tensorboard parameter and will create horizontal lines with the test valies for every algorithm.
+
 
 ### Tuning
 
