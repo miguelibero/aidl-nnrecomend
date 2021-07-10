@@ -60,7 +60,7 @@ class SurpriseAlgorithm:
         return predictions
 
 
-ALGORITHM_TYPES = ('baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'nmf')
+ALGORITHM_TYPES = ('baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'svdpp', 'nmf')
 DEFAULT_ALGORITHM_TYPES = ('baseline', 'normal', 'knn')
 
 
@@ -71,22 +71,22 @@ def create_algorithm(algorithm_type, hparams: HyperParameters, idrange: np.ndarr
 
 def create_surprise_algorithm(algorithm_type, hparams: HyperParameters) -> AlgoBase:
     if algorithm_type == "knn":
-        return surprise.prediction_algorithms.knns.KNNBasic()
+        return surprise.prediction_algorithms.knns.KNNBasic(verbose=False)
     if algorithm_type == "knn-means":
-        return surprise.prediction_algorithms.knns.KNNWithMeans()
+        return surprise.prediction_algorithms.knns.KNNWithMeans(verbose=False)
     elif algorithm_type == "svd":
-        return surprise.prediction_algorithms.matrix_factorization.SVD()
-    elif algorithm_type == "svdpp": # takes long time
-        return surprise.prediction_algorithms.matrix_factorization.SVDpp()
+        return surprise.prediction_algorithms.matrix_factorization.SVD(verbose=False)
+    elif algorithm_type == "svdpp": # takes long time, hangs the computer
+        return surprise.prediction_algorithms.matrix_factorization.SVDpp(verbose=False)
     elif algorithm_type == "nmf": # float division error
-        return surprise.prediction_algorithms.matrix_factorization.NMF()
+        return surprise.prediction_algorithms.matrix_factorization.NMF(verbose=False)
     elif algorithm_type == "cocluster":
-        return surprise.prediction_algorithms.co_clustering.CoClustering()
+        return surprise.prediction_algorithms.co_clustering.CoClustering(verbose=False)
     elif algorithm_type == "slope":
-        return surprise.prediction_algorithms.slope_one.SlopeOne()
+        return surprise.prediction_algorithms.slope_one.SlopeOne(verbose=False)
     elif algorithm_type == "normal":
         return surprise.prediction_algorithms.random_pred.NormalPredictor()
     elif algorithm_type == "baseline":
-        return surprise.prediction_algorithms.baseline_only.BaselineOnly()
+        return surprise.prediction_algorithms.baseline_only.BaselineOnly(verbose=False)
     else:
         raise Exception("could not create algorithm")

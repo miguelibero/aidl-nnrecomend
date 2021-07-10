@@ -1,6 +1,7 @@
 import itertools
 from logging import Logger
-from nnrecommend.hparams import HyperParameters
+
+from matplotlib.axis import Axis
 from nnrecommend.dataset import BaseDatasetSource
 import click
 import torch
@@ -9,7 +10,6 @@ import sklearn.decomposition as dc
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-from nnrecommend.operation import Setup
 from nnrecommend.cli.main import Context, main, DATASET_TYPES
 from nnrecommend.model import sparse_tensor_to_scipy_matrix
 from nnrecommend.logging import get_logger
@@ -107,8 +107,10 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
         plt.show()
         return
 
+    plt.style.use("bmh")
+
     pairs = list(itertools.combinations(range(0, len(idrange)), 2))
-    fig, axs = plt.subplots(len(pairs), 2)
+    fig, axs = plt.subplots(len(pairs), 2, squeeze=False)
 
     i = 0
     for (x, y) in pairs:
@@ -126,9 +128,20 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
         axs[i][0].spy(submatrix, markersize=1)
 
         axs[i][1].set_title(f'{xname}-{yname} histogram')
-        axs[i][1].hist(count, bins=hist_bins, log=False)
+        __hist(axs[i][1], count, hist_bins)
+
         axs[i][1].xaxis.set_major_locator(MaxNLocator(integer=True))
         i += 1
     
     fig.tight_layout()
     plt.show()
+
+def __hist(ax: Axis, count: np.array, bins: int):
+    def logs(v):
+        return np.log(1+v).astype('int')
+
+    n, bins, patches = ax.hist(count, bins=bins, log=True)
+    maxn = logs(max(n))
+    for i in range(len(patches)):
+        print(n[i], np.log(1+n[i]))
+        patches[i].set_facecolor(plt.cm.viridis(logs(n[i])/maxn))
