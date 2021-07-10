@@ -165,10 +165,13 @@ def create_model_training(model: torch.nn.Module, hparams: HyperParameters):
     else:
         criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=hparams.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-        patience=hparams.lr_scheduler_patience,
-        factor=hparams.lr_scheduler_factor,
-        threshold=hparams.lr_scheduler_threshold)
+    if hparams.lr_scheduler_factor < 1.0:
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+            patience=hparams.lr_scheduler_patience,
+            factor=hparams.lr_scheduler_factor,
+            threshold=hparams.lr_scheduler_threshold)
+    else:
+        scheduler = None
     return criterion, optimizer, scheduler
 
 

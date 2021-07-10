@@ -49,7 +49,7 @@ class HyperParameters:
         "embed_dim": 64,
         "learning_rate": 0.01,
         "lr_scheduler_patience": 1,
-        "lr_scheduler_factor": 0.8,
+        "lr_scheduler_factor": 1,
         "lr_scheduler_threshold": 1e-4,
         "graph_attention_heads": 8,
         "embed_dropout": 0.5,
