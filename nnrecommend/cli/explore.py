@@ -71,8 +71,8 @@ def explore_model(ctx, path: str, embedding_graph: bool) -> None:
 @click.option('--type', 'dataset_type', default=DATASET_TYPES[0],
               type=click.Choice(DATASET_TYPES, case_sensitive=False))
 @click.option('--hist-bins', type=int, default=20, help="amount bins for the histograms")
-@click.option('--full', type=bool, is_flag=True, help='show full adjacency matrix')
-def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: bool) -> None:
+@click.option('--sub', 'show_sub', type=bool, is_flag=True, help='show submatrices')
+def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, show_sub: bool) -> None:
     """
     show information about a dataset
     """
@@ -84,16 +84,13 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
         hparams.pairwise_loss = False
         src.load(hparams)
         idrange = src.trainset.idrange
-        __explore_dataset(src, idrange, logger, hist_bins, full)
+        __explore_dataset(src, idrange, logger, hist_bins, show_sub)
 
 
-def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logger, hist_bins: int, full: bool) -> None:
+def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logger, hist_bins: int, show_sub: bool) -> None:
 
     def get_over(count, th, tot):
         return np.count_nonzero(count >= th)*100/tot if tot > 0 else 0
-
-    def get_idrange(i):
-        return idrange[i-1] if i > 0 else 0, idrange[i]
 
     def get_rangename(i):
         if i == 0: return "users"
@@ -102,36 +99,47 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
 
     logger.info("calculating statistics...")
 
-    if full:
-        plt.spy(src.matrix, markersize=1)
-        plt.show()
-        return
-
     plt.style.use("bmh")
 
     pairs = list(itertools.combinations(range(0, len(idrange)), 2))
-    fig, axs = plt.subplots(len(pairs), 2, squeeze=False)
+
+    if show_sub:
+        fig, axs = plt.subplots(len(pairs), 2, squeeze=False)
 
     i = 0
+    useritem_count = None
     for (x, y) in pairs:
         xname, yname = get_rangename(x), get_rangename(y)
         submatrix = src.trainset.create_adjacency_submatrix(x, y, half=True)
         count = np.asarray(submatrix.sum(1)).flatten()
         count = count[np.nonzero(count)]
+        if x == 0 and y == 1:
+            useritem_count = count
 
         tot = len(count)
         more2 = get_over(count, 2, tot)
         more10 = get_over(count, 10, tot)
         logger.info(f"{xname}-{yname} total = {tot}, over 2 = {more2:.2f}%, over 10 = {more10:.2f}%")
 
-        axs[i][0].set_title(f'{xname}-{yname} submatrix')
-        axs[i][0].spy(submatrix, markersize=1)
+        if show_sub:
+            axs[i][0].set_title(f'{xname}-{yname} submatrix')
+            axs[i][0].spy(submatrix, markersize=1)
 
-        axs[i][1].set_title(f'{xname}-{yname} histogram')
-        __hist(axs[i][1], count, hist_bins)
+            axs[i][1].set_title(f'{xname}-{yname} histogram')
+            __hist(axs[i][1], count, hist_bins)
 
-        axs[i][1].xaxis.set_major_locator(MaxNLocator(integer=True))
+            axs[i][1].xaxis.set_major_locator(MaxNLocator(integer=True))
         i += 1
+
+    if not show_sub:
+        fig, axs = plt.subplots(1, 2)
+        
+        axs[0].set_title(f'adjacency matrix')
+        matrix = src.trainset.create_adjacency_matrix()
+        axs[0].spy(matrix, markersize=1)
+
+        axs[1].set_title(f'user-item histogram')
+        __hist(axs[1], useritem_count, hist_bins)
     
     fig.tight_layout()
     plt.show()
