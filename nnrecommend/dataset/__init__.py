@@ -348,11 +348,12 @@ class InteractionDataset(torch.utils.data.Dataset):
         self.__require_normalized()
         min1, max1 = self.__get_col_range(col1)
         min2, max2 = self.__get_col_range(col2)
-        size = max1 - min1 + max2 - min2
+        diff1 = max1 - min1
+        size = diff1 + max2 - min2
         matrix = sp.dok_matrix((size, size), dtype=np.int64)
         for row in self.__interactions:
             a = row[col1] - min1
-            b = row[col2] - min2 + max1
+            b = row[col2] - min2 + diff1
             matrix[a, b] = 1
             matrix[b, a] = 1
         return matrix

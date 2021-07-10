@@ -79,11 +79,11 @@ def explore_dataset(ctx, path: str, dataset_type: str, hist_bins: int, full: boo
     ctx: Context = ctx.obj
     src = ctx.create_dataset_source(path, dataset_type)
     logger = ctx.logger or get_logger(explore_dataset)
-    setup = Setup(src, logger)
 
     for hparams in ctx.htrials:
         hparams.pairwise_loss = False
-        idrange = setup(hparams)
+        src.load(hparams)
+        idrange = src.trainset.idrange
         __explore_dataset(src, idrange, logger, hist_bins, full)
 
 
@@ -113,8 +113,7 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
     i = 0
     for (x, y) in pairs:
         xname, yname = get_rangename(x), get_rangename(y)
-        x, y = get_idrange(x), get_idrange(y)
-        submatrix = src.matrix[x[0]:x[1], y[0]:y[1]]
+        submatrix = src.trainset.create_adjacency_submatrix(x, y)
         count = np.asarray(submatrix.sum(1)).flatten()
         count = count[np.nonzero(count)]
 
@@ -125,8 +124,6 @@ def __explore_dataset(src: BaseDatasetSource, idrange: np.ndarray, logger: Logge
 
         axs[i][0].set_title(f'{xname}-{yname} submatrix')
         axs[i][0].spy(submatrix, markersize=1)
-        axs[i][0].xticks(500)
-        axs[i][0].yticks(500)
 
         axs[i][1].set_title(f'{xname}-{yname} histogram')
         axs[i][1].hist(count, bins=hist_bins, log=False)
