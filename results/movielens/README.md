@@ -17,12 +17,12 @@ comparing fm-linear, fm-gcn and fm-gcn-att with previous item context
 | type | model | context | hit ratio | ndcg | coverage |
 | --- | -- | --- | --- | --- | --- |
 | paper | ItemKNN | | 0.5891 | 0.3283 |
-| paper | NeuACF++ | | 0.6915 | 0.4092 | |
 | paper | NeuACF | | 0.6846 | 0.4068 | |
+| paper | NeuACF++ | | 0.6915 | 0.4092 | |
 | nnrecommend | fm-linear | | 0.6458 | 0.3658 | 0.5458
 | nnrecommend | fm-linear | prev | 0.7264 | 0.4453 | 0.6046
 | nnrecommend | fm-gcn | | 0.6543 | 0.3792 | 0.5856 |
 | nnrecommend | fm-gcn | prev | 0.7370 | 0.4611 | 0.6165 |
 | nnrecommend | fm-gcn-att | | 0.6596 | 0.3883 | 0.6225 |
 | nnrecommend | fm-gcn-att | prev | 0.7349 | 0.4581 | 0.7206 |
-| nnrecommend | knn |  | 0.5748 | 0.3155 | 0.4845
+| nnrecommend | knn |  | 0.5716 | 0.3422 | 0.8062

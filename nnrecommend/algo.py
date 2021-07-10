@@ -67,6 +67,8 @@ class SurpriseAlgorithm:
 
 ALGORITHM_TYPES = ('baseline', 'normal', 'slope', 'cocluster', 'knn', 'knn-means', 'svd', 'svdpp', 'nmf')
 DEFAULT_ALGORITHM_TYPES = ('baseline', 'normal', 'knn')
+# seems to match the paper numbers https://arxiv.org/pdf/1909.06627v1.pdf
+KNN_DEFAULT_K = 4
 
 
 def create_algorithm(algorithm_type, hparams: HyperParameters, idrange: np.ndarray):
@@ -76,11 +78,11 @@ def create_algorithm(algorithm_type, hparams: HyperParameters, idrange: np.ndarr
 
 def create_surprise_algorithm(algorithm_type, hparams: HyperParameters) -> AlgoBase:
     if algorithm_type == "knn":
-        return surprise.prediction_algorithms.knns.KNNBasic(verbose=False)
+        return surprise.prediction_algorithms.knns.KNNBasic(verbose=False, k=KNN_DEFAULT_K)
     if algorithm_type == "knn-means":
-        return surprise.prediction_algorithms.knns.KNNWithMeans(verbose=False)
+        return surprise.prediction_algorithms.knns.KNNWithMeans(verbose=False, k=KNN_DEFAULT_K)
     elif algorithm_type == "svd":
-        return surprise.prediction_algorithms.matrix_factorization.SVD(verbose=False)
+        return surprise.prediction_algorithms.matrix_factorization.SVD(verbose=False, lr_all=hparams.learning_rate)
     elif algorithm_type == "svdpp": # takes long time, hangs the computer
         return surprise.prediction_algorithms.matrix_factorization.SVDpp(verbose=False)
     elif algorithm_type == "nmf": # float division error
