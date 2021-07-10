@@ -1,3 +1,4 @@
+from nnrecommend.dataset import InteractionDataset
 import surprise
 import numpy as np
 import torch
@@ -11,7 +12,7 @@ class SurpriseAlgorithm:
         self.algo = algo
         self.itemdiff = itemdiff
 
-    def __create_surprise_trainset(self, dataset: torch.Tensor):
+    def __create_surprise_trainset(self, dataset: InteractionDataset):
         ur = {}
         ir = {}
         raw2inner_id_users = {}
@@ -43,20 +44,24 @@ class SurpriseAlgorithm:
         return surprise.Trainset(ur, ir, n_users, n_items, n_ratings, rating_scale,
                  raw2inner_id_users, raw2inner_id_items)
 
-    def fit(self, trainset: torch.Tensor):
-        strainset = self.__create_surprise_trainset(trainset)
-        return self.algo.fit(strainset)
+    def fit(self, dataset: InteractionDataset) -> None:
+        trainset = self.__create_surprise_trainset(dataset)
+        self.algo.fit(trainset)
 
-    def __call__(self, testset: torch.Tensor):
-        i = testset.shape[0]
+    def __call__(self, testset: torch.Tensor) -> torch.tensor:
+        assert len(testset.shape) == 2
+        assert testset.shape[1] > 1
+        device = testset.device
         testset = testset.numpy()
-        # adding empty ratings column
-        testset = np.hstack((testset, np.zeros((i, 1))))
-        strainset = self.__create_surprise_trainset(testset)
-        stestset = strainset.build_testset()
-        predictions = torch.zeros(i, dtype=torch.float64)
-        for i, pred in enumerate(self.algo.test(stestset)):
-            predictions[i] = pred.est
+        predictions = []
+        for row in testset:
+            uid = row[0].item()
+            iid = row[1].item()
+            pred = self.algo.predict(uid, iid)
+            predictions.append(pred.est)
+        predictions = torch.FloatTensor(predictions)
+        if device:
+            predictions = predictions.to(device)
         return predictions
 
 
