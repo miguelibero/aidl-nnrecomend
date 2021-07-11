@@ -3,8 +3,8 @@
     "learning_rate": ["qloguniform", 0.005, 0.01, 0.001],
     "batch_size": 2048,
     "negatives_train": 10,
-    "negatives_test": -1,
+    "negatives_test": 99,
     "embed_dim": 64,
-    "epochs": 1,
+    "epochs": 20,
     "interaction_context": ""
 }

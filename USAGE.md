@@ -106,8 +106,8 @@ or a dictionary with trials if you want to run multiple trainings one after the 
 This command allows you to train a model.
 
 ```bash
-nnrecommend train --dataset movielens-lab data/ml-dataset-splitted
-nnrecommend train --dataset movielens-100k data/ml-100k/
+nnrecommend train --dataset movielens-lab data/ml-dataset-splitted/movielens
+nnrecommend train --dataset movielens data/ml-100k/
 nnrecommend train --dataset podcasts data/database.sqlite
 nnrecommend train --dataset spotify data/spotify.csv
 ```

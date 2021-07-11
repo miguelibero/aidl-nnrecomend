@@ -1,0 +1,4 @@
+2021-07-11 16:27:25 spotify-fm-linear-skip: hr=0.7382 ndcg=0.5025 cov=0.3835
+2021-07-11 16:27:25 spotify-fm-linear-none: hr=0.7356 ndcg=0.5035 cov=0.3986
+2021-07-11 16:27:25 spotify-fm-linear-all: hr=0.7647 ndcg=0.5914 cov=0.4324
+2021-07-11 16:27:25 spotify-fm-linear-prev: hr=0.7639 ndcg=0.5925 cov=0.4284
