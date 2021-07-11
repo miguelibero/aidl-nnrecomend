@@ -185,6 +185,11 @@ Now that we see that our models improved the results of the paper in the moviele
 Our hypothesis is that we can train our models on this data and obtain similar results to the movielens ones.
 In addition to this, since the dataset includes a lot of metadata, we want to add other context rows and evaluate if those improve the metrics.
 
+We downloaded a mini training set from aircrowd page. It consist in 10.000 sessions randomly chosen. At first we worked on it, but results were worse than movilens using GCN algorithm. After checking the results, we have reached the conclusion that the random data set do not have a similar distribution to the full dataset, so the results were bad. We built a new mini dataset with a histogram more similar to the real one, who is 1000M records and requieres a lot of computation. 
+
+We tried previous song as context data and it works fine, like in movilens. Then we tried to use skipped songs as bad ratting data and not skipped songs as good ratting but that experiments does not improve the results. 
+
+
 ## Addressing The Cold Start Problem <a name="experiments_coldstart"></a>
 
 We found that our models we're pretty good at predicting recommendations for existing users, but since this is a collaborative filtering recommender system, it suffers from the cold start problem, i.e. it cannot recommend items to users that are not in the dataset.
