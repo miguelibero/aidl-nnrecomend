@@ -102,12 +102,17 @@ The `Recommender` class is used in the `recommend` subcommand to generate a data
 ### Hyperparameters <a name="architecture_hyperparameters"></a>
 
 We created a `nnrecommend.hparams.HyperParameters` class that can load hyperparameters from the command line or from files.
+Hyperparameters can be specified using `--hparam name:value` from the command line.
+
+To load the ray tune config when running hyperparameter tuning, we also provide a vay of specifying the hyperparameter ranges using json files. That way we can tune with different values and not have to change the code every time.
+
+For more information on the specific json formats, please read the [usage information section](./Usage.md#hyperparameters) on hyperparameters.
 
 # Experiments <a name="experiments"></a>
 
 ## Movielens Evaluation <a name="experiments_movielens"></a>
 
-The movielens dataset consists of 100k interactions between 943 users and 1682 movies. We found [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) that lists evaluation metrics for different recommender systems using this dataset.
+The movielens dataset consists of 100k interactions between 943 users and 1682 movies. We found [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) that lists evaluation metrics for different recommender systems using this dataset. The best two models listed are NeuACF and NeuACF++.
 
 | model | hit ratio | ndcg |
 | -- | --- | --- |
@@ -117,7 +122,7 @@ The movielens dataset consists of 100k interactions between 943 users and 1682 m
 
 Our hypothesis is that we should be able to reproduce similar metrics and hopefully improve them using factorization machines with GCN.
 
-Download the dataset from [this link](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/) and place it under the `data/ml-100k` folder.
+You can download the dataset from [this link](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/) and place it under the `ml-100k` folder.
 
 We run our models matching the hyperparameters specified in the paper to be able to compare them
 
@@ -131,8 +136,8 @@ We run our models matching the hyperparameters specified in the paper to be able
 Initial evaluation running with `fm-linear` shows that we're already better than knn, but still not better than NeuACF or NeuACF++.
 
 ```bash
-nnrecommend --hparams-file hparams/movielens/initial_hparams.json train data/ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
-nnrecomment --hparams-file hparams/movielens/initial_hparams.json fit data/ml-100k --dataset movielens --algorithm knn --tensorboard tensorboard
+nnrecommend --hparams-file hparams/movielens/initial_hparams.json train ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
+nnrecomment --hparams-file hparams/movielens/initial_hparams.json fit ml-100k --dataset movielens --algorithm knn --tensorboard tensorboard
 ```
 
 ![initial results with linear compared to knn and baseline](./.readme/movielens_initial.png)
@@ -143,8 +148,8 @@ We enabled `pairwise_loss` (Binary Personalized Ranking loss) and added previous
 We optimized the model parameters using the `nnrecommend tune` command.
 
 ```bash
-nnrecommend -v tune data/ml-100k --dataset movielens --config hparams/movielens/tune_config.json --model fm-linear
-nnrecommend -v tune data/ml-100k --dataset movielens --config hparams/movielens/tune_config.json --model fm-gcn 
+nnrecommend -v tune ml-100k --dataset movielens --config hparams/movielens/tune_config.json --model fm-linear
+nnrecommend -v tune ml-100k --dataset movielens --config hparams/movielens/tune_config.json --model fm-gcn 
 ```
 
 The tuned parameters for the training were:
@@ -163,12 +168,15 @@ for `fm-gcn`:
 | `batch_size` | 1024 |
 | `embed_dropout`| 0.4 |
 
+The json files to load the hyperparameters can be found in the [`hparams/movielens`](./hparams/movielens) repository folder,
+the resulting tensorboard data is in the [`results/movielens`](./results/movielens) folder.
+
 To obtain the final evaluations we run the following commands.
 
 ```bash
-nnrecommend --hparams-file hparams/movielens/linear_testset_hparams.json train data/ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
-nnrecommend --hparams-file hparams/movielens/gcn_testset_hparams.json train data/ml-100k --dataset movielens --model fm-gcn --tensorboard tensorboard
-nnrecommend --hparams-file hparams/movielens/gcn_testset_hparams.json train data/ml-100k --dataset movielens --model fm-gcn --tensorboard tensorboard
+nnrecommend --hparams-file hparams/movielens/linear_testset_hparams.json train ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
+nnrecommend --hparams-file hparams/movielens/gcn_testset_hparams.json train ml-100k --dataset movielens --model fm-gcn --tensorboard tensorboard
+nnrecommend --hparams-file hparams/movielens/gcn_testset_hparams.json train ml-100k --dataset movielens --model fm-gcn --tensorboard tensorboard
 ```
 
 comparing fm-linear, fm-gcn and fm-gcn-att without context
@@ -177,7 +185,7 @@ comparing fm-linear, fm-gcn and fm-gcn-att without context
 comparing fm-linear, fm-gcn and fm-gcn-att with previous item context
 ![comparing fm-linear, fm-gcn and fm-gcn-att with previous item context](./.readme/movielens_prev.png)
 
-![legend](./.readme/movielens_legend.png)
+![movielens legend](./.readme/movielens_legend.png)
 
 We can observe that:
 * adding previous item context improves the metrics
@@ -221,7 +229,7 @@ Toy Story (1995)
 When Harry Met Sally... (1989)
 ```
 
-To achieve this we generate a dataset with the user in the user column and all the items in the item column and run it through the pretrained model to get all the item ratings. Highest ratings are the best recommended movies.
+To achieve this what we're doing in the `Recommender` class is generate a dataset with the specified user in the user column and all the items in the item column and run it through the pretrained model to get all the item ratings. Highest ratings are the highest recommended movies.
 
 ## Spotify Evaluation <a name="experiments_spotify"></a>
 
@@ -238,7 +246,7 @@ We tried previous song as context data and it works fine, like in movilens. Then
 
 ## Addressing The Cold Start Problem <a name="experiments_coldstart"></a>
 
-We found that our models we're pretty good at predicting recommendations for existing users, but since this is a collaborative filtering recommender system, it suffers from the cold start problem, i.e. it cannot recommend items to users that are not in the dataset.
+We found that our models we're able to generate recommendations for existing users, but since this is a collaborative filtering recommender system, it suffers from the cold start problem, i.e. it cannot recommend items to users that are not in the dataset.
 
 To address this issue we propose a modification of the `InteractionDataset` that goes as follows:
 * remove the `user` column
@@ -248,7 +256,7 @@ To address this issue we propose a modification of the `InteractionDataset` that
 
 ![recommend dataset algorithm](./.readme/item_recommend.png)
 
-With this change we have a dataset where given a previous item, the factorization machine should return a rating for the next item. Our hypothesis is that we can use this new dataset to train the same factorization machine model to recommend an item to new users that only need to provide 1 item they like. 
+With this change we have a dataset where given a previous item, the factorization machine should return a rating for the next item. Our hypothesis is that we can use this modified dataset to train the same factorization machine model to recommend an item to new users that only need to provide 1 item they like. 
 
 To evaluate this hypothesis we can use the same metrics as in the normal factorization machine, we will just group by previous item instead of by user. That said, to test the trained model and obtain some sample recommendations, it would be best to have dataset that contains item metadata. Therefore we will test with the movielens dataset, since the spotify one does not contain song names.
 
@@ -265,31 +273,36 @@ And then we can use the `nnrecommend recommend` command to get recommendations f
 nnrecommend recommend movielens_recommend.pth --label "star wars"
 ```
 
-We found another [kaggle dataset](https://www.kaggle.com/thoughtvector/podcastreviews) that looked promising and included item metadata, information about itunes podcasts reviews. This dataset was also implemented as a `BaseDatasetSource`.
+![item recommend screenshot](./.readme/item_recommend_screenshot.png)
+
+When asking for recommendations similar to `Star Wars` we're getting `Return Of The Jedi` as the second highest ranked, seems like a good recommendation.
 
 # Conclusions <a name="conclusions"></a>
 
-We managed to reproduce and improve the recommender system metrics shown in this 2019 paper using the movielens dataset.
+We managed to reproduce and improve the recommender system metrics shown in [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) using the movielens dataset.
 We managed to extract a subset of the spotify dataset that could be used to train recommender systems.
-We implemented Bayesian Personalized Ranking loss and previous item context and showed that they improve the factorization machine evaluation metrics. We showed that using Graph Convolutional Networks for the embedding of a factorization machine can lead to better results in some cases.
+We implemented Bayesian Personalized Ranking loss and previous item context and showed that they improve the factorization machine evaluation metrics. We showed that using Graph Convolutional Networks for the embedding of a factorization machine can lead to better results in some cases. We proposed a solution that adapts the factorization machine model to deal with the cold start problem.
 
 # Future Work <a name="future_work"></a>
 
 The current model could be extended to add user & item features in the graph convolutional network,
-right now this features matrix that can be provided to the GCN is always an identity.
+right now the features matrix that can be provided to the GCN is always an identity.
 
 The item recommendation algorithm could be extended to add multiple previous item colums and then 
 the item recommendation could be more accurate if a new user provides multiple items they liked.
 
-We could implement a frontend for the `recommend` subcommand to get recommendations via web, for example using the flask framework.
+We could evaluate adding other interaction contexts that can be found in the spotify dataset and see how they affect the different models.
+
+We could implement a frontend for the `recommend` subcommand to get recommendations via web, for example using the [flask](https://flask.palletsprojects.com/en/2.0.x/) framework.
 
 # Bibliography <a name="bibliography"></a>
 
-* [Factorization Machines](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)
-* [Semi-supervised classification with Graph Convolutional Networks](https://arxiv.org/pdf/1609.02907.pdf)
-* [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
-* [Deep Collaborative Filtering with Multi-AspectInformation in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
-* [Bayesian Personalized Ranking from Implicit Feedback](https://arxiv.org/pdf/1205.2618.pdf)
+* papers
+  * [Factorization Machines](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)
+  * [Semi-supervised classification with Graph Convolutional Networks](https://arxiv.org/pdf/1609.02907.pdf)
+  * [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
+  * [Deep Collaborative Filtering with Multi-AspectInformation in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
+  * [Bayesian Personalized Ranking from Implicit Feedback](https://arxiv.org/pdf/1205.2618.pdf)
 * Datasets
   * [Movielens100k Dataset](https://grouplens.org/datasets/movielens/100k/)
   * [Spotify Skip Challenge Dataset](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge)

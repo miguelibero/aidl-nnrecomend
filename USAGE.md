@@ -1,7 +1,7 @@
 `nnrecommend`
 ====
 
-## Installation
+## Installation <a name="installation"></a>
 
 To install run the following from the root project directory (ideally activate a virtualenv first).
 
@@ -15,20 +15,20 @@ pip install -e ./
 
 Once installed make sure you have the python environment scripts directory in your path.
 
-### Datasets
+### Datasets <a name="list_datasets"></a>
 
 * [`movielens`](https://www.kaggle.com/prajitdatta/movielens-100k-dataset/) movielens dataset from kaggle
 * [`podcasts`](https://www.kaggle.com/thoughtvector/podcastreviews) itunes podcaseds dataset from kaggle
 * [`spotify`](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge) spotify skip prediction challenge dataset (this is preprocessed data from the dataset)
 * [`spotify-mini`](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge) spotify skip prediction challenge mini dataset (can load directly the downloaded files)
 
-### Models
+### Models <a name="list_models"></a>
 
 * `fm-linear` factorization machine with linear embedding
 * `fm-gcn` factorization machine with graph embedding
 * `fm-gcn-att` factorization machine with graph embedding with attention
 
-### Hyper Parameters
+### Hyper Parameters <a name="list_hyperparameters"></a>
 
 * `max_interactions` how many interactions to load from the dataset (`-1` for all)
 * `negatives_train` how many negative samples to add to the train dataset (`-1` for all)
@@ -52,7 +52,7 @@ Once installed make sure you have the python environment scripts directory in yo
 Supported context values are `previous` & `skip`, and they depend on each dataset.
 Additionally you can set `interaction_context:random` to test with a random context, this is used to confirm that the factorization machine is correctly implemented and does not improve when adding random context.
 
-### Subcommands
+### Subcommands <a name="list_subcommands"></a>
 
 Details for the different subcommands are provided later
 
@@ -62,7 +62,7 @@ Details for the different subcommands are provided later
 * `explore-dataset` show information about a dataset
 * `recommend` load a trained model to get recommendations
 
-## Command Line Interface
+## Command Line Interface <a name="cli"></a>
 
 Once the package is installed and you have the python bin path in you system path, to see the different available actions and parameters run
 
@@ -70,7 +70,7 @@ Once the package is installed and you have the python bin path in you system pat
 nnrecommend --help
 ```
 
-### Hyperparameters
+### Hyperparameters <a name="hyperparameters"></a>
 
 Passing hyperparameters can be done using `--hparam name:value`, you can add the argument multiple times to set multiple hyper parameters, or `--hparams-path hparams.json` to load the parameters from a json dictionary.
 
@@ -101,7 +101,7 @@ or a dictionary with trials if you want to run multiple trainings one after the 
 }
 ```
 
-### Training
+### Training <a name="subcommand_train"></a>
 
 This command allows you to train a model.
 
@@ -131,7 +131,7 @@ tensorboard --logdir tbdir
 ```
 
 
-### Fitting
+### Fitting <a name="subcommand_fit"></a>
 
 This command allows to fit an algorith with a dataset and get test values.
 
@@ -142,7 +142,7 @@ nnrecommend fit --dataset spotify data/spotify.csv --algoritm knn --algorithm ba
 This command also supports the tensorboard parameter and will create horizontal lines with the test valies for every algorithm.
 
 
-### Tuning
+### Tuning <a name="subcommand_tune"></a>
 
 This command runs hyperparameter tuning with a given dataset and model.
 We use [`ray.tune`](https://docs.ray.io/en/master/tune/index.html) for this task.
@@ -169,7 +169,8 @@ When running you can see the progress by starting a tensorboard server on the `~
 tensorboard --logdir ~/ray_results
 ```
 
-### Explore Dataset
+### Explore Dataset <a name="subcommand_explore_dataset"></a>
+
 
 This command shows some graphs about the dataset.
 It shows for every user, item or context pari:
@@ -180,7 +181,7 @@ It shows for every user, item or context pari:
 nnrecommend explore-dataset data/ml-100k --type movielens
 ```
 
-### Recommend
+### Recommend <a name="subcommand_recommend"></a>
 
 This command shows recommendations for a given label.
 
@@ -194,7 +195,7 @@ nnrecommend recommend movielens.pth --label 300 --user-items 3
 This will print information about the user `300` and then will find items to recommend them.
 
 
-#### Next Item 
+#### Recommend Items 
 
 If you train with the `recommend` hyperparameter enabled, the dataset will be modified so that the model trains to recommend items to new users by:
 * removing the user column
