@@ -7,7 +7,6 @@ Final Project for the UPC Artificial Intelligence with Deep Learning Postgraduat
 * Team Advisor: [Paula Gomez Duran](paulagomezduran@gmail.com)
 * Date: July 2021
 
-
 ## Table of Contents 
 
 * [Introduction](#intro)
@@ -31,7 +30,7 @@ Final Project for the UPC Artificial Intelligence with Deep Learning Postgraduat
 The goal of this project is to develop a state-of-the art collaborative filtering recommender system using machine learning that can be trained on multiple datasets. Collaborative filtering is the method used by tech companies like Amazon and Netflix for their recommender systems as it can be trained without having user & item metadata.
 
 Factorization machines were proposed in [this 2010 paper](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf) as a way of doing matrix factorization that improves
-on the classic single value decomposition models by being more optimized for sparse datasets and supporting additional interaction context, this is ideal for recommender systems. In addition to that, we also want to implement [this paper](https://arxiv.org/pdf/1609.02907.pdf) that proposes replacing the factorization machine embedding with a graph convolutional network.
+on the classic single value decomposition models by being more optimized for sparse datasets and supporting additional interaction context, these characteristics make this model ideal for recommender systems. In addition to that, we also want to evaluate [this paper](https://arxiv.org/pdf/1609.02907.pdf) that proposes replacing the factorization machine embedding with a graph convolutional network.
 
 # Overview <a name="overview"></a>
 
@@ -45,22 +44,26 @@ The whole project is implemented as a command-line tool. We provide the followin
 * `nnrecommend explore-dataset` show information about a dataset
 * `nnrecommend recommend` load a trained model to get recommendations
 
-Please read the tool setup and usage instructions [in this separate file](./USAGE.md).
+Please find the tool setup and usage instructions [in this separate file](./USAGE.md).
 
 ## Architecture <a name="architecture"></a>
 
 ### Model <a name="architecture_model"></a>
 
-Our model classes can be found in the `nnrecommend.model` namespace. The `FactorizationMachine` equation is split in two classes; `LinearFeatures` implements the linear regression part of the equation, wile `FactorizationMachineOperation` implements the square of sum minus sum of squares part. The embeddings can be of thre types, using the normal `torch.nn.Embedding` for linear embeddings, using `GraphEmbedding` which internally uses `torch_geometric.nn.GCNConv`, and using `GraphAttentionEmbedding` which internally uses `torch_geometric.nn.GATConv`. Over the embedding module we added a dropout to prevent the model from overfitting. 
+Our model classes can be found in the [`nnrecommend.model`](./nnrecommend/model.py) namespace. The `FactorizationMachine` equation is split in two classes; `LinearFeatures` implements the linear regression part of the equation, wile `FactorizationMachineOperation` implements the square of sum minus sum of squares part. The embeddings can be of three types, using the normal `torch.nn.Embedding` for linear embeddings, using `GraphEmbedding` which internally uses `torch_geometric.nn.GCNConv`, and using `GraphAttentionEmbedding` which internally uses `torch_geometric.nn.GATConv`. Over the embedding module we added a dropout to prevent the model from overfitting. 
 
 ![factorization machine model](./.readme/model.png)
 
 We implemented the Binary Personalized Ranking loss
 as explained in [this paper](https://arxiv.org/pdf/1205.2618.pdf) in the `BPRLoss` class.
 
+Since we wanted to evaluate this new model against existing recommender system models, we implemented adapters to the different algorithms supported by the scipy [`surprise`](https://surpriselib.com/) library. These can be found in the [`nnrecommend.algo`](./nnrecommend/algo.py) namespace.
+
 ### Dataset <a name="architecture_dataset"></a>
 
-`nnrecommend.dataset.InteractionDataset` is the main dataset class used in the tool. It takes care of dealing with
+All the classes related to reading the datasets for the different types of data can be found in the [`nnrecommend.dataset`](./nnrecommend/dataset/__init__.py) namespace.
+
+`InteractionDataset` is the main dataset class used in the tool. It takes care of dealing with
 a two dimensional numpy array of interactions where every column is formed by consecutive ids. To guarantee its correct behavior, we wrote some unit tests for it that can be found in the `test_dataset.py` file.
 
 ![interaction dataset](./.readme/interaction_dataset.png)
@@ -71,32 +74,30 @@ The `InteractionPairDataset` class allows the system to train de model with `BPR
 
 The `GroupingDataset` class is used in the testset to make the trainloader (set with `batch=1`) return the interaction groups for the same user.
 
-Since we want to be able to load different datasets, each one needs to implement `nnrecommend.dataset.BaseDatasetSource`,
-this class will setup the basic dataset logic like removing low interactions, adding previous item context, etc...
-This is currently implemented for the movielens, spotify & podcasts datasets. Every new dataset would need to load:
+Since we want to be able to load different dataset sources, each one needs to implement `BaseDatasetSource`,
+this class will setup the basic dataset logic like removing low interactions, adding previous item context, extracting the testset interactions, etc... This is currently implemented for the movielens, spotify & podcasts datasets. Every new dataset would need to load:
 
 * `self.trainset`: the `InteractionDataset` with the data
 * `self.items`: a pandas `DataFrame` containing item metadata (used in the recommender)
 
-Each specific dataset source can call `BaseDatasetSource._setup` to use generic functionallity like removing interactions with users or items that have low counts or extracting the testset interactions.
-
 ### Operations <a name="architecture_operations"></a>
 
-Since most of the commands have similar flows, we implemented them in reusable classes.
+Since most of the commands have similar flows, we implemented them in reusable classes in the [`nnrecommend.operation`](./nnrecommend/operation.py) namespace.
 
-The `nnrecommend.operation.Setup` class takes the `nnrecommend.dataset.BaseDatasetSource` and configures the negative sampling based on the provided hyperparameters.
+The `Setup` class takes the `nnrecommend.dataset.BaseDatasetSource` and configures the negative sampling based on the provided hyperparameters.
 
-The `nnrecommend.operation.Trainer` class contains the core training logic, it supports both pairwise datasets and normal ones.
+The `Trainer` class contains the core training logic, it supports both pairwise datasets and normal ones.
 
-The `nnrecommend.operation.Tester` class is used to obtain the evaluation metrics from a model or algorithm. It supports the following:
+The `Tester` class is used to obtain the evaluation metrics from a model or algorithm. It supports the following:
 * Hit Ratio (HR): Measures whether the real test item is in the top positions of the recommendation list
 * Normalized Discounted Cumulative Gain (NDCG): Measures the ranking quality which gives information about where in the raking is our real test item.
 * Coverage (COV): Measures the amount of total items in the topk positions.
 
-The `nnrecommend.operation.RunTracker` class sends the training & testing metrics to tensorboard and could be extended to send them to other systems.
+The `RunTracker` class sends the training & testing metrics to tensorboard and could be extended to send them to other systems.
 
-The `nnrecommend.operation.Finder` and `nnrecommend.operation.Recommender` classes are used in the `recommend` subcommand
-to find items that match metadata and then ask the model for its recommendations.
+The `Finder` uses the [`fuzzywuzzy`](https://github.com/seatgeek/fuzzywuzzy) fuzzy string matching library to find for items in a pandas `DataFrame` that mach a given string. This is used in the `recommend` subcommand to look for items without having to remember their ids.
+
+The `Recommender` class is used in the `recommend` subcommand to generate a dataset to get item recommendations running it through a pretrained model.
 
 ### Hyperparameters <a name="architecture_hyperparameters"></a>
 
@@ -138,7 +139,7 @@ nnrecomment --hparams-file hparams/movielens/initial_hparams.json fit data/ml-10
 
 ![initial results legend](./.readme/movielens_initial_legend.png)
 
- nabling `pairwise_loss` and adding previous item context we achieve better results.
+We enabled `pairwise_loss` (Binary Personalized Ranking loss) and added previous item context we achieve better results.
 We optimized the model parameters using the `nnrecommend tune` command.
 
 ```bash
@@ -162,6 +163,7 @@ for `fm-gcn`:
 | `batch_size` | 1024 |
 | `embed_dropout`| 0.4 |
 
+To obtain the final evaluations we run the following commands.
 
 ```bash
 nnrecommend --hparams-file hparams/movielens/linear_testset_hparams.json train data/ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
@@ -195,6 +197,32 @@ We can observe that:
 | nnrecommend | fm-gcn-att | prev | **0.7349** | **0.4581** | **0.7206** |
 | nnrecommend | knn |  | 0.5716 | 0.3422 | 0.8062 |
 
+If we store the trained model using the `--output` parameter, we then can run `nnrecommend recommend` to obtain new movie recommendations for the users. 
+
+As an example, for the user `600` we can run:
+
+```bash
+nnrecommend --hparams-file hparams/movielens/linear_best_hparams.json train data/ml-100k --dataset movielens --model fm-linear --output movielens.pth
+nnrecommend recommend movielens.pth --label 600 --user-items 3
+``` 
+
+Result would be:
+
+```
+user 600 rated 148 movies
+some movies that the user rated were:
+The Godfather (1972)
+Strange Days (1995)
+Sneakers (1992)
+----
+highest recommended movies for the user:
+The Fugitive (1993)
+Toy Story (1995)
+When Harry Met Sally... (1989)
+```
+
+To achieve this we generate a dataset with the user in the user column and all the items in the item column and run it through the pretrained model to get all the item ratings. Highest ratings are the best recommended movies.
+
 ## Spotify Evaluation <a name="experiments_spotify"></a>
 
 Now that we see that our models improved the results of the paper in the movielens dataset, we will try them out on another dataset, spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
@@ -206,24 +234,48 @@ In addition to this, since the dataset includes a lot of metadata, we want to ad
 
 We found that our models we're pretty good at predicting recommendations for existing users, but since this is a collaborative filtering recommender system, it suffers from the cold start problem, i.e. it cannot recommend items to users that are not in the dataset.
 
-To solve this issue we propose a modification of the `InteractionDataset` that goes as follows:
+To address this issue we propose a modification of the `InteractionDataset` that goes as follows:
 * remove the `user` column
 * compute previous item context column
+* remove all the rows with -1 previous item (no previous item)
 * switch the item column with the previous item context column
 
-With this change we have a dataset where given a previous item, the factorization machine should give a rating for the next item. Our hypothesis is that we can use this new dataset to train the same factorization machine to recommend an item to new users that only need to provide 1 item they like. This algorithm could be easily extended to add more previous item columns and be able to recommend an item by providing `n` previous items.
+![recommend dataset algorithm](./.readme/item_recommend.png)
+
+With this change we have a dataset where given a previous item, the factorization machine should return a rating for the next item. Our hypothesis is that we can use this new dataset to train the same factorization machine model to recommend an item to new users that only need to provide 1 item they like. 
 
 To evaluate this hypothesis we can use the same metrics as in the normal factorization machine, we will just group by previous item instead of by user. That said, to test the trained model and obtain some sample recommendations, it would be best to have dataset that contains item metadata. Therefore we will test with the movielens dataset, since the spotify one does not contain song names.
 
-We found another [kaggle dataset](https://www.kaggle.com/thoughtvector/podcastreviews) that looked promising and included item metadata, information about itunes podcasts reviews.
+We train a model using the `recommend` hyperparameter to enable this new functionality.
+
+```
+nrecommend --hparam recommend:1 --hparam interaction_context: train data/ml-100k --dataset movielens --output movielens_recommend.pth
+```
+
+As we can see, the recommender evaluation metrics are improving, that means that we're correctly training the model.
+And then we can use the `nnrecommend recommend` command to get recommendations for movies.
+
+```
+nnrecommend recommend movielens_recommend.pth --label "star wars"
+```
+
+We found another [kaggle dataset](https://www.kaggle.com/thoughtvector/podcastreviews) that looked promising and included item metadata, information about itunes podcasts reviews. This dataset was also implemented as a `BaseDatasetSource`.
 
 # Conclusions <a name="conclusions"></a>
 
+We managed to reproduce and improve the recommender system metrics shown in this 2019 paper using the movielens dataset.
+We managed to extract a subset of the spotify dataset that could be used to train recommender systems.
+We implemented Bayesian Personalized Ranking loss and previous item context and showed that they improve the factorization machine evaluation metrics. We showed that using Graph Convolutional Networks for the embedding of a factorization machine can lead to better results in some cases.
+
 # Future Work <a name="future_work"></a>
 
-The current model could be extended to add user & item features in the graph convolutional network.
+The current model could be extended to add user & item features in the graph convolutional network,
+right now this features matrix that can be provided to the GCN is always an identity.
 
-The recommend tool could be extended to support multiple previous items.
+The item recommendation algorithm could be extended to add multiple previous item colums and then 
+the item recommendation could be more accurate if a new user provides multiple items they liked.
+
+We could implement a frontend for the `recommend` subcommand to get recommendations via web, for example using the flask framework.
 
 # Bibliography <a name="bibliography"></a>
 
