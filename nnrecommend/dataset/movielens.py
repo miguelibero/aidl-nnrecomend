@@ -9,6 +9,7 @@ from nnrecommend.dataset import IdFinder, InteractionDataset, BaseDatasetSource
 
 class MovielensLabDatasetSource(BaseDatasetSource):
     """
+    this loads the dataset provided in the recommender systems laboratory
     the dataset can be downloaded from https://drive.google.com/uc?id=1rE20sLow9sT2ULpBOOWqw2SEnpIm16OZ
     """
     COLUMN_NAMES = ('user_id', 'item_id', 'label', None)
@@ -27,6 +28,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
         self._logger.info("loading training dataset...")
         interactions = self.__load_data("train")
         self.trainset = InteractionDataset(interactions)
+        self._logger.info("loading testing dataset...")
         interactions = self.__load_data("test")
         self.testset = InteractionDataset(interactions)
         self._logger.info("normalizing ids...")
@@ -38,6 +40,7 @@ class MovielensLabDatasetSource(BaseDatasetSource):
 
 class Movielens100kDatasetSource(BaseDatasetSource):
     """
+    this loads the raw Movielens 100k dataset
     the dataset can be downloaded from https://www.kaggle.com/prajitdatta/movielens-100k-dataset/
     """
 
@@ -81,7 +84,7 @@ class Movielens100kDatasetSource(BaseDatasetSource):
         return data
 
     def load(self, hparams: HyperParameters) -> None:
-        self._logger.info("loading training dataset...")
+        self._logger.info("loading interactions...")
         interactions = self.__load_interactions()
         self.trainset = InteractionDataset(interactions, add_labels_col=True)
         mapping = self._setup(hparams)

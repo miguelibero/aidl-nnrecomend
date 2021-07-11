@@ -4,13 +4,27 @@ Recommendation System
 Final Project for the UPC Artificial Intelligence with Deep Learning Postgraduate Course, Spring 2021.
 
 * Authors: [Abel Martínez](mailto:abelmart@gmail.com), [Rafael Pérez](rrafaelapm93@gmail.com), [Miguel Ibero](mailto:miguel@ibero.me)
-* Team Advisor: Paula Gomez Duran
+* Team Advisor: [Paula Gomez Duran](paulagomezduran@gmail.com)
 * Date: July 2021
 
 
 ## Table of Contents 
 
-TODO
+* [Introduction](#intro)
+* [Overview](#overview)
+  * [Setup & Usage](#setup_usage)
+  * [Architecture](#architecture)
+    * [Model](#architecture_model)
+    * [Dataset](#architecture_dataset)
+    * [Operations](#architecture_operations)
+    * [HyperParameters](#architecture_hparams)
+* [Experiments](#experiments)
+  * [Movielens Dataset](#experiments_movielens)
+  * [Spotify Dataset](#experiments_spotify)
+  * [Addressing The Cold Start Problem](#experiments_coldstart)
+* [Conclusions](#conclusions)
+* [Future Work](#future_work)
+* [Bibliography](#bibliography)
 
 # Introduction <a name="intro"></a>
 
@@ -21,7 +35,7 @@ on the classic single value decomposition models by being more optimized for spa
 
 # Overview <a name="overview"></a>
 
-## Setup & Usage
+## Setup & Usage <a name="setup"></a>
 
 The whole project is implemented as a command-line tool. We provide the following commands:
 
@@ -35,7 +49,7 @@ Please read the tool setup and usage instructions [in this separate file](./USAG
 
 ## Architecture <a name="architecture"></a>
 
-### Model
+### Model <a name="architecture_model"></a>
 
 Our model classes can be found in the `nnrecommend.model` namespace. The `FactorizationMachine` equation is split in two classes; `LinearFeatures` implements the linear regression part of the equation, wile `FactorizationMachineOperation` implements the square of sum minus sum of squares part. The embeddings can be of thre types, using the normal `torch.nn.Embedding` for linear embeddings, using `GraphEmbedding` which internally uses `torch_geometric.nn.GCNConv`, and using `GraphAttentionEmbedding` which internally uses `torch_geometric.nn.GATConv`. Over the embedding module we added a dropout to prevent the model from overfitting. 
 
@@ -44,7 +58,7 @@ Our model classes can be found in the `nnrecommend.model` namespace. The `Factor
 We implemented the Binary Personalized Ranking loss
 as explained in [this paper](https://arxiv.org/pdf/1205.2618.pdf) in the `BPRLoss` class.
 
-### Dataset
+### Dataset <a name="architecture_dataset"></a>
 
 `nnrecommend.dataset.InteractionDataset` is the main dataset class used in the tool. It takes care of dealing with
 a two dimensional numpy array of interactions where every column is formed by consecutive ids. To guarantee its correct behavior, we wrote some unit tests for it that can be found in the `test_dataset.py` file.
@@ -66,7 +80,7 @@ This is currently implemented for the movielens, spotify & podcasts datasets. Ev
 
 Each specific dataset source can call `BaseDatasetSource._setup` to use generic functionallity like removing interactions with users or items that have low counts or extracting the testset interactions.
 
-### Operations
+### Operations <a name="architecture_operations"></a>
 
 Since most of the commands have similar flows, we implemented them in reusable classes.
 
@@ -84,13 +98,13 @@ The `nnrecommend.operation.RunTracker` class sends the training & testing metric
 The `nnrecommend.operation.Finder` and `nnrecommend.operation.Recommender` classes are used in the `recommend` subcommand
 to find items that match metadata and then ask the model for its recommendations.
 
-### Hyperparameters
+### Hyperparameters <a name="architecture_hyperparameters"></a>
 
 We created a `nnrecommend.hparams.HyperParameters` class that can load hyperparameters from the command line or from files.
 
-# Experiments
+# Experiments <a name="experiments"></a>
 
-## Movielens Evaluation
+## Movielens Evaluation <a name="experiments_movielens"></a>
 
 The movielens dataset consists of 100k interactions between 943 users and 1682 movies. We found [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) that lists evaluation metrics for different recommender systems using this dataset.
 
@@ -159,19 +173,19 @@ We can observe that:
 | nnrecommend | fm-linear | | 0.6458 | 0.3658 | 0.5458 |
 | nnrecommend | fm-linear | prev | 0.7264 | 0.4453 | 0.6046 |
 | nnrecommend | fm-gcn | | 0.6543 | 0.3792 | 0.5856 |
-| nnrecommend | fm-gcn | prev | 0.7370 | 0.4611 | 0.6165 |
+| nnrecommend | fm-gcn | prev | **0.7370** | **0.4611** | 0.6165 |
 | nnrecommend | fm-gcn-att | | 0.6596 | 0.3883 | 0.6225 |
-| nnrecommend | fm-gcn-att | prev | 0.7349 | 0.4581 | 0.7206 |
+| nnrecommend | fm-gcn-att | prev | **0.7349** | **0.4581** | **0.7206** |
 | nnrecommend | knn |  | 0.5716 | 0.3422 | 0.8062 |
 
-## Spotify Evaluation
+## Spotify Evaluation <a name="experiments_spotify"></a>
 
 Now that we see that our models improved the results of the paper in the movielens dataset, we will try them out on another dataset, spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
 
 Our hypothesis is that we can train our models on this data and obtain similar results to the movielens ones.
 In addition to this, since the dataset includes a lot of metadata, we want to add other context rows and evaluate if those improve the metrics.
 
-## Addressing The Cold Start Problem
+## Addressing The Cold Start Problem <a name="experiments_coldstart"></a>
 
 We found that our models we're pretty good at predicting recommendations for existing users, but since this is a collaborative filtering recommender system, it suffers from the cold start problem, i.e. it cannot recommend items to users that are not in the dataset.
 
@@ -186,5 +200,22 @@ To evaluate this hypothesis we can use the same metrics as in the normal factori
 
 We found another [kaggle dataset](https://www.kaggle.com/thoughtvector/podcastreviews) that looked promising and included item metadata, information about itunes podcasts reviews.
 
-# Conclusions
+# Conclusions <a name="conclusions"></a>
 
+# Future Work <a name="future_work"></a>
+
+The current model could be extended to add user & item features in the graph convolutional network.
+
+The recommend tool could be extended to support multiple previous items.
+
+# Bibliography <a name="bibliography"></a>
+
+* [Factorization Machines](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)
+* [Semi-supervised classification with Graph Convolutional Networks](https://arxiv.org/pdf/1609.02907.pdf)
+* [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
+* [Deep Collaborative Filtering with Multi-AspectInformation in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
+* [Bayesian Personalized Ranking from Implicit Feedback](https://arxiv.org/pdf/1205.2618.pdf)
+* Datasets
+  * [Movielens100k Dataset](https://grouplens.org/datasets/movielens/100k/)
+  * [Spotify Skip Challenge Dataset](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge)
+  * [iTunes Podcasts Dataset](https://www.kaggle.com/thoughtvector/podcastreviews)

@@ -48,6 +48,7 @@ class ItunesPodcastsDatasetSource(BaseDatasetSource):
 
     def load(self, hparams: HyperParameters) -> None:
         with sqlite3.connect(self.__path) as conn:
+            self._logger.info("loading interactions...")
             interactions = self.__load_interactions(conn)
             self.trainset = InteractionDataset(interactions, add_labels_col=True)
             self._logger.info("loading items...")

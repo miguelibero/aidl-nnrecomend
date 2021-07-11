@@ -185,7 +185,7 @@ class InteractionDataset(torch.utils.data.Dataset):
             items.append(self.get_random_negative_item(user, item, container))
         return np.array(items)
 
-    def get_unique_random_negative_items(self, user: int, item: int, num: int=None, container: Container=None) -> np.ndarray:
+    def get_unique_random_negative_items(self, user: int, item: int, num: int=None, container: Container=None, fail_if_less: bool=False) -> np.ndarray:
         """
         generate a list of random negative items without repeats, this is slower but more suited
         for the testset to guarantee the same amount of negative items when evaluating the performance
@@ -194,13 +194,14 @@ class InteractionDataset(torch.utils.data.Dataset):
         :param item: the item id of the positive interaction
         :param num: amount of items to generate (negative or none means all the possible candidates)
         :param container: container to check if the interaction exists (usually the adjacency matrix)
+        :param fail_if_less: throw exception if there is less items that requested
         """
         assert self.idrange is not None
         items = [i for i in range(self.idrange[0], self.idrange[1]) if i != item]
         if container is not None:
             items = [i for i in items if (user, i) not in container]
         if isinstance(num, int) and num >= 0:
-            if len(items) < num:
+            if fail_if_less and len(items) < num:
                 raise ValueError("not enough items to generate random negatives")
             items = random.sample(items, num)
         return np.array(items)
