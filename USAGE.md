@@ -52,9 +52,19 @@ Once installed make sure you have the python environment scripts directory in yo
 Supported context values are `previous` & `skip`, and they depend on each dataset.
 Additionally you can set `interaction_context:random` to test with a random context, this is used to confirm that the factorization machine is correctly implemented and does not improve when adding random context.
 
+### Subcommands
+
+Details for the different subcommands are provided later
+
+* `train` train a model on a dataset
+* `fit` fit a dataset using a [surprise](https://surpriselib.com/) algorithm
+* `tune` tune model hyperparameters using [ray tune](https://docs.ray.io/en/master/tune/index.html)
+* `explore-dataset` show information about a dataset
+* `recommend` load a trained model to get recommendations
+
 ## Command Line Interface
 
-To see the different available actions and parameters run
+Once the package is installed and you have the python bin path in you system path, to see the different available actions and parameters run
 
 ```bash
 nnrecommend --help

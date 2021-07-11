@@ -2,10 +2,10 @@
     "common": {
         "embed_dim": 64,
         "negatives_train": 10,
-        "negatives_test": -1, 
-        "learning_rate": 0.005,
+        "negatives_test": 1000,
+        "learning_rate": 0.01,
         "batch_size": 1024,
-        "embed_dropout": 0.5
+        "embed_dropout": 0.3
     },
     "trials": [
         {
