@@ -3,6 +3,6 @@
     "negatives_train": 10,
     "negatives_test": -1, 
     "learning_rate": 0.001,
-    "batch_size": 512,
-    "embed_dropout": 0.4
+    "batch_size": 1024,
+    "embed_dropout": 0.5
 }

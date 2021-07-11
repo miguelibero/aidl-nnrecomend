@@ -27,6 +27,8 @@ class SpotifyDatasetSource(BaseDatasetSource):
         if load_prev:
             cols.append("previous_song")
         data = pd.read_csv(self.__path, sep=',', usecols=cols)
+        for colname in data.select_dtypes(exclude=int):
+            data[colname] = data[colname].apply(hash)
         return data
 
     def load(self, hparams: HyperParameters) -> None:
