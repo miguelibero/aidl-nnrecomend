@@ -146,6 +146,23 @@ nnrecommend -v tune data/ml-100k --dataset movielens --config hparams/movielens/
 nnrecommend -v tune data/ml-100k --dataset movielens --config hparams/movielens/tune_config.json --model fm-gcn 
 ```
 
+The tuned parameters for the training were:
+
+for `fm-linear`:
+| parameter | value |
+| --- | --- |
+| `learning_rate`| 0.0005 |
+| `batch_size` | 1024 |
+| `embed_dropout`| 0.5 |
+
+for `fm-gcn`:
+| parameter | value |
+| --- | --- |
+| `learning_rate`| 0.001 |
+| `batch_size` | 1024 |
+| `embed_dropout`| 0.4 |
+
+
 ```bash
 nnrecommend --hparams-file hparams/movielens/linear_testset_hparams.json train data/ml-100k --dataset movielens --model fm-linear --tensorboard tensorboard
 nnrecommend --hparams-file hparams/movielens/gcn_testset_hparams.json train data/ml-100k --dataset movielens --model fm-gcn --tensorboard tensorboard
