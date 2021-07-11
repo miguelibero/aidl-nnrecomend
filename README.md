@@ -186,6 +186,8 @@ Our hypothesis is that we can train our models on this data and obtain similar r
 
 We downloaded a mini training set from aircrowd page. It consist in 10.000 sessions randomly chosen. At first we worked with it, but results were worse than movilens using GCN algorithm. After checking the results, we have reached the conclusion that the random data set do not have a similar distribution to the full dataset, so the results were bad. Work with complete dataset, who is 1000M records and 56Gb of compressed data, is non-viable due to our computation resources, so we built a new mini dataset with a histogram more similar to the real one and with a size that is much more workable. You can download it from [here](https://github.com/miguelibero/aidl-nnrecomend/blob/main/results/spotify/mini-spotify-data.csv).
 
+New constructed dataset is so good that results are very good for linear and then GCN does not improve much than linear. 
+
 We tried previous song as context data and it works fine, like in movilens. Then we tried to use skipped songs as bad ratting data and not skipped songs as good ratting but that experiments does not improve the results.
 
 
