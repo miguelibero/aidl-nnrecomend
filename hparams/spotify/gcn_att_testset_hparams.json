@@ -1,0 +1,21 @@
+{
+    "common": {
+        "embed_dim": 32,
+        "negatives_train": 10,
+        "negatives_test": -1,
+        "learning_rate": 0.01,
+        "batch_size": 512,
+        "embed_dropout": 0.3,
+        "graph_attention_heads": 2
+    },
+    "trials": [
+        {
+            "interaction_context": "previous",
+            "tensorboard_tag": "{tag}-{model}-prev"
+        },
+        {
+            "interaction_context": "",
+            "tensorboard_tag": "{tag}-{model}-none"
+        }
+    ]
+}

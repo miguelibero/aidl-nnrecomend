@@ -211,7 +211,7 @@ If we store the trained model using the `--output` parameter, we then can run `n
 As an example, for the user `600` we can run:
 
 ```bash
-nnrecommend --hparams-file hparams/movielens/linear_best_hparams.json train data/ml-100k --dataset movielens --model fm-linear --output movielens.pth
+nnrecommend --hparams-file hparams/movielens/linear_best_hparams.json train ml-100k --dataset movielens --model fm-linear --output movielens.pth
 nnrecommend recommend movielens.pth --label 600 --user-items 3
 ``` 
 

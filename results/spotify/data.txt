@@ -10,3 +10,10 @@ with negative_test=-1
 2021-07-11 21:35:04 spotify-fm-linear-skip: hr=0.6170 ndcg=0.3912 cov=0.3465
 2021-07-11 21:35:04 spotify-fm-linear-all: hr=0.6653 ndcg=0.4998 cov=0.3554
 2021-07-11 21:35:04 spotify-fm-linear-prev: hr=0.6706 ndcg=0.5089 cov=0.3594
+
+with negative_test=-1
+021-07-12 06:38:12 spotify-fm-gcn-none: hr=0.6196 ndcg=0.3937 cov=0.3465
+2021-07-12 06:38:12 spotify-fm-gcn-prev: hr=0.7009 ndcg=0.5407 cov=0.3710
+
+
+adjacency matrix (12198, 12198) non-zeros 3746082 (2.5177%)
