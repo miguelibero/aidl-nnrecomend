@@ -279,11 +279,11 @@ When asking for recommendations similar to `Star Wars` we're getting `Return Of 
 
 # Conclusions <a name="conclusions"></a>
 
-We managed to reproduce and improve the recommender system metrics shown in [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) using the movielens dataset.
+We managed to reproduce the recommender system metrics shown in [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) using the movielens dataset.
 
 We managed to extract a subset of the spotify dataset that could be used to train recommender systems and obtained good results.
 
-We implemented Bayesian Personalized Ranking loss and previous item context and showed that they improve the factorization machine evaluation metrics. 
+We implemented Bayesian Personalized Ranking loss, Graph Convolutional Network Embeddings and previous item context and showed that they improve the factorization machine evaluation metrics. 
 
 We showed that using Graph Convolutional Networks for the embedding of a factorization machine can lead to better results in some cases.
 
