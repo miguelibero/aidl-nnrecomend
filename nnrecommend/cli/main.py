@@ -28,9 +28,10 @@ class Context:
             self.logger.warn("running pytorch on cpu device")
         
         if random_seed is not None:
+            random.seed(random_seed)
             np.random.seed(random_seed)
             torch.manual_seed(random_seed)
-            random.seed(random_seed)
+            torch.cuda.manual_seed(random_seed)
         self.htrials = HyperParameters.load_trials(hparams, hparams_path)
         l = len(self.htrials)
         if l > 1:

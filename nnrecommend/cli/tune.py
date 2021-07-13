@@ -60,8 +60,6 @@ def tune(ctx, path: str, dataset_type: str, model_type: str, topk: int, num_samp
                 result = tester()
                 lr = get_optimizer_lr(optimizer)
                 rtune.report(mean_loss=loss, hr=result.hr, ndcg=result.ndcg, cov=result.coverage, lr=lr)
-                if math.isnan(loss):
-                    return False
                 if scheduler:
                     scheduler.step(loss)
 

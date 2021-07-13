@@ -50,7 +50,7 @@ Please find the tool setup and usage instructions [in this separate file](./USAG
 
 ### Model <a name="architecture_model"></a>
 
-Our model classes can be found in the [`nnrecommend.model`](./nnrecommend/model.py) namespace. The `FactorizationMachine` equation is split in two classes; `LinearFeatures` implements the linear regression part of the equation, wile `FactorizationMachineOperation` implements the square of sum minus sum of squares part. The embeddings can be of three types, using the normal `torch.nn.Embedding` for linear embeddings, using `GraphEmbedding` which internally uses `torch_geometric.nn.GCNConv`, and using `GraphAttentionEmbedding` which internally uses `torch_geometric.nn.GATConv`. Over the embedding module we added a dropout to prevent the model from overfitting. 
+Our model classes can be found in the [`nnrecommend.model`](./nnrecommend/model.py) namespace. The `FactorizationMachine` equation is split in two classes; `LinearFeatures` implements the linear regression part of the equation, while `FactorizationMachineOperation` implements the square of sum minus sum of squares part. The embeddings can be of three types, using the normal `torch.nn.Embedding` for linear embeddings, using `GraphEmbedding` which internally uses `torch_geometric.nn.GCNConv`, and using `GraphAttentionEmbedding` which internally uses `torch_geometric.nn.GATConv`. Over the embedding module we added a dropout to prevent the model from overfitting. 
 
 ![factorization machine model](./.readme/model.png)
 
@@ -306,9 +306,9 @@ We could implement a frontend for the `recommend` subcommand to get recommendati
 * papers
   * [Factorization Machines](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf)
   * [Semi-supervised classification with Graph Convolutional Networks](https://arxiv.org/pdf/1609.02907.pdf)
-  * [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
-  * [Deep Collaborative Filtering with Multi-AspectInformation in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
   * [Bayesian Personalized Ranking from Implicit Feedback](https://arxiv.org/pdf/1205.2618.pdf)
+  * [Deep Collaborative Filtering with Multi-Aspect Information in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
+  * [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
 * Datasets
   * [Movielens100k Dataset](https://grouplens.org/datasets/movielens/100k/)
   * [Spotify Skip Challenge Dataset](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge)

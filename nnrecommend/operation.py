@@ -171,8 +171,11 @@ class Trainer:
 
             loss.backward()
             self.optimizer.step()
-            total_loss.append(loss.item())
+            if not torch.isnan(loss):
+                total_loss.append(loss.item())
 
+        if len(total_loss) == 0:
+            return 0.0
         return statistics.mean(total_loss)
 
 
