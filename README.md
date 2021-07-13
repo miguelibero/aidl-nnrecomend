@@ -212,6 +212,8 @@ We can observe that:
 | nnrecommend | fm-gcn-att | prev | **0.7349** | **0.4581** | **0.7206** |
 
 
+### Qualitative User Recommendations
+
 If we store the trained model using the `--output` parameter, we then can run `nnrecommend recommend` to obtain new movie recommendations for the users. 
 
 As an example, for the user `600` we can run:
@@ -240,19 +242,19 @@ To achieve this what we're doing in the `Recommender` class is we generate a dat
 
 ## Spotify Evaluation <a name="experiments_spotify"></a>
 
-Now that we see that our models matched the results of the paper in the movielens dataset, we will try them out on another dataset, spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
+Now that we see that our models matched the results of the paper in the movielens dataset, we will try them out on another dataset, Spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
 
 Our hypothesis is that we can train our models on this data and obtain similar results to the movielens ones. In addition to this, since the dataset includes a lot of metadata, we want to add other context rows and evaluate if those improve the metrics.
 
-The full dataset is huge (more than 200Gb uncompressed) and contains 50M sessions and 2.7M songs. In Addition to that, they also provide a miniset with a size that is more suited for our tests, but after analyzing it we found that the distribution of amount of items per user was too sparse for our use case. We then extracted a new mini dataset with a histogram more similar to the real. You can download it from [here](./results/spotify/mini-spotify-data.csv).
+The full dataset is huge (more than 200Gb uncompressed) and contains 50M sessions and 2.7M songs, but they also provide a miniset with a size that is more suited for our tests. After analyzing it we found that the distribution of amount of items per user was too sparse for our use case. We then extracted a new mini dataset with a histogram more similar to the real one. You can download it from [here](./results/spotify/mini-spotify-data.csv).
 
 
 ![spotify histogram](./.readme/spotify_histogram.png)
 
-When running the models on the spotify dataset without context
+When running the models on the Spotify dataset without context
 we were achieving very good results so we switched to `negative_test=-1`, meaning that we add all the negative interactions when evaluating the metrics.
 
-After tuning the hyperparameters we cam up with the following values:
+After tuning the hyperparameters we came up with the following values:
 
 for `fm-linear`:
 | parameter | value |
@@ -275,28 +277,36 @@ nnrecommend --hparams-file hparams/spotify/linear_testset_hparams.json train res
 nnrecommend --hparams-file hparams/spotify/gcn_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn --tensorboard tensorboard
 ```
 
-Since this dataset contains around 10 times more users and items than movielens we were not able to run the training using the GCN with attention with the same hyperparameters, so we had to reduce them a bit, but we still wanted to try if the results would be better.
+Since this dataset contains around 10 times more users and items than movielens we were not able to run the training using the GCN with attention with the same hyperparameters, we were getting CUDA out of memory errors on a 8Gb GPU. So we had to reduce them a bit, but we still wanted to try if the results would be better.
+
+for `fm-gcn-att`:
+| parameter | value |
+| --- | --- |
+| `embed_dim`| 60 |
+| `learning_rate`| 0.01 |
+| `graph_attention_heads`| 1 |
 
 ```bash
 nnrecommend --hparams-file hparams/spotify/gcn_att_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn-att --tensorboard tensorboard
 ```
 
+We can see that without context, GCN (pink) is a bit better than linear (orange), but GCN with attention (red) improves on both even with less hidden dimensions.
+
 ![spotify without context](./.readme/spotify_none.png)
 
-We can see that without context, GCN is a bit better than linear, but GCN with attention improves on both even with less hidden dimensions.
+With previous item context all the models improve and we have still better results with GCN (green).
 
 ![spotify with previous context](./.readme/spotify_prev.png)
 
-With previous item context all the models improve and we have still better results with GCN.
 
 ### Other possible contexts
 
 Since this dataset has much more metadata we evaluated the following context:
 
-* `skipped`: say if the user skipped the song at the beginning, middle, end or not at all
+* `skipped`: if the user skipped the song at the beginning, middle, end or not at all
 * `count`: count how many times the song was played by the user
 
-We added a context column with `1` if the user did not skip the song and played it multiple times, but evaluation metrics started worse than without any context and tended to go to the same values in the end, so this improvement did not work. Using other dataset contexts like hour of day or song release year produced similar results. We assume that this behaviour is due to a bad distribution of these contexts is not uniform enough and they don't seem to correlate with the actual interactions of users and items. 
+We added a context column with `1` if the user did not skip the song and played it multiple times, but evaluation metrics started worse than without any context and tended to go to the same values in the end, so this change did not work. Using other dataset contexts like hour of day or song release year produced similar results. We assume that this behaviour is due to a not uniform enough distribution of these contexts and the fact that they don't seem to correlate with the actual interactions of users and items.
 
 ![spotify with skip context](./.readme/spotify_skip.png)
 
