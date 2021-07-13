@@ -90,7 +90,7 @@ def train(ctx, path: str, dataset_type: str, model_types: Container[str], output
                     tracker.track_test_result(i, result)
                     if scheduler:
                         scheduler.step(loss)
-                    if result > best_result:
+                    if best_result is None or result > best_result:
                         best_result = result
 
                 results.append((tb_tag, best_result))

@@ -246,8 +246,7 @@ Now that we see that our models matched the results of the paper in the movielen
 
 Our hypothesis is that we can train our models on this data and obtain similar results to the movielens ones. In addition to this, since the dataset includes a lot of metadata, we want to add other context rows and evaluate if those improve the metrics.
 
-The full dataset is huge (more than 200Gb uncompressed) and contains 50M sessions and 2.7M songs, but they also provide a miniset with a size that is more suited for our tests. After analyzing it we found that the distribution of amount of items per user was too sparse for our use case. We then extracted a new mini dataset with a histogram more similar to the real one. You can download it from [here](./results/spotify/mini-spotify-data.csv).
-
+The full dataset is huge (more than 200Gb uncompressed) and contains 50M sessions and 2.7M songs, but they also provide a miniset with a size that is more suited for our tests. After analyzing it though, we found that the distribution of amount of items per user was too sparse for our use case. We then extracted a new mini dataset with a histogram more similar to the real one. You can download it from [here](./results/spotify/mini-spotify-data.csv).
 
 ![spotify histogram](./.readme/spotify_histogram.png)
 
@@ -277,7 +276,7 @@ nnrecommend --hparams-file hparams/spotify/linear_testset_hparams.json train res
 nnrecommend --hparams-file hparams/spotify/gcn_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn --tensorboard tensorboard
 ```
 
-Since this dataset contains around 10 times more users and items than movielens we were not able to run the training using the GCN with attention with the same hyperparameters, we were getting CUDA out of memory errors on a 8Gb GPU. So we had to reduce them a bit, but we still wanted to try if the results would be better.
+Since this dataset contains around 10 times more users and items than movielens one, we were not able to run the training using the GCN with attention with the same hyperparameters, we were getting CUDA out of memory errors on a 8Gb GPU. So we had to reduce them a bit, but we still wanted to try if the results would be better.
 
 for `fm-gcn-att`:
 | parameter | value |
@@ -290,7 +289,7 @@ for `fm-gcn-att`:
 nnrecommend --hparams-file hparams/spotify/gcn_att_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn-att --tensorboard tensorboard
 ```
 
-We can see that without context, GCN (pink) is a bit better than linear (orange), but GCN with attention (red) improves on both even with less hidden dimensions.
+We can see that without context, GCN (pink) is a bit better than linear (orange), and GCN with attention (red) improves on both even with less hidden dimensions.
 
 ![spotify without context](./.readme/spotify_none.png)
 
@@ -347,11 +346,11 @@ When asking for recommendations similar to `Star Wars` we're getting `Return Of 
 
 We managed to reproduce the recommender system metrics shown in [this 2019 paper](https://arxiv.org/pdf/1909.06627v1.pdf) using the movielens dataset.
 
-We managed to extract a subset of the spotify dataset that could be used to train recommender systems and obtained good results.
+We managed to extract a subset of the spotify dataset that could be used to train recommender systems and obtained good results. On the other hand we were not able to find additional context data that improved them further.
 
-We implemented Bayesian Personalized Ranking loss, Graph Convolutional Network Embeddings and previous item context and showed that they improve the factorization machine evaluation metrics. 
+We implemented Bayesian Personalized Ranking loss and previous item context and showed that they improve the Factorization Machine evaluation metrics.
 
-We showed that using Graph Convolutional Networks for the embedding of a factorization machine can lead to better results in some cases.
+We showed that using Graph Convolutional Networks for the embedding of a Factorization Machine leads to better results.
 
 We proposed a solution that adapts the factorization machine model to deal with the cold start problem.
 

@@ -24,6 +24,13 @@ def human_readable_size(size, decimal_places=2):
     return f"{size:.{decimal_places}f}{unit}"
 
 
+def freemem():
+    # tested using this to reduce CUDA out of memory errors, rn it's disabled
+    # if torch.cuda.is_available():
+    #    torch.cuda.empty_cache()
+    pass
+
+
 class Setup:
     def __init__(self, src: BaseDatasetSource, logger: Logger=None, trace_memory=False):
         self.src = src
@@ -155,6 +162,7 @@ class Trainer:
         :return: the mean loss
         """
         total_loss = []
+        freemem()
 
         for batch in self.trainloader:
             self.optimizer.zero_grad()
@@ -169,6 +177,8 @@ class Trainer:
             else:
                 raise ValueError("batch")
 
+            del batch
+            freemem()
             loss.backward()
             self.optimizer.step()
             if not torch.isnan(loss):
@@ -235,6 +245,7 @@ class Tester:
 
         total_recommended_items = set()
         total_items = set()
+        freemem()
 
         for batch in self.testloader:
             if batch is None or batch.shape[0] == 0:
@@ -250,6 +261,8 @@ class Tester:
             total_recommended_items.update(recommended_items.tolist())
             hr.append(self.__get_hit_ratio(recommended_items, real_item))
             ndcg.append(self.__get_ndcg(recommended_items, real_item))
+            del batch
+            freemem()
 
         cov = len(total_recommended_items) / len(total_items)
         return TestResult(self.topk, statistics.mean(hr), statistics.mean(ndcg), cov)
