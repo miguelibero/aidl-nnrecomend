@@ -189,22 +189,28 @@ comparing `fm-linear`, `fm-gcn` and `fm-gcn-att` with previous item context
 ![movielens legend](./.readme/movielens_legend.png)
 
 We can observe that:
-* adding previous item context improves the metrics
+* our baseline & knn metrics match more or less with the paper
+* our fm-linear matches with the paper FMG
 * GCN has better results than linear
 * GCN with attention has better results than GCN in terms of coverage
+* adding previous item context improves the metrics
 
 | type | model | context | hit ratio | ndcg | coverage |
 | --- | -- | --- | --- | --- | --- |
+| paper | ItemPop | | 0.3998 | 0.3998 |
+| nnrecommend | baseline |  | 0.4051 | 0.4051 | 0.2348 |
 | paper | ItemKNN | | 0.5891 | 0.3283 |
+| nnrecommend | knn |  | 0.5716 | 0.3422 | 0.8062 |
+| paper | FMG | | 0.6373 | 0.3588 | |
+| nnrecommend | fm-linear | | 0.6458 | 0.3658 | 0.5458 |
+| nnrecommend | fm-gcn | | 0.6543 | 0.3792 | 0.5856 |
+| nnrecommend | fm-gcn-att | | 0.6596 | 0.3883 | 0.6225 |
 | paper | NeuACF | | 0.6846 | 0.4068 | |
 | paper | NeuACF++ | | 0.6915 | 0.4092 | |
-| nnrecommend | fm-linear | | 0.6458 | 0.3658 | 0.5458 |
 | nnrecommend | fm-linear | prev | 0.7264 | 0.4453 | 0.6046 |
-| nnrecommend | fm-gcn | | 0.6543 | 0.3792 | 0.5856 |
 | nnrecommend | fm-gcn | prev | **0.7370** | **0.4611** | 0.6165 |
-| nnrecommend | fm-gcn-att | | 0.6596 | 0.3883 | 0.6225 |
 | nnrecommend | fm-gcn-att | prev | **0.7349** | **0.4581** | **0.7206** |
-| nnrecommend | knn |  | 0.5716 | 0.3422 | 0.8062 |
+
 
 If we store the trained model using the `--output` parameter, we then can run `nnrecommend recommend` to obtain new movie recommendations for the users. 
 
@@ -290,6 +296,8 @@ We showed that using Graph Convolutional Networks for the embedding of a factori
 We proposed a solution that adapts the factorization machine model to deal with the cold start problem.
 
 # Future Work <a name="future_work"></a>
+
+To get better results we could implement the neural version of the factorization machine as explained in [this paper](http://staff.ustc.edu.cn/~hexn/papers/sigir17-nfm.pdf).
 
 The current model could be extended to add user & item features in the graph convolutional network,
 right now the features matrix that can be provided to the GCN is always an identity.

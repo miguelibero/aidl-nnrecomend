@@ -2,21 +2,22 @@
     "common": {
         "negatives_train": 10,
         "negatives_test": -1,
-        "learning_rate": 0.01,
         "embed_dropout": 0.3,
         "batch_size": 1024,
         "pairwise_loss": false
     },
     "trials": [
         {
-            "embed_dim": 32,
+            "embed_dim": 50,
+            "learning_rate": 0.02,
             "graph_attention_heads": 1,
             "interaction_context": "previous",
             "tensorboard_tag": "{tag}-{model}-prev"
         },
         {
-            "embed_dim": 32,
-            "graph_attention_heads": 2,
+            "embed_dim": 60,
+            "learning_rate": 0.01,
+            "graph_attention_heads": 1,
             "interaction_context": "",
             "tensorboard_tag": "{tag}-{model}-none"
         }
