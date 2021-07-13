@@ -240,15 +240,65 @@ To achieve this what we're doing in the `Recommender` class is we generate a dat
 
 ## Spotify Evaluation <a name="experiments_spotify"></a>
 
-Now that we see that our models improved the results of the paper in the movielens dataset, we will try them out on another dataset, spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
+Now that we see that our models matched the results of the paper in the movielens dataset, we will try them out on another dataset, spotify sessions and songs that were released for the sequential skip prediction challenge. The dataset can be downloaded from [here](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge).
 
 Our hypothesis is that we can train our models on this data and obtain similar results to the movielens ones. In addition to this, since the dataset includes a lot of metadata, we want to add other context rows and evaluate if those improve the metrics.
 
-Initially we downloaded the mini training set from aircrowd page. It consist in 10.000 randomly chosen sessions. At first we worked with it, but results were worse than movilens using GCN algorithm. After checking the results, we reached the conclusion that the random data set didn't have a similar distribution to the full dataset, so the results were bad. Working with complete dataset, who is 1000M records and 56Gb of compressed data, is non-viable due to our computation resources, so we built a new mini dataset with a histogram more similar to the real one and with a size that is much more workable. You can download it from [here](./results/spotify/mini-spotify-data.csv).
+The full dataset is huge (more than 200Gb uncompressed) and contains 50M sessions and 2.7M songs. In Addition to that, they also provide a miniset with a size that is more suited for our tests, but after analyzing it we found that the distribution of amount of items per user was too sparse for our use case. We then extracted a new mini dataset with a histogram more similar to the real. You can download it from [here](./results/spotify/mini-spotify-data.csv).
 
-New constructed dataset is so good that results are very good for linear and then GCN does not improve much than linear. GCN with attention improve results much more, but it requires a lot of extra memory to run. 
 
-We tried previous song as context data and it works fine, like in movilens. Then we tried to use skipped songs as bad rating data and not skipped songs as good rating but those experiments did not improve the results.
+![spotify histogram](./.readme/spotify_histogram.png)
+
+When running the models on the spotify dataset without context
+we were achieving very good results so we switched to `negative_test=-1`, meaning that we add all the negative interactions when evaluating the metrics.
+
+After tuning the hyperparameters we cam up with the following values:
+
+for `fm-linear`:
+| parameter | value |
+| --- | --- |
+| `learning_rate`| 0.001 |
+| `batch_size` | 1024 |
+| `embed_dropout`| 0.5 |
+
+for `fm-gcn`:
+| parameter | value |
+| --- | --- |
+| `learning_rate`| 0.01 |
+| `batch_size` | 1024 |
+| `embed_dropout`| 0.3 |
+
+To obtain the final evaluations we ran the following commands.
+
+```bash
+nnrecommend --hparams-file hparams/spotify/linear_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-linear --tensorboard tensorboard
+nnrecommend --hparams-file hparams/spotify/gcn_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn --tensorboard tensorboard
+```
+
+Since this dataset contains around 10 times more users and items than movielens we were not able to run the training using the GCN with attention with the same hyperparameters, so we had to reduce them a bit, but we still wanted to try if the results would be better.
+
+```bash
+nnrecommend --hparams-file hparams/spotify/gcn_att_testset_hparams.json train results/spotify/mini-spotify-data.csv --dataset spotify --model fm-gcn-att --tensorboard tensorboard
+```
+
+![spotify without context](./.readme/spotify_none.png)
+
+We can see that without context, GCN is a bit better than linear, but GCN with attention improves on both even with less hidden dimensions.
+
+![spotify with previous context](./.readme/spotify_prev.png)
+
+With previous item context all the models improve and we have still better results with GCN.
+
+### Other possible contexts
+
+Since this dataset has much more metadata we evaluated the following context:
+
+* `skipped`: say if the user skipped the song at the beginning, middle, end or not at all
+* `count`: count how many times the song was played by the user
+
+We added a context column with `1` if the user did not skip the song and played it multiple times, but evaluation metrics started worse than without any context and tended to go to the same values in the end, so this improvement did not work. Using other dataset contexts like hour of day or song release year produced similar results. We assume that this behaviour is due to a bad distribution of these contexts is not uniform enough and they don't seem to correlate with the actual interactions of users and items. 
+
+![spotify with skip context](./.readme/spotify_skip.png)
 
 ## Addressing The Cold Start Problem <a name="experiments_coldstart"></a>
 
