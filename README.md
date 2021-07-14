@@ -29,8 +29,7 @@ Final Project for the UPC Artificial Intelligence with Deep Learning Postgraduat
 
 The goal of this project is to develop a state-of-the art collaborative filtering recommender system using machine learning that can be trained on multiple datasets. Collaborative filtering is the method used by tech companies like Amazon and Netflix for their recommender systems as it can be trained without having user & item metadata.
 
-Factorization machines were proposed in [this 2010 paper](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf) as a way of doing matrix factorization that improves
-on the classic single value decomposition models by being more optimized for sparse datasets and supporting additional interaction context, these characteristics make this model ideal for recommender systems. In addition to that, we also want to evaluate [this paper](https://arxiv.org/pdf/1609.02907.pdf) that proposes replacing the factorization machine embedding with a graph convolutional network.
+Factorization machines were proposed in [this 2010 paper](https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf) as a way of doing matrix factorization that improves on the classic single value decomposition models by being more optimized for sparse datasets and supporting additional interaction context, these characteristics make this model ideal for recommender systems. In addition to that, we also want to evaluate [this paper](https://arxiv.org/pdf/1609.02907.pdf) that proposes replacing the factorization machine embedding with a graph convolutional network.
 
 # Overview <a name="overview"></a>
 
@@ -375,7 +374,7 @@ We could implement a frontend for the `recommend` subcommand to get recommendati
   * [Semi-supervised classification with Graph Convolutional Networks](https://arxiv.org/pdf/1609.02907.pdf)
   * [Bayesian Personalized Ranking from Implicit Feedback](https://arxiv.org/pdf/1205.2618.pdf)
   * [Deep Collaborative Filtering with Multi-Aspect Information in Heterogeneous Networks](https://arxiv.org/pdf/1909.06627v1.pdf)
-  * [Graph Convolutional Embeddings for Recommender Systems](https://arxiv.org/pdf/2103.03587.pdf)
+  * [Graph Convolutional Embeddings for Recommender Systems](https://ieeexplore.ieee.org/document/9481221)
 * Datasets
   * [Movielens100k Dataset](https://grouplens.org/datasets/movielens/100k/)
   * [Spotify Skip Challenge Dataset](https://www.aicrowd.com/challenges/spotify-sequential-skip-prediction-challenge)
