@@ -148,7 +148,7 @@ This command runs hyperparameter tuning with a given dataset and model.
 We use [`ray.tune`](https://docs.ray.io/en/master/tune/index.html) for this task.
 
 ```bash
-nnrecommend tune --dataset spotify data/spotify_2. --model fm-linear --config tune_config.json
+nnrecommend tune --dataset spotify data/spotify.csv --model fm-linear --config tune_config.json
 ```
 
 The command accepts the tune config in a json file with a dictionary with the keys being the hyperparameter names and the values being the `ray.tune` methods that describe the possible values. 
